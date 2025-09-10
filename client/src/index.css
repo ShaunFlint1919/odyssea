@@ -5,43 +5,43 @@
 @tailwind utilities;
 
 :root {
-  /* Ethereal & Modern Color Palette - Inspired by sophisticated spa aesthetics */
-  --background: hsl(30 15% 97%);
-  --foreground: hsl(25 15% 20%);
-  --card: hsl(28 20% 98%);
-  --card-foreground: hsl(25 15% 20%);
-  --popover: hsl(28 20% 98%);
-  --popover-foreground: hsl(25 15% 20%);
-  --primary: hsl(25 25% 45%);
-  --primary-foreground: hsl(28 20% 98%);
-  --secondary: hsl(30 12% 88%);
-  --secondary-foreground: hsl(25 15% 20%);
-  --muted: hsl(28 8% 92%);
-  --muted-foreground: hsl(25 8% 50%);
-  --accent: hsl(35 30% 65%);
-  --accent-foreground: hsl(28 20% 98%);
+  /* Minimal & Clean Color Palette - Inspired by reference design */
+  --background: hsl(40 20% 98%);
+  --foreground: hsl(20 10% 30%);
+  --card: hsl(40 20% 99%);
+  --card-foreground: hsl(20 10% 30%);
+  --popover: hsl(40 20% 99%);
+  --popover-foreground: hsl(20 10% 30%);
+  --primary: hsl(35 40% 65%);
+  --primary-foreground: hsl(40 20% 98%);
+  --secondary: hsl(40 15% 92%);
+  --secondary-foreground: hsl(20 10% 30%);
+  --muted: hsl(40 10% 95%);
+  --muted-foreground: hsl(20 8% 55%);
+  --accent: hsl(35 35% 70%);
+  --accent-foreground: hsl(40 20% 98%);
   --destructive: hsl(0 84.2% 60.2%);
   --destructive-foreground: hsl(210 20% 98%);
-  --border: hsl(30 10% 88%);
-  --input: hsl(30 10% 88%);
-  --ring: hsl(25 25% 45%);
-  --chart-1: hsl(25 25% 45%);
-  --chart-2: hsl(35 30% 65%);
-  --chart-3: hsl(30 12% 88%);
-  --chart-4: hsl(25 8% 50%);
-  --chart-5: hsl(28 8% 92%);
-  --sidebar: hsl(28 20% 98%);
-  --sidebar-foreground: hsl(25 15% 20%);
-  --sidebar-primary: hsl(25 25% 45%);
-  --sidebar-primary-foreground: hsl(28 20% 98%);
-  --sidebar-accent: hsl(28 8% 92%);
-  --sidebar-accent-foreground: hsl(25 15% 20%);
-  --sidebar-border: hsl(30 10% 88%);
-  --sidebar-ring: hsl(25 25% 45%);
+  --border: hsl(40 15% 90%);
+  --input: hsl(40 15% 90%);
+  --ring: hsl(35 40% 65%);
+  --chart-1: hsl(35 40% 65%);
+  --chart-2: hsl(35 35% 70%);
+  --chart-3: hsl(40 15% 92%);
+  --chart-4: hsl(20 8% 55%);
+  --chart-5: hsl(40 10% 95%);
+  --sidebar: hsl(40 20% 99%);
+  --sidebar-foreground: hsl(20 10% 30%);
+  --sidebar-primary: hsl(35 40% 65%);
+  --sidebar-primary-foreground: hsl(40 20% 98%);
+  --sidebar-accent: hsl(40 10% 95%);
+  --sidebar-accent-foreground: hsl(20 10% 30%);
+  --sidebar-border: hsl(40 15% 90%);
+  --sidebar-ring: hsl(35 40% 65%);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
-  --radius: 1rem;
+  --radius: 0.5rem;
 }
 
 .dark {
@@ -89,87 +89,41 @@
 }
 
 @layer components {
-  .hero-gradient {
-    background: linear-gradient(135deg, 
-      hsl(30 15% 97%) 0%, 
-      hsl(28 20% 98%) 35%,
-      hsl(35 20% 96%) 65%,
-      hsl(30 15% 97%) 100%);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .hero-gradient::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: radial-gradient(ellipse at 30% 20%, hsla(35, 30%, 85%, 0.3) 0%, transparent 50%),
-                radial-gradient(ellipse at 70% 80%, hsla(25, 25%, 88%, 0.2) 0%, transparent 50%);
-    pointer-events: none;
-  }
-
-  .service-card {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    backdrop-filter: blur(10px);
-    background: hsla(28, 20%, 98%, 0.8);
-    border: 1px solid hsla(30, 10%, 88%, 0.5);
-  }
-
-  .service-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 40px hsla(25, 15%, 20%, 0.1), 
-                0 8px 16px hsla(25, 15%, 20%, 0.05);
-    background: hsla(28, 20%, 98%, 0.95);
+  .minimal-section {
+    background: var(--background);
   }
 
   .logo-container {
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, hsla(28, 20%, 98%, 0.9), hsla(30, 15%, 97%, 0.9));
-    border-radius: 50%;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 16px hsla(25, 15%, 20%, 0.1),
-                0 2px 8px hsla(25, 15%, 20%, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid hsla(30, 10%, 88%, 0.3);
-    transition: all 0.3s ease;
   }
 
-  .logo-container:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 20px hsla(25, 15%, 20%, 0.15);
+  .simple-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
   }
 
-  .floating-element {
-    animation: float 6s ease-in-out infinite;
+  .simple-card:hover {
+    box-shadow: 0 2px 8px hsla(20, 10%, 30%, 0.08);
   }
 
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+  .primary-text {
+    color: var(--primary);
   }
 
-  .parallax-slow {
-    transform: translateY(var(--scroll-y, 0) * -0.5);
-  }
-
-  .parallax-medium {
-    transform: translateY(var(--scroll-y, 0) * -0.3);
-  }
-
-  .parallax-fast {
-    transform: translateY(var(--scroll-y, 0) * -0.1);
+  .accent-text {
+    color: var(--accent);
   }
 
   .fade-in {
     opacity: 0;
-    transform: translateY(40px);
-    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(20px);
+    transition: all 0.6s ease;
   }
 
   .fade-in.visible {
@@ -177,67 +131,32 @@
     transform: translateY(0);
   }
 
-  .slide-in-left {
-    opacity: 0;
-    transform: translateX(-60px);
-    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  .nav-minimal {
+    background: var(--background);
+    border-bottom: 1px solid var(--border);
   }
 
-  .slide-in-left.visible {
-    opacity: 1;
-    transform: translateX(0);
+  .button-minimal {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: none;
+    transition: all 0.2s ease;
   }
 
-  .slide-in-right {
-    opacity: 0;
-    transform: translateX(60px);
-    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  .button-minimal:hover {
+    background: var(--accent);
+    transform: translateY(-1px);
   }
 
-  .slide-in-right.visible {
-    opacity: 1;
-    transform: translateX(0);
+  .button-outline {
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+    transition: all 0.2s ease;
   }
 
-  .scale-in {
-    opacity: 0;
-    transform: scale(0.9);
-    transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .scale-in.visible {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  .glass-effect {
-    backdrop-filter: blur(20px);
-    background: hsla(28, 20%, 98%, 0.85);
-    border: 1px solid hsla(30, 10%, 88%, 0.3);
-  }
-
-  .nav-glass {
-    backdrop-filter: blur(20px);
-    background: hsla(28, 20%, 98%, 0.9);
-    border-bottom: 1px solid hsla(30, 10%, 88%, 0.3);
-  }
-
-  .text-gradient {
-    background: linear-gradient(135deg, hsl(25, 25%, 45%), hsl(35, 30%, 65%));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .button-modern {
-    background: linear-gradient(135deg, hsl(25, 25%, 45%), hsl(25, 25%, 50%));
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 16px hsla(25, 25%, 45%, 0.3);
-  }
-
-  .button-modern:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px hsla(25, 25%, 45%, 0.4);
-    background: linear-gradient(135deg, hsl(25, 25%, 50%), hsl(25, 25%, 55%));
+  .button-outline:hover {
+    background: var(--primary);
+    color: var(--primary-foreground);
   }
 }

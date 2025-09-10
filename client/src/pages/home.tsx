@@ -1,15 +1,9 @@
 import Navigation from "@/components/navigation";
-import HeroSection from "@/components/hero-section";
-import ServicesSection from "@/components/services-section";
-import AboutSection from "@/components/about-section";
-import ContactSection from "@/components/contact-section";
-import Footer from "@/components/footer";
+import MinimalHero from "@/components/minimal-hero";
+import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
-import { useParallax } from "@/hooks/use-parallax";
 
 export default function Home() {
-  useParallax();
-  
   useEffect(() => {
     // Set page title and meta description for SEO
     document.title = "Odyssea Lymphea - Kinésithérapeutes à Waterloo | Drainage Lymphatique";
@@ -44,11 +38,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navigation />
-      <HeroSection />
-      <ServicesSection />
-      <AboutSection />
-      <ContactSection />
-      <Footer />
+      <MinimalHero />
+      <MinimalFooter />
     </div>
   );
 }

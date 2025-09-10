@@ -26,8 +26,8 @@ export default function Navigation() {
 
   return (
     <nav 
-      className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-        isScrolled ? "nav-glass shadow-lg" : "nav-glass"
+      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+        isScrolled ? "nav-minimal shadow-sm" : "nav-minimal"
       }`}
       data-testid="navigation"
     >
@@ -41,31 +41,38 @@ export default function Navigation() {
           <div className="hidden md:flex space-x-8" data-testid="desktop-menu">
             <button 
               onClick={() => scrollToSection("accueil")}
-              className="text-muted-foreground hover:text-primary transition-colors"
+              className="text-foreground hover:text-primary transition-colors text-sm"
               data-testid="link-accueil"
             >
               Accueil
             </button>
             <button 
               onClick={() => scrollToSection("services")}
-              className="text-muted-foreground hover:text-primary transition-colors"
+              className="text-foreground hover:text-primary transition-colors text-sm"
               data-testid="link-services"
             >
-              Services
+              Renata Franca
             </button>
             <button 
               onClick={() => scrollToSection("apropos")}
-              className="text-muted-foreground hover:text-primary transition-colors"
+              className="text-foreground hover:text-primary transition-colors text-sm"
               data-testid="link-apropos"
             >
-              À propos
+              Drainage lymphatique conventionnel
             </button>
             <button 
               onClick={() => scrollToSection("contact")}
-              className="text-muted-foreground hover:text-primary transition-colors"
+              className="text-foreground hover:text-primary transition-colors text-sm"
               data-testid="link-contact"
             >
-              Contact
+              Soins de cicatrices
+            </button>
+            <button 
+              onClick={() => scrollToSection("contact")}
+              className="text-foreground hover:text-primary transition-colors text-sm"
+              data-testid="link-epilation"
+            >
+              Épilation laser
             </button>
           </div>
           
