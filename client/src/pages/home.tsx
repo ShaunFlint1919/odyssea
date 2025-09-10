@@ -5,8 +5,11 @@ import AboutSection from "@/components/about-section";
 import ContactSection from "@/components/contact-section";
 import Footer from "@/components/footer";
 import { useEffect } from "react";
+import { useParallax } from "@/hooks/use-parallax";
 
 export default function Home() {
+  useParallax();
+  
   useEffect(() => {
     // Set page title and meta description for SEO
     document.title = "Odyssea Lymphea - Kinésithérapeutes à Waterloo | Drainage Lymphatique";

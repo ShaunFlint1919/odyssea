@@ -91,8 +91,8 @@ export default function ContactSection() {
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
           }`}
         >
-          <h2 className="text-3xl lg:text-4xl font-light text-foreground mb-4" data-testid="contact-title">
-            Contactez-nous
+          <h2 className="text-3xl lg:text-4xl font-light mb-4" data-testid="contact-title">
+            <span className="text-gradient">Contactez-nous</span>
           </h2>
           <p className="text-muted-foreground text-lg" data-testid="contact-description">
             Prenez rendez-vous pour une consultation personnalisée
@@ -102,8 +102,8 @@ export default function ContactSection() {
         <div className="grid lg:grid-cols-3 gap-12">
           {/* Contact Info */}
           <div className="lg:col-span-1 space-y-8">
-            <Card className={`bg-card border border-border transition-all duration-700 ${
-              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+            <Card className={`glass-effect fade-in ${
+              isVisible ? "visible" : ""
             }`} data-testid="contact-info-location">
               <CardContent className="p-6">
                 <h3 className="text-xl font-medium text-foreground mb-4 flex items-center">
@@ -115,8 +115,8 @@ export default function ContactSection() {
               </CardContent>
             </Card>
 
-            <Card className={`bg-card border border-border transition-all duration-700 ${
-              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+            <Card className={`glass-effect fade-in ${
+              isVisible ? "visible" : ""
             }`} style={{ transitionDelay: "200ms" }} data-testid="contact-info-hours">
               <CardContent className="p-6">
                 <h3 className="text-xl font-medium text-foreground mb-4 flex items-center">
@@ -140,8 +140,8 @@ export default function ContactSection() {
               </CardContent>
             </Card>
 
-            <Card className={`bg-card border border-border transition-all duration-700 ${
-              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+            <Card className={`glass-effect fade-in ${
+              isVisible ? "visible" : ""
             }`} style={{ transitionDelay: "400ms" }} data-testid="contact-info-details">
               <CardContent className="p-6">
                 <h3 className="text-xl font-medium text-foreground mb-4 flex items-center">
@@ -156,8 +156,8 @@ export default function ContactSection() {
 
           {/* Contact Form */}
           <div className="lg:col-span-2">
-            <Card className={`bg-card border border-border transition-all duration-700 ${
-              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+            <Card className={`glass-effect fade-in ${
+              isVisible ? "visible" : ""
             }`} style={{ transitionDelay: "600ms" }} data-testid="contact-form-card">
               <CardContent className="p-8">
                 <h3 className="text-xl font-medium text-foreground mb-6" data-testid="form-title">
@@ -258,7 +258,7 @@ export default function ContactSection() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-primary text-primary-foreground py-4 rounded-lg font-medium hover:bg-primary/90 transition-colors h-auto flex items-center justify-center"
+                    className="w-full button-modern text-primary-foreground py-4 rounded-lg font-medium h-auto flex items-center justify-center"
                     data-testid="button-submit"
                   >
                     {isSubmitting ? (

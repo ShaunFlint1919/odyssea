@@ -9,25 +9,27 @@ export default function AboutSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div 
-            className={`transition-all duration-1000 ${
-              isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-10"
+            className={`slide-in-left ${
+              isVisible ? "visible" : ""
             }`}
           >
-            <img 
-              src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600" 
-              alt="Cabinet de kinésithérapie moderne avec ambiance apaisante" 
-              className="rounded-xl shadow-lg w-full h-auto"
-              data-testid="about-image"
-            />
+            <div className="parallax-medium">
+              <img 
+                src="https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600" 
+                alt="Cabinet de kinésithérapie moderne avec ambiance apaisante" 
+                className="rounded-2xl shadow-2xl w-full h-auto glass-effect p-2"
+                data-testid="about-image"
+              />
+            </div>
           </div>
           <div 
             ref={elementRef}
-            className={`transition-all duration-1000 ${
-              isVisible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-10"
+            className={`slide-in-right ${
+              isVisible ? "visible" : ""
             }`}
           >
-            <h2 className="text-3xl lg:text-4xl font-light text-foreground mb-6" data-testid="about-title">
-              Cabinet de kinésithérapie esthétique à Waterloo
+            <h2 className="text-3xl lg:text-4xl font-light mb-6" data-testid="about-title">
+              Cabinet de kinésithérapie <span className="text-gradient">esthétique</span> à Waterloo
             </h2>
             <p className="text-muted-foreground mb-6 leading-relaxed" data-testid="about-description-1">
               Kinésithérapeutes à Bruxelles depuis plus de 5 ans, nous nous sommes spécialisées dans le traitement 

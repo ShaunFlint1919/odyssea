@@ -47,8 +47,8 @@ export default function ServicesSection() {
             isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
           }`}
         >
-          <h2 className="text-3xl lg:text-4xl font-light text-foreground mb-4" data-testid="services-title">
-            Nos Spécialités
+          <h2 className="text-3xl lg:text-4xl font-light mb-4" data-testid="services-title">
+            Nos <span className="text-gradient">Spécialités</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto" data-testid="services-description">
             Nous sommes spécialisés dans le traitement des pathologies lymphatiques et les soins de cicatrices.
@@ -59,14 +59,14 @@ export default function ServicesSection() {
           {services.map((service, index) => (
             <Card 
               key={index}
-              className={`service-card bg-card border border-border transition-all duration-700 ${
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+              className={`service-card fade-in ${
+                isVisible ? "visible" : ""
               }`}
               style={{ transitionDelay: `${index * 200}ms` }}
               data-testid={`service-card-${index}`}
             >
               <CardContent className="p-8">
-                <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mb-6">
+                <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mb-6 floating-element">
                   {service.icon}
                 </div>
                 <h3 className="text-xl font-medium text-foreground mb-4" data-testid={`service-title-${index}`}>
