@@ -23,18 +23,18 @@ export default function Home() {
 
     // Add Open Graph tags for social media sharing
     const ogTitle = document.createElement('meta');
-    ogTitle.property = 'og:title';
-    ogTitle.content = 'Odyssea Lymphea - Kinésithérapeutes à Waterloo';
+    ogTitle.setAttribute('property', 'og:title');
+    ogTitle.setAttribute('content', 'Odyssea Lymphea - Kinésithérapeutes à Waterloo');
     document.head.appendChild(ogTitle);
 
     const ogDescription = document.createElement('meta');
-    ogDescription.property = 'og:description';
-    ogDescription.content = 'Cabinet de kinésithérapie spécialisé en drainage lymphatique, traitement de cicatrices et épilation laser à Waterloo.';
+    ogDescription.setAttribute('property', 'og:description');
+    ogDescription.setAttribute('content', 'Cabinet de kinésithérapie spécialisé en drainage lymphatique, traitement de cicatrices et épilation laser à Waterloo.');
     document.head.appendChild(ogDescription);
 
     const ogType = document.createElement('meta');
-    ogType.property = 'og:type';
-    ogType.content = 'website';
+    ogType.setAttribute('property', 'og:type');
+    ogType.setAttribute('content', 'website');
     document.head.appendChild(ogType);
   }, []);
 
