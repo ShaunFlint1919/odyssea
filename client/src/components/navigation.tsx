@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link, useLocation } from "wouter";
 import Logo from "@/components/logo";
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [location] = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -39,20 +41,16 @@ export default function Navigation() {
           </div>
           
           <div className="hidden md:flex space-x-8" data-testid="desktop-menu">
-            <button 
-              onClick={() => scrollToSection("accueil")}
-              className="text-foreground hover:text-primary transition-colors text-sm"
-              data-testid="link-accueil"
-            >
-              Accueil
-            </button>
-            <button 
-              onClick={() => scrollToSection("services")}
-              className="text-foreground hover:text-primary transition-colors text-sm"
-              data-testid="link-services"
-            >
-              Renata Franca
-            </button>
+            <Link href="/">
+              <span className="text-foreground hover:text-primary transition-colors text-sm cursor-pointer">
+                Accueil
+              </span>
+            </Link>
+            <Link href="/renata-franca">
+              <span className="text-foreground hover:text-primary transition-colors text-sm cursor-pointer">
+                Renata Franca
+              </span>
+            </Link>
             <button 
               onClick={() => scrollToSection("apropos")}
               className="text-foreground hover:text-primary transition-colors text-sm"
