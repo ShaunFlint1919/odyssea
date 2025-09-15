@@ -37,7 +37,7 @@ export default function Navigation() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-3" data-testid="logo-section">
             <Logo />
-            <div className="font-light text-xl text-foreground">Odyssea Lymphea</div>
+            <div className="font-light text-2xl text-foreground">Odyssea Lymphea</div>
           </div>
           
           <div className="hidden md:flex space-x-8" data-testid="desktop-menu">
