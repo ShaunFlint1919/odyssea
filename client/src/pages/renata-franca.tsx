@@ -34,11 +34,11 @@ export default function RenataFranca() {
             ref={elementRef}
             className={`text-center mb-16 fade-in ${isVisible ? "visible" : ""}`}
           >
-            <div className="mb-12">
+            <div className="mb-12 bg-background rounded-lg p-6">
               <img 
                 src={renataFrancaHorizontal} 
                 alt="Méthode Renata França"
-                className="mx-auto max-w-md w-full h-auto object-contain"
+                className="mx-auto max-w-md w-full h-auto object-contain mix-blend-multiply"
               />
             </div>
             <h1 className="text-3xl lg:text-4xl font-light primary-text mb-8">
@@ -279,11 +279,11 @@ export default function RenataFranca() {
           {/* Call to Action */}
           <section className="text-center">
             <div className="bg-primary/5 rounded-lg p-12">
-              <div className="mb-8">
+              <div className="mb-8 bg-background rounded-lg p-6">
                 <img 
                   src={renataFrancaVertical} 
                   alt="Méthode Renata França"
-                  className="mx-auto max-w-xs w-full h-auto object-contain"
+                  className="mx-auto max-w-xs w-full h-auto object-contain mix-blend-multiply"
                 />
               </div>
               <h2 className="text-2xl font-light primary-text mb-6">
