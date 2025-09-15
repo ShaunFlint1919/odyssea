@@ -7,6 +7,7 @@ import Home from "@/pages/home";
 import RenataFranca from "@/pages/renata-franca";
 import SoinsCicatrices from "@/pages/soins-cicatrices";
 import DrainageLymphatique from "@/pages/drainage-lymphatique";
+import EpilationLaser from "@/pages/epilation-laser";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/renata-franca" component={RenataFranca} />
       <Route path="/soins-cicatrices" component={SoinsCicatrices} />
       <Route path="/drainage-lymphatique" component={DrainageLymphatique} />
+      <Route path="/epilation-laser" component={EpilationLaser} />
       <Route component={NotFound} />
     </Switch>
   );

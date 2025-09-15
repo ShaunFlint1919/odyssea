@@ -64,13 +64,14 @@ export default function Navigation() {
                 Soins de cicatrices
               </span>
             </Link>
-            <button 
-              onClick={() => scrollToSection("contact")}
-              className="text-foreground hover:text-primary transition-colors text-sm"
-              data-testid="link-contact"
-            >
-              Contact
-            </button>
+            <Link href="/epilation-laser">
+              <span 
+                className="text-foreground hover:text-primary transition-colors text-sm cursor-pointer"
+                data-testid="link-epilation-laser"
+              >
+                Épilation Laser
+              </span>
+            </Link>
           </div>
           
           <Button
@@ -124,13 +125,15 @@ export default function Navigation() {
                   Soins de cicatrices
                 </span>
               </Link>
-              <button 
-                onClick={() => scrollToSection("contact")}
-                className="block w-full text-left px-3 py-2 text-muted-foreground hover:text-primary transition-colors"
-                data-testid="mobile-link-contact"
-              >
-                Contact
-              </button>
+              <Link href="/epilation-laser">
+                <span 
+                  className="block w-full text-left px-3 py-2 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                  data-testid="mobile-link-epilation-laser"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Épilation Laser
+                </span>
+              </Link>
             </div>
           </div>
         )}
