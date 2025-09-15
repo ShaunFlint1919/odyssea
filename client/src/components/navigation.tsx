@@ -51,13 +51,14 @@ export default function Navigation() {
                 Renata Franca
               </span>
             </Link>
-            <button 
-              onClick={() => scrollToSection("apropos")}
-              className="text-foreground hover:text-primary transition-colors text-sm"
-              data-testid="link-apropos"
-            >
-              Drainage lymphatique conventionnel
-            </button>
+            <Link href="/drainage-lymphatique">
+              <span 
+                className="text-foreground hover:text-primary transition-colors text-sm cursor-pointer"
+                data-testid="link-drainage-lymphatique"
+              >
+                Drainage lymphatique conventionnel
+              </span>
+            </Link>
             <Link href="/soins-cicatrices">
               <span className="text-foreground hover:text-primary transition-colors text-sm cursor-pointer">
                 Soins de cicatrices
@@ -105,13 +106,15 @@ export default function Navigation() {
                   Renata Franca
                 </span>
               </Link>
-              <button 
-                onClick={() => scrollToSection("apropos")}
-                className="block w-full text-left px-3 py-2 text-muted-foreground hover:text-primary transition-colors"
-                data-testid="mobile-link-apropos"
-              >
-                Drainage lymphatique conventionnel
-              </button>
+              <Link href="/drainage-lymphatique">
+                <span 
+                  className="block w-full text-left px-3 py-2 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                  data-testid="mobile-link-drainage-lymphatique"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Drainage lymphatique conventionnel
+                </span>
+              </Link>
               <Link href="/soins-cicatrices">
                 <span 
                   className="block w-full text-left px-3 py-2 text-muted-foreground hover:text-primary transition-colors cursor-pointer"

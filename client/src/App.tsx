@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/home";
 import RenataFranca from "@/pages/renata-franca";
 import SoinsCicatrices from "@/pages/soins-cicatrices";
+import DrainageLymphatique from "@/pages/drainage-lymphatique";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/renata-franca" component={RenataFranca} />
       <Route path="/soins-cicatrices" component={SoinsCicatrices} />
+      <Route path="/drainage-lymphatique" component={DrainageLymphatique} />
       <Route component={NotFound} />
     </Switch>
   );
