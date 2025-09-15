@@ -193,46 +193,58 @@ export default function DrainageLymphatique() {
             </div>
           </section>
 
-          {/* Contact Section */}
-          <section id="contact" className="mb-16">
+          {/* Épilation Laser Section */}
+          <section className="mb-16">
             <div className="bg-secondary/20 rounded-lg p-8 mb-8">
               <h2 className="text-2xl font-medium primary-text mb-8 text-center">
-                Informations pratiques
+                Épilation Laser
               </h2>
-              <div className="grid md:grid-cols-3 gap-8 text-center">
-                <div>
-                  <h3 className="font-medium text-foreground mb-4">Emplacement</h3>
-                  <div className="space-y-1 text-muted-foreground text-sm">
-                    <p>Rue de la station, 70</p>
-                    <p>1410 Waterloo</p>
+              <div className="text-muted-foreground text-sm leading-relaxed space-y-6">
+                <p className="text-center max-w-3xl mx-auto">
+                  Complétez votre parcours bien-être avec notre service d'épilation laser, une solution douce et durable pour une peau parfaitement lisse.
+                </p>
+                
+                <div className="grid md:grid-cols-2 gap-8 mt-8">
+                  <div className="bg-background rounded-lg p-6">
+                    <h3 className="font-medium text-foreground mb-4">Technologie avancée</h3>
+                    <ul className="space-y-3">
+                      <li className="flex items-start">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
+                        Laser médical de dernière génération
+                      </li>
+                      <li className="flex items-start">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
+                        Adapté à tous types de peau
+                      </li>
+                      <li className="flex items-start">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
+                        Traitement confortable et sécurisé
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-accent/10 rounded-lg p-6">
+                    <h3 className="font-medium text-foreground mb-4">Zones traitées</h3>
+                    <ul className="space-y-3">
+                      <li className="flex items-start">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
+                        Visage et corps
+                      </li>
+                      <li className="flex items-start">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
+                        Zones sensibles avec expertise
+                      </li>
+                      <li className="flex items-start">
+                        <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
+                        Résultats durables et efficaces
+                      </li>
+                    </ul>
                   </div>
                 </div>
                 
-                <div>
-                  <h3 className="font-medium text-foreground mb-4">Heures d'ouverture</h3>
-                  <div className="space-y-1 text-muted-foreground text-sm">
-                    <p>lundi — vendredi</p>
-                    <p>9h — 19h</p>
-                    <p>samedi</p>
-                    <p>10h – 13h</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium text-foreground mb-4">Contact</h3>
-                  <div className="space-y-3 text-muted-foreground text-sm">
-                    <div>
-                      <a href="tel:+32494741777" className="hover:text-primary transition-colors">
-                        +32 494 74 17 77
-                      </a>
-                    </div>
-                    <div>
-                      <a href="mailto:odyssea.lymphea@gmail.com" className="hover:text-primary transition-colors">
-                        odyssea.lymphea@gmail.com
-                      </a>
-                    </div>
-                  </div>
-                </div>
+                <p className="text-center font-medium mt-8">
+                  Une approche personnalisée pour chaque client, dans le respect de votre confort et de vos attentes.
+                </p>
               </div>
             </div>
           </section>
