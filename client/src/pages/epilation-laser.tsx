@@ -180,49 +180,6 @@ export default function EpilationLaser() {
             </div>
           </section>
 
-          {/* Contact Section */}
-          <section id="contact" className="mb-16">
-            <div className="bg-secondary/20 rounded-lg p-8 mb-8">
-              <h2 className="text-2xl font-medium primary-text mb-8 text-center">
-                Informations pratiques
-              </h2>
-              <div className="grid md:grid-cols-3 gap-8 text-center">
-                <div>
-                  <h3 className="font-medium text-foreground mb-4">Emplacement</h3>
-                  <div className="space-y-1 text-muted-foreground text-sm">
-                    <p>Rue de la station, 70</p>
-                    <p>1410 Waterloo</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium text-foreground mb-4">Heures d'ouverture</h3>
-                  <div className="space-y-1 text-muted-foreground text-sm">
-                    <p>lundi — vendredi</p>
-                    <p>9h — 19h</p>
-                    <p>samedi</p>
-                    <p>10h – 13h</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium text-foreground mb-4">Contact</h3>
-                  <div className="space-y-3 text-muted-foreground text-sm">
-                    <div>
-                      <a href="tel:+32494741777" className="hover:text-primary transition-colors">
-                        +32 494 74 17 77
-                      </a>
-                    </div>
-                    <div>
-                      <a href="mailto:odyssea.lymphea@gmail.com" className="hover:text-primary transition-colors">
-                        odyssea.lymphea@gmail.com
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
 
           {/* Call to Action */}
           <section className="text-center">
