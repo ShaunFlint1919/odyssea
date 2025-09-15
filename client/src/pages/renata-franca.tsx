@@ -2,6 +2,8 @@ import Navigation from "@/components/navigation";
 import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
+import renataFrancaHorizontal from "@assets/logo-horizontal-noir-or (1)_1757961640279.jpg";
+import renataFrancaVertical from "@assets/logo-vertical-noir-or_1757961640279.jpg";
 
 export default function RenataFranca() {
   const { elementRef, isVisible } = useIntersectionObserver();
@@ -32,6 +34,13 @@ export default function RenataFranca() {
             ref={elementRef}
             className={`text-center mb-16 fade-in ${isVisible ? "visible" : ""}`}
           >
+            <div className="mb-12">
+              <img 
+                src={renataFrancaHorizontal} 
+                alt="Méthode Renata França"
+                className="mx-auto max-w-md w-full h-auto object-contain"
+              />
+            </div>
             <h1 className="text-3xl lg:text-4xl font-light primary-text mb-8">
               Les soins Renata Franca chez Odyssea Lymphea
             </h1>
@@ -270,6 +279,13 @@ export default function RenataFranca() {
           {/* Call to Action */}
           <section className="text-center">
             <div className="bg-primary/5 rounded-lg p-12">
+              <div className="mb-8">
+                <img 
+                  src={renataFrancaVertical} 
+                  alt="Méthode Renata França"
+                  className="mx-auto max-w-xs w-full h-auto object-contain"
+                />
+              </div>
               <h2 className="text-2xl font-light primary-text mb-6">
                 Prenez rendez-vous pour un voyage sensoriel brésilien
               </h2>
