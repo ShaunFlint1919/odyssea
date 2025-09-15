@@ -18,7 +18,7 @@ export default function MinimalHero() {
             Nous sommes à votre écoute pour prendre soin de vous tant en période pré et post-opératoire pour vos cicatrices et vos drainages, que pour vos problèmes lymphatiques, votre peau d'orange mais encore pour vous aider à réaliser votre épilation définitive.
           </p>
           
-          <h1 className="text-3xl lg:text-4xl font-light primary-text mb-16" data-testid="hero-title">
+          <h1 className="text-3xl lg:text-4xl font-extralight primary-text mb-16" data-testid="hero-title">
             Cabinet de kinésithérapie esthétique à Waterloo
           </h1>
           
