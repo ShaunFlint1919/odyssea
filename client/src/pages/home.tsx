@@ -1,5 +1,5 @@
 import Navigation from "@/components/navigation";
-import MinimalHero from "@/components/minimal-hero";
+import HomeHero from "@/components/home-hero";
 import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 
@@ -38,7 +38,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navigation />
-      <MinimalHero />
+      <HomeHero />
       <MinimalFooter />
     </div>
   );
