@@ -2,6 +2,7 @@ import Navigation from "@/components/navigation";
 import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
+import epilationImage from "@assets/IMG_4135_1758988582270.jpg";
 
 export default function EpilationLaser() {
   const { elementRef, isVisible } = useIntersectionObserver();
@@ -35,6 +36,14 @@ export default function EpilationLaser() {
             <h1 className="text-3xl lg:text-4xl font-extralight primary-text mb-8 heading-font">
               Épilation laser définitive
             </h1>
+            <div className="mb-12">
+              <img 
+                src={epilationImage} 
+                alt="Technologie laser diode avancée - Épilation définitive chez Odyssea Lymphea"
+                className="w-full max-w-2xl mx-auto h-[400px] object-cover rounded-lg shadow-xl"
+                data-testid="epilation-hero-image"
+              />
+            </div>
             <div className="text-muted-foreground leading-relaxed max-w-3xl mx-auto">
               <p className="mb-6 body-font">
                 Les méthodes d'épilation classiques (rasage, cire, épilateur) peuvent être contraignantes, 

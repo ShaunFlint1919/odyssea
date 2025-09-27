@@ -2,6 +2,7 @@ import Navigation from "@/components/navigation";
 import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
+import cicatricesImage from "@assets/Photoroom_20250720_101228_1758988582270.jpg";
 
 export default function SoinsCicatrices() {
   const { elementRef, isVisible } = useIntersectionObserver();
@@ -32,7 +33,18 @@ export default function SoinsCicatrices() {
             ref={elementRef}
             className={`text-center mb-16 fade-in ${isVisible ? "visible" : ""}`}
           >
-            <p className="text-muted-foreground leading-relaxed text-sm max-w-3xl mx-auto mb-16">
+            <h1 className="text-3xl lg:text-4xl font-extralight primary-text mb-8 heading-font">
+              Soins de cicatrices innovants
+            </h1>
+            <div className="mb-12">
+              <img 
+                src={cicatricesImage} 
+                alt="Traitement des cicatrices par endneedling - Odyssea Lymphea"
+                className="w-full max-w-2xl mx-auto h-[400px] object-cover rounded-lg shadow-xl"
+                data-testid="cicatrices-hero-image"
+              />
+            </div>
+            <p className="text-muted-foreground leading-relaxed text-sm max-w-3xl mx-auto mb-16 body-font">
               Lorsque la peau a vécu des agressions ou des interventions chirurgicales, elle peut présenter des cicatrices inesthétiques ou inconfortables. Que ce soit suite à une intervention chirurgicale, un accident, de l'acné ou encore des vergetures cutanées.
             </p>
           </div>

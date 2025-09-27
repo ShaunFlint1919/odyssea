@@ -2,6 +2,7 @@ import Navigation from "@/components/navigation";
 import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
+import drainageImage from "@assets/photo-output 2_1758988582270.jpg";
 
 export default function DrainageLymphatique() {
   const { elementRef, isVisible } = useIntersectionObserver();
@@ -32,10 +33,18 @@ export default function DrainageLymphatique() {
             ref={elementRef}
             className={`text-center mb-16 fade-in ${isVisible ? "visible" : ""}`}
           >
-            <h1 className="text-3xl lg:text-4xl font-extralight primary-text mb-8">
+            <h1 className="text-3xl lg:text-4xl font-extralight primary-text mb-8 heading-font">
               L'art du soin en douceur, entre science et présence
             </h1>
-            <div className="text-muted-foreground leading-relaxed max-w-3xl mx-auto text-sm">
+            <div className="mb-12">
+              <img 
+                src={drainageImage} 
+                alt="Drainage lymphatique - Soin en douceur chez Odyssea Lymphea"
+                className="w-full max-w-2xl mx-auto h-[400px] object-cover rounded-lg shadow-xl"
+                data-testid="drainage-hero-image"
+              />
+            </div>
+            <div className="text-muted-foreground leading-relaxed max-w-3xl mx-auto text-sm body-font">
               <p className="mb-6">
                 Chez Odyssea Lymphea, le soin commence par l'écoute du corps… et de la personne.
               </p>
