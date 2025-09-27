@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 import renataFrancaHorizontal from "@assets/logo-horizontal-noir-or (1)_1757961640279.jpg";
 import renataFrancaVertical from "@assets/logo-vertical-noir-or_1757961640279.jpg";
+import renataProducts from "@assets/IMG_4146_1758988530094.jpg";
 
 export default function RenataFranca() {
   const { elementRef, isVisible } = useIntersectionObserver();

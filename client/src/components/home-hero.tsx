@@ -1,7 +1,9 @@
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
-import img1 from "@assets/IMG_0385_1758988582270.jpg";
-import img2 from "@assets/IMG_0386_1758988582270.jpg";
+import img1 from "@assets/IMG_0718_1758988530094.jpg";
+import img2 from "@assets/IMG_0386_1758988530094.jpg";
 import img3 from "@assets/photo-output_1758988530094.jpg";
+import beforeAfterLegs from "@assets/photo-output(1)_1758988530094.jpg";
+import artisticPortrait from "@assets/IMG_0374_1758988603443.jpg";
 
 export default function HomeHero() {
   const { elementRef: heroRef, isVisible: heroVisible } = useIntersectionObserver();
@@ -43,7 +45,7 @@ export default function HomeHero() {
             <div className="relative">
               <img 
                 src={img1} 
-                alt="Soin du visage et du cou"
+                alt="Soins du visage professionnels - Odyssea Lymphea"
                 className="w-full h-[600px] object-cover rounded-lg shadow-2xl"
                 data-testid="hero-image"
               />
@@ -63,7 +65,7 @@ export default function HomeHero() {
             <div className={`fade-in ${section1Visible ? "visible" : ""}`}>
               <img 
                 src={img2} 
-                alt="Soins esthétiques personnalisés"
+                alt="Soins du visage et bien-être chez Odyssea Lymphea"
                 className="w-full h-[500px] object-cover rounded-lg shadow-xl"
                 data-testid="section1-image"
               />
@@ -119,8 +121,8 @@ export default function HomeHero() {
             </div>
             <div className={`fade-in ${section2Visible ? "visible" : ""} lg:delay-200 order-1 lg:order-2`}>
               <img 
-                src={img3} 
-                alt="Résultats avant/après drainage lymphatique"
+                src={beforeAfterLegs} 
+                alt="Résultats drainage lymphatique - Transformation visible des jambes"
                 className="w-full h-[500px] object-cover rounded-lg shadow-xl"
                 data-testid="section2-image"
               />
@@ -168,6 +170,47 @@ export default function HomeHero() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 4 - Galerie Artistique */}
+      <section className="py-24 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl lg:text-4xl font-light mb-12 heading-font">
+            L'art du soin esthétique
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="fade-in">
+              <img 
+                src={artisticPortrait} 
+                alt="Portrait artistique - Beauté naturelle sublimée"
+                className="w-full h-[400px] object-cover rounded-lg shadow-xl"
+                data-testid="gallery-image-1"
+              />
+            </div>
+            <div className="fade-in lg:delay-100">
+              <img 
+                src={img3} 
+                alt="Résultats avant/après traitement corporel"
+                className="w-full h-[400px] object-cover rounded-lg shadow-xl"
+                data-testid="gallery-image-2"
+              />
+            </div>
+            <div className="fade-in lg:delay-200">
+              <img 
+                src={img1} 
+                alt="Soins du visage professionnels et détente"
+                className="w-full h-[400px] object-cover rounded-lg shadow-xl"
+                data-testid="gallery-image-3"
+              />
+            </div>
+          </div>
+          <div className="mt-12 text-slate-300 body-font">
+            <p className="text-lg max-w-3xl mx-auto">
+              Découvrez nos techniques exclusives qui allient savoir-faire traditionnel et innovations technologiques 
+              pour révéler votre beauté naturelle.
+            </p>
           </div>
         </div>
       </section>

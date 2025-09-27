@@ -1,6 +1,6 @@
 import { Award, Tag, Star } from "lucide-react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
-import cabinetImage from "@assets/site olympea_1758988447329.JPG";
+import cabinetImage from "@assets/IMG_3606_1758988530094.jpg";
 
 export default function AboutSection() {
   const { elementRef, isVisible } = useIntersectionObserver();
@@ -17,7 +17,7 @@ export default function AboutSection() {
             <div className="parallax-medium">
               <img 
                 src={cabinetImage} 
-                alt="Cabinet Odyssea Lymphea - Ambiance apaisante et moderne" 
+                alt="Salon de soins modernes Odyssea Lymphea - Ambiance zen et relaxante" 
                 className="rounded-2xl shadow-2xl w-full h-auto glass-effect p-2"
                 data-testid="about-image"
               />

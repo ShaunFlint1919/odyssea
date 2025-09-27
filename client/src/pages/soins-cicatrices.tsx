@@ -2,7 +2,7 @@ import Navigation from "@/components/navigation";
 import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
-import cicatricesImage from "@assets/Photoroom_20250720_101228_1758988582270.jpg";
+import cicatricesImage from "@assets/IMG_0976_1758988530094.jpg";
 
 export default function SoinsCicatrices() {
   const { elementRef, isVisible } = useIntersectionObserver();
@@ -39,7 +39,7 @@ export default function SoinsCicatrices() {
             <div className="mb-12">
               <img 
                 src={cicatricesImage} 
-                alt="Traitement des cicatrices par endneedling - Odyssea Lymphea"
+                alt="Techniques endneedling - Endermologie et microneedling médical"
                 className="w-full max-w-2xl mx-auto h-[400px] object-cover rounded-lg shadow-xl"
                 data-testid="cicatrices-hero-image"
               />

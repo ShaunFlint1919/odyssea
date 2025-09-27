@@ -2,7 +2,7 @@ import Navigation from "@/components/navigation";
 import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
-import drainageImage from "@assets/photo-output 2_1758988582270.jpg";
+import drainageImage from "@assets/photo-output(2)_1758988530094.jpg";
 
 export default function DrainageLymphatique() {
   const { elementRef, isVisible } = useIntersectionObserver();
@@ -39,7 +39,7 @@ export default function DrainageLymphatique() {
             <div className="mb-12">
               <img 
                 src={drainageImage} 
-                alt="Drainage lymphatique - Soin en douceur chez Odyssea Lymphea"
+                alt="Résultats drainage lymphatique - Jambes affinées et galbe retrouvé"
                 className="w-full max-w-2xl mx-auto h-[400px] object-cover rounded-lg shadow-xl"
                 data-testid="drainage-hero-image"
               />

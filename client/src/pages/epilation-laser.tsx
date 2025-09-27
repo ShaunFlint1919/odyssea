@@ -2,7 +2,7 @@ import Navigation from "@/components/navigation";
 import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
-import epilationImage from "@assets/IMG_4135_1758988582270.jpg";
+import epilationImage from "@assets/IMG_4138_1758988530094.jpg";
 
 export default function EpilationLaser() {
   const { elementRef, isVisible } = useIntersectionObserver();
@@ -39,7 +39,7 @@ export default function EpilationLaser() {
             <div className="mb-12">
               <img 
                 src={epilationImage} 
-                alt="Technologie laser diode avancée - Épilation définitive chez Odyssea Lymphea"
+                alt="Produits professionnels Renata França - Soins de qualité médicale"
                 className="w-full max-w-2xl mx-auto h-[400px] object-cover rounded-lg shadow-xl"
                 data-testid="epilation-hero-image"
               />
