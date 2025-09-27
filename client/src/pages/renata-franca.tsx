@@ -5,9 +5,16 @@ import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 import renataFrancaHorizontal from "@assets/logo-horizontal-noir-or (1)_1757961640279.jpg";
 import renataFrancaVertical from "@assets/logo-vertical-noir-or_1757961640279.jpg";
 import renataProducts from "@assets/IMG_4146_1758988530094.jpg";
+import massageImage from "@assets/IMG_0385_1758988530094.jpg";
+import drainageResults from "@assets/photo-output 2_1758988530094.jpg";
+import salonAtmosphere from "@assets/Photoroom_20250720_101228_1758988530094.jpg";
 
 export default function RenataFranca() {
-  const { elementRef, isVisible } = useIntersectionObserver();
+  const { elementRef: heroRef, isVisible: heroVisible } = useIntersectionObserver();
+  const { elementRef: section1Ref, isVisible: section1Visible } = useIntersectionObserver();
+  const { elementRef: section2Ref, isVisible: section2Visible } = useIntersectionObserver();
+  const { elementRef: section3Ref, isVisible: section3Visible } = useIntersectionObserver();
+  const { elementRef: section4Ref, isVisible: section4Visible } = useIntersectionObserver();
 
   useEffect(() => {
     document.title = "Les soins Renata Franca chez Odyssea Lymphea";
@@ -27,283 +34,244 @@ export default function RenataFranca() {
     <div className="min-h-screen bg-background text-foreground">
       <Navigation />
       
-      <main className="pt-24 pb-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Header */}
-          <div 
-            ref={elementRef}
-            className={`text-center mb-16 fade-in ${isVisible ? "visible" : ""}`}
-          >
-            <div className="mb-12 bg-background rounded-lg p-6">
+      {/* Hero Section - Dark */}
+      <section 
+        className="relative min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center"
+        data-testid="hero-section"
+      >
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div 
+          className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center"
+          ref={heroRef}
+        >
+          <div className={`fade-in ${heroVisible ? "visible" : ""}`}>
+            <div className="mb-8 bg-white/10 rounded-lg p-6 backdrop-blur-sm">
               <img 
                 src={renataFrancaHorizontal} 
                 alt="Méthode Renata França"
-                className="mx-auto max-w-md w-full h-auto object-contain mix-blend-multiply"
+                className="mx-auto max-w-md w-full h-auto object-contain"
+                data-testid="renata-logo"
               />
             </div>
-            <h1 className="text-3xl lg:text-4xl font-light primary-text mb-8">
-              Les soins Renata Franca chez Odyssea Lymphea
+            <h1 className="text-4xl lg:text-6xl font-light mb-8 heading-font">
+              Les soins Renata Franca
             </h1>
-            <div className="text-muted-foreground leading-relaxed space-y-4 text-sm max-w-3xl mx-auto">
+            <p className="text-xl lg:text-2xl mb-8 text-slate-200 leading-relaxed">
+              Méthode exclusive provenant du Brésil
+            </p>
+            <div className="text-lg text-slate-300 leading-relaxed space-y-6">
               <p>
-                Chez Odyssea Lymphea, nous avons fait le choix du changement, nous vous amenons combien au <strong>Brésil</strong>, chez Carmen célèbre de <strong>Renata Franca</strong>, pour une journée d'enseignement inédit et en <strong>méthode originale</strong>. C'est ce choix-là que en à fait avec nous nos protocoles authentiques et unique pour vous donner de nous savez ce sont les fondements de nos savoir-être et bien-être pour notre patientèle. Nous avons fait le choix de la première chance.
+                Chez Odyssea Lymphea, nous avons fait le choix du changement, nous vous amenons au <strong>Brésil</strong>, chez Carmen célèbre de <strong>Renata Franca</strong>, pour une formation authentique en <strong>méthode originale</strong>.
               </p>
               <p>
-                <strong>Notre méthode exclusive provient donc du Brésil.</strong>
-              </p>
-              <p>
-                Nous avons besoin de partager où sous <strong>Renata Franca authentiques</strong>, selon la techniques auquel de la formation.
+                <strong>Nos protocoles authentiques et uniques</strong> sont les fondements de notre savoir-être et bien-être pour notre clientèle.
               </p>
             </div>
           </div>
-
-          {/* Drainage Lymphatique Section */}
-          <section className="mb-16">
-            <div className="bg-accent/10 rounded-lg p-8 mb-8">
-              <h2 className="text-2xl font-medium primary-text mb-6 text-center">
-                DRAINAGE LYMPHATIQUE - SIGNATURE RENATA FRANCA (80 MIN)
-              </h2>
-              <div className="text-muted-foreground text-sm leading-relaxed space-y-4">
-                <p>
-                  Le drainage lymphatique Renata Franca se prise d'un drainage classique. C'est un massage <strong>ferme et rapide</strong>, qui utilise des <strong>chaudes intensités</strong>, très spécialisé et segments. Il s'effective à l'aide de manœuvres spécifiques et de rythmes rapides et variés.
-                </p>
-                <p>
-                  Bien plus qu'un soin esthétique, c'est un véritable <strong>allié santé et bien-être</strong>, le thérapie dans notre centre de beau-entretien.
-                </p>
-                
-                <div className="mt-6">
-                  <h3 className="font-medium text-foreground mb-3">Les bienfaits :</h3>
-                  <ul className="space-y-2 ml-4">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Favorise une efficace des drainés métaboliques
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Améliore des inflammations et de gonflement
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Favorise une élimination des toxines
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Stimulation du système immunitaire
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Technique de jambes lourdes et favorise la circulation sanguine
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Aide à l'anesthésie et prévient les affaissements de ligament
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Favorise des résultats de programmes nutritionnels ou esthétiques différents
-                    </li>
-                  </ul>
-                </div>
-                
-                <p className="mt-6">
-                  Se permet aussi et seul, un accompagnement minceur ou bien d'amélioration pour <strong>détacher l'organise</strong>, dénouer une de rigidité et complète; des effets très visibles dès la séance.
-                </p>
-                
-                <p className="text-right font-medium mt-6">Tarif : 100 €</p>
-              </div>
+          <div className={`fade-in ${heroVisible ? "visible" : ""} lg:delay-300`}>
+            <div className="relative">
+              <img 
+                src={renataProducts} 
+                alt="Produits professionnels Renata França utilisés"
+                className="w-full h-[600px] object-cover rounded-lg shadow-2xl"
+                data-testid="renata-products-image"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent rounded-lg"></div>
             </div>
-          </section>
-
-          {/* Massage Remodelant Section */}
-          <section className="mb-16">
-            <div className="bg-secondary/20 rounded-lg p-8 mb-8">
-              <h2 className="text-2xl font-medium primary-text mb-6 text-center">
-                MASSAGE REMODELANT (60 MIN)
-              </h2>
-              <div className="text-muted-foreground text-sm leading-relaxed space-y-4">
-                <p>
-                  Ce massage très thérapeutique est destiné spécialement pour les <strong>zones graisseuses et la cellulite</strong> aussi bien k 1, results. Modifié les tissus pour affres collectivement plus de fermeté et de tonus.
-                </p>
-                
-                <div className="mt-6">
-                  <h3 className="font-medium text-foreground mb-3">Principe du buste :</h3>
-                  <ul className="space-y-2 ml-4">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Action puissante pour une cellulite localisée
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Gestes toutes plus toujours pour bonne fermeté, finesse...
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Amélioration de la biosité cutanée
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Meilleurs effets très de première chance
-                    </li>
-                  </ul>
-                </div>
-                
-                <p className="mt-6">
-                  Ce soin est décrit sur un massage sculptant est configué esthétique et relaxant.
-                </p>
-                
-                <p className="text-right font-medium mt-6">Tarif : 90 €</p>
-              </div>
-            </div>
-          </section>
-
-          {/* Miracle Touch Section */}
-          <section className="mb-16">
-            <div className="bg-accent/10 rounded-lg p-8 mb-8">
-              <h2 className="text-2xl font-medium primary-text mb-6 text-center">
-                MIRACLE TOUCH - LIFT DE LA SYMPHONIE (60 MIN)
-              </h2>
-              <div className="text-muted-foreground text-sm leading-relaxed space-y-4">
-                <p>
-                  Le Miracle Touch est aussi conçu sur un <strong>Renata Franca</strong>, il combine les <strong>effets drainants + drainage lymphatique</strong> et se <strong>bienfaits anti-inflammat</strong> + cosmétique.
-                </p>
-                
-                <div className="mt-6">
-                  <h3 className="font-medium text-foreground mb-3">Les résultats :</h3>
-                  <ul className="space-y-2 ml-4">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Corps affiné sans souffrir
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Objectifs de fermeté
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Bien-être et détente
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Ses soins lifting service immodat
-                    </li>
-                  </ul>
-                </div>
-                
-                <p className="mt-6">
-                  C'est le soin idéal avant un événement ou pour débuter son métabolisme avant efficacité.
-                </p>
-                
-                <p className="text-right font-medium mt-6">Tarif : 90 €</p>
-              </div>
-            </div>
-          </section>
-
-          {/* Massage Relaxant Section */}
-          <section className="mb-16">
-            <div className="bg-secondary/20 rounded-lg p-8 mb-8">
-              <h2 className="text-2xl font-medium primary-text mb-6 text-center">
-                MASSAGE RELAXANT - L'INSTANT POUR SOI (60 MIN)
-              </h2>
-              <div className="text-muted-foreground text-sm leading-relaxed space-y-4">
-                <p>
-                  Un moment personnel d'abandon et en bien-être où se.
-                </p>
-                <p>
-                  Application personnée d'<strong>chaçunes</strong> et en <strong>bien-être</strong>
-                </p>
-                <p>
-                  Application of dispersal
-                </p>
-                <p>
-                  Ce massage fait totalement partie du thème prétive du Delémenteurs voiturent.
-                </p>
-                
-                <p className="text-right font-medium mt-6">Tarif : 70 €</p>
-              </div>
-            </div>
-          </section>
-
-          {/* Miracle Face Section */}
-          <section className="mb-16">
-            <div className="bg-accent/10 rounded-lg p-8 mb-8">
-              <h2 className="text-2xl font-medium primary-text mb-6 text-center">
-                MIRACLE FACE - LE SOIN DU VISAGE QUI CHANGE TOUT (90 MIN)
-              </h2>
-              <div className="text-muted-foreground text-sm leading-relaxed space-y-4">
-                <p>
-                  Le Miracle Face de Renata Franca prise de drainage et remodelage du visage, à elle Franca.
-                </p>
-                <p>
-                  Ses effets se ressentent pour un éclique immédiat !
-                </p>
-                
-                <div className="mt-6">
-                  <h3 className="font-medium text-foreground mb-3">Les points :</h3>
-                  <ul className="space-y-2 ml-4">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Objectifs cellulage
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Stimulation des points par canaux
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Amélioration de la souplesse musculaire
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Amélioration de la circulation sanguine + lymphatique
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Levée dilation métal
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-primary rounded-full mr-3 mt-2 flex-shrink-0"></span>
-                      Amélioration de la fermeté + éfffets lifting du visage
-                    </li>
-                  </ul>
-                </div>
-                
-                <p className="mt-6">
-                  Les soins visage parfait pour retrouver surface, finitions et fermeté en une seule séance.
-                </p>
-                
-                <p className="text-right font-medium mt-6">Tarif : 95 €</p>
-              </div>
-            </div>
-          </section>
-
-          {/* Call to Action */}
-          <section className="text-center">
-            <div className="bg-primary/5 rounded-lg p-12">
-              <div className="mb-8 bg-background rounded-lg p-6">
-                <img 
-                  src={renataFrancaVertical} 
-                  alt="Méthode Renata França"
-                  className="mx-auto max-w-xs w-full h-auto object-contain mix-blend-multiply"
-                />
-              </div>
-              <h2 className="text-2xl font-light primary-text mb-6">
-                Prenez rendez-vous pour un voyage sensoriel brésilien
-              </h2>
-              <p className="text-muted-foreground mb-8 leading-relaxed">
-                Votre corps mérite ce qu'il y a de mieux. Offrez-le un soin signé Renata Franca, dans un service en belle et bien-être monde.
-              </p>
-              <button 
-                onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
-                className="button-minimal px-8 py-3 rounded font-medium"
-              >
-                Prendre rendez-vous
-              </button>
-            </div>
-          </section>
-
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* Section 1 - Light - Drainage Lymphatique */}
+      <section className="py-24 bg-gradient-to-br from-stone-50 to-amber-50">
+        <div 
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+          ref={section1Ref}
+        >
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className={`fade-in ${section1Visible ? "visible" : ""}`}>
+              <img 
+                src={drainageResults} 
+                alt="Résultats drainage lymphatique Renata França - Transformation visible"
+                className="w-full h-[500px] object-cover rounded-lg shadow-xl"
+                data-testid="drainage-results-image"
+              />
+            </div>
+            <div className={`fade-in ${section1Visible ? "visible" : ""} lg:delay-200`}>
+              <h2 className="text-3xl lg:text-4xl font-light mb-8 primary-text heading-font">
+                Drainage Lymphatique Signature Renata Franca
+              </h2>
+              <div className="text-lg text-stone-700 leading-relaxed space-y-6 body-font">
+                <div className="bg-white/60 p-6 rounded-lg">
+                  <h3 className="font-medium primary-text mb-3">80 minutes - 100 €</h3>
+                  <p className="text-sm mb-4">
+                    Le drainage lymphatique Renata Franca se distingue d'un drainage classique. C'est un massage <strong>ferme et rapide</strong>, qui utilise des <strong>pressions intenses</strong>, très spécialisé et segmenté.
+                  </p>
+                </div>
+                
+                <p>
+                  Bien plus qu'un soin esthétique, c'est un véritable <strong>allié santé et bien-être</strong>, thérapeutique dans notre centre.
+                </p>
+                
+                <div className="bg-white/60 p-6 rounded-lg">
+                  <h3 className="font-medium primary-text mb-3">Les bienfaits :</h3>
+                  <ul className="space-y-2 text-sm">
+                    <li>• Favorise une élimination efficace des déchets métaboliques</li>
+                    <li>• Améliore les inflammations et réduilt les gonflements</li>
+                    <li>• Favorise l'élimination des toxines</li>
+                    <li>• Stimulation du système immunitaire</li>
+                    <li>• Soulage les jambes lourdes et favorise la circulation</li>
+                    <li>• Aide à la détente et prévient les affaissements</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 2 - Dark - Massage Remodelant & Miracle Touch */}
+      <section className="py-24 bg-gradient-to-br from-amber-900 via-stone-800 to-amber-900 text-white">
+        <div 
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+          ref={section2Ref}
+        >
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className={`fade-in ${section2Visible ? "visible" : ""} order-2 lg:order-1`}>
+              <h2 className="text-3xl lg:text-4xl font-light mb-8 text-amber-200 heading-font">
+                Massages Spécialisés
+              </h2>
+              <div className="text-lg text-amber-100 leading-relaxed space-y-6 body-font">
+                
+                <div className="bg-amber-800/30 p-6 rounded-lg">
+                  <h3 className="font-medium text-amber-200 mb-3">Massage Remodelant - 60 min - 90 €</h3>
+                  <p className="text-sm mb-3">
+                    Ce massage très thérapeutique est destiné spécialement pour les <strong>zones graisseuses et la cellulite</strong>. Modifie les tissus pour apporter plus de fermeté et de tonus.
+                  </p>
+                  <ul className="space-y-1 text-sm">
+                    <li>• Action puissante pour une cellulite localisée</li>
+                    <li>• Gestes techniques pour plus de fermeté</li>
+                    <li>• Amélioration de la tonicité cutanée</li>
+                    <li>• Résultats visibles dès la première séance</li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-800/30 p-6 rounded-lg">
+                  <h3 className="font-medium text-amber-200 mb-3">Miracle Touch - 60 min - 90 €</h3>
+                  <p className="text-sm mb-3">
+                    Le Miracle Touch combine les <strong>effets drainants du drainage lymphatique</strong> et les <strong>bienfaits anti-inflammatoires</strong> pour un soin complet.
+                  </p>
+                  <ul className="space-y-1 text-sm">
+                    <li>• Corps affiné sans souffrir</li>
+                    <li>• Objectifs de fermeté</li>
+                    <li>• Bien-être et détente profonde</li>
+                    <li>• Soin lifting avec service immédiat</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div className={`fade-in ${section2Visible ? "visible" : ""} lg:delay-200 order-1 lg:order-2`}>
+              <img 
+                src={massageImage} 
+                alt="Techniques de massage Renata França - Gestes professionnels"
+                className="w-full h-[500px] object-cover rounded-lg shadow-xl"
+                data-testid="massage-techniques-image"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 3 - Light - Soins Visage et Relaxant */}
+      <section className="py-24 bg-gradient-to-br from-stone-50 to-amber-50">
+        <div 
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+          ref={section3Ref}
+        >
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className={`fade-in ${section3Visible ? "visible" : ""}`}>
+              <img 
+                src={salonAtmosphere} 
+                alt="Ambiance relaxante du salon Odyssea Lymphea"
+                className="w-full h-[500px] object-cover rounded-lg shadow-xl"
+                data-testid="salon-atmosphere-image"
+              />
+            </div>
+            <div className={`fade-in ${section3Visible ? "visible" : ""} lg:delay-200`}>
+              <h2 className="text-3xl lg:text-4xl font-light mb-8 primary-text heading-font">
+                Soins Complémentaires
+              </h2>
+              <div className="text-lg text-stone-700 leading-relaxed space-y-6 body-font">
+                
+                <div className="bg-white/60 p-6 rounded-lg">
+                  <h3 className="font-medium primary-text mb-3">Miracle Face - 90 min - 95 €</h3>
+                  <p className="text-sm mb-3">
+                    Le soin du visage qui change tout ! Le Miracle Face combine drainage et remodelage du visage selon la méthode Renata Franca.
+                  </p>
+                  <ul className="space-y-1 text-sm">
+                    <li>• Drainage du visage et stimulation des points</li>
+                    <li>• Amélioration de la souplesse musculaire</li>
+                    <li>• Amélioration circulation sanguine + lymphatique</li>
+                    <li>• Effets lifting du visage immédiat</li>
+                    <li>• Amélioration de la fermeté</li>
+                  </ul>
+                </div>
+
+                <div className="bg-white/60 p-6 rounded-lg">
+                  <h3 className="font-medium primary-text mb-3">Massage Relaxant - 60 min - 70 €</h3>
+                  <p className="text-sm mb-3">
+                    L'instant pour soi - Un moment personnel d'abandon et de bien-être où se détendre.
+                  </p>
+                  <p className="text-sm">
+                    Application personnalisée d'huiles essentielles pour un bien-être total et une détente profonde.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 4 - Dark - Call to Action */}
+      <section className="py-24 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+        <div 
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+          ref={section4Ref}
+        >
+          <div className={`fade-in ${section4Visible ? "visible" : ""}`}>
+            <div className="mb-8 bg-white/10 rounded-lg p-6 backdrop-blur-sm inline-block">
+              <img 
+                src={renataFrancaVertical} 
+                alt="Méthode Renata França"
+                className="mx-auto max-w-xs w-full h-auto object-contain"
+                data-testid="renata-vertical-logo"
+              />
+            </div>
+            <h2 className="text-3xl lg:text-4xl font-light mb-8 text-slate-200 heading-font">
+              Prenez rendez-vous pour un voyage sensoriel brésilien
+            </h2>
+            <p className="text-xl text-slate-300 mb-12 leading-relaxed max-w-3xl mx-auto">
+              Votre corps mérite ce qu'il y a de mieux. Offrez-lui un soin signé Renata Franca, dans un service de beauté et bien-être unique.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+              <a 
+                href="tel:+32494741777"
+                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-lg font-medium inline-block transition-colors"
+                data-testid="button-phone"
+              >
+                Appeler maintenant
+              </a>
+              <a 
+                href="mailto:odyssea.lymphea@gmail.com"
+                className="border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white px-8 py-4 rounded-lg font-medium inline-block transition-colors"
+                data-testid="button-email"
+              >
+                Envoyer un email
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
       
       <MinimalFooter />
     </div>
