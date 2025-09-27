@@ -15,7 +15,7 @@ export default function HomeHero() {
     <div className="pt-16">
       {/* Hero Section */}
       <section 
-        className="relative min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white flex items-center"
+        className="relative min-h-[80vh] lg:min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white flex items-center"
         data-testid="hero-section"
       >
         <div className="absolute inset-0 bg-black/20"></div>
@@ -24,13 +24,13 @@ export default function HomeHero() {
           ref={heroRef}
         >
           <div className={`fade-in ${heroVisible ? "visible" : ""}`}>
-            <h1 className="text-4xl lg:text-6xl font-light mb-8 heading-font">
+            <h1 className="text-3xl sm:text-4xl lg:text-6xl font-light mb-6 lg:mb-8 heading-font">
               L'art du soin en douceur
             </h1>
-            <p className="text-xl lg:text-2xl mb-8 text-slate-200 leading-relaxed">
+            <p className="text-lg sm:text-xl lg:text-2xl mb-6 lg:mb-8 text-slate-200 leading-relaxed">
               Entre science et présence
             </p>
-            <div className="text-lg text-slate-300 leading-relaxed space-y-6">
+            <div className="text-base sm:text-lg text-slate-300 leading-relaxed space-y-4 lg:space-y-6">
               <p>
                 Chez Odyssea Lymphea, le soin commence par l'écoute. Nous vous accompagnons 
                 avec expertise et bienveillance dans votre parcours de bien-être.
@@ -46,7 +46,7 @@ export default function HomeHero() {
               <img 
                 src={img1} 
                 alt="Soins du visage professionnels - Odyssea Lymphea"
-                className="w-full h-[600px] object-cover rounded-lg shadow-2xl"
+                className="w-full h-[300px] sm:h-[400px] lg:h-[600px] object-cover rounded-lg shadow-2xl"
                 data-testid="hero-image"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent rounded-lg"></div>
@@ -56,7 +56,7 @@ export default function HomeHero() {
       </section>
 
       {/* Section 1 - Claire */}
-      <section className="py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section1Ref}
@@ -66,7 +66,7 @@ export default function HomeHero() {
               <img 
                 src={img2} 
                 alt="Soins du visage et bien-être chez Odyssea Lymphea"
-                className="w-full h-[500px] object-cover rounded-lg shadow-xl"
+                className="w-full h-[250px] sm:h-[350px] lg:h-[500px] object-cover rounded-lg shadow-xl"
                 data-testid="section1-image"
               />
             </div>
@@ -94,7 +94,7 @@ export default function HomeHero() {
       </section>
 
       {/* Section 2 - Sombre */}
-      <section className="py-24 bg-gradient-to-br from-amber-950 via-amber-900 via-stone-800 via-amber-900 to-amber-950 text-white">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-amber-950 via-amber-900 via-stone-800 via-amber-900 to-amber-950 text-white">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section2Ref}
@@ -132,7 +132,7 @@ export default function HomeHero() {
       </section>
 
       {/* Section 3 - Services */}
-      <section className="py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
           ref={section3Ref}
@@ -175,7 +175,7 @@ export default function HomeHero() {
       </section>
 
       {/* Section 4 - Galerie Artistique */}
-      <section className="py-24 bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl lg:text-4xl font-light mb-12 heading-font">
             L'art du soin esthétique
@@ -216,7 +216,7 @@ export default function HomeHero() {
       </section>
 
       {/* Call to Action */}
-      <section className="py-24 bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl lg:text-4xl font-light mb-8 heading-font">
             Prêt à commencer votre parcours bien-être ?
