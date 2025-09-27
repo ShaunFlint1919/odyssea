@@ -34,7 +34,7 @@ export default function EpilationLaser() {
       
       {/* Hero Section - Dark */}
       <section 
-        className="relative min-h-[80vh] lg:min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white flex items-center"
+        className="relative min-h-[80vh] lg:min-h-screen bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800 flex items-center"
         data-testid="hero-section"
       >
         <div className="absolute inset-0 bg-black/20"></div>
@@ -46,10 +46,10 @@ export default function EpilationLaser() {
             <h1 className="text-3xl sm:text-4xl lg:text-6xl font-light mb-6 lg:mb-8 heading-font">
               Épilation laser définitive
             </h1>
-            <p className="text-lg sm:text-xl lg:text-2xl mb-6 lg:mb-8 text-slate-200 leading-relaxed">
+            <p className="text-lg sm:text-xl lg:text-2xl mb-6 lg:mb-8 text-stone-600 leading-relaxed">
               Une solution durable pour une peau parfaitement lisse
             </p>
-            <div className="text-base sm:text-lg text-slate-300 leading-relaxed space-y-4 lg:space-y-6">
+            <div className="text-base sm:text-lg text-stone-600 leading-relaxed space-y-4 lg:space-y-6">
               <p>
                 Les méthodes d'épilation classiques (rasage, cire, épilateur) peuvent être contraignantes, douloureuses et générer des irritations ou poils incarnés.
               </p>
@@ -66,14 +66,14 @@ export default function EpilationLaser() {
                 className="w-full h-[300px] sm:h-[400px] lg:h-[600px] object-cover rounded-lg shadow-2xl"
                 data-testid="epilation-hero-image"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent rounded-lg"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-800/20 to-transparent rounded-lg"></div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Section 1 - Light - Notre expertise */}
-      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-amber-100 via-orange-100 to-stone-50">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section1Ref}
@@ -124,23 +124,23 @@ export default function EpilationLaser() {
       </section>
 
       {/* Section 2 - Dark - Avantages du laser diode */}
-      <section className="py-12 lg:py-24 bg-gradient-to-br from-amber-950 via-amber-900 via-stone-800 via-amber-900 to-amber-950 text-white">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-amber-100 via-stone-200 via-orange-200 via-stone-200 to-amber-100 text-stone-800">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section2Ref}
         >
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className={`fade-in ${section2Visible ? "visible" : ""} order-2 lg:order-1`}>
-              <h2 className="text-3xl lg:text-4xl font-light mb-8 text-amber-200 heading-font">
+              <h2 className="text-3xl lg:text-4xl font-light mb-8 text-stone-700 heading-font">
                 Les avantages du laser diode
               </h2>
-              <div className="text-lg text-amber-100 leading-relaxed space-y-6 body-font">
+              <div className="text-lg text-stone-600 leading-relaxed space-y-6 body-font">
                 <p>
                   Notre technologie de pointe offre des avantages incomparables pour une épilation définitive en toute sécurité.
                 </p>
                 
-                <div className="bg-amber-800/30 p-6 rounded-lg">
-                  <h3 className="font-medium text-amber-200 mb-4">Bénéfices uniques :</h3>
+                <div className="bg-stone-300/50 p-6 rounded-lg">
+                  <h3 className="font-medium text-stone-700 mb-4">Bénéfices uniques :</h3>
                   <ul className="space-y-2 text-sm">
                     <li>• Cible sélective du bulbe pileux, sans endommager la peau</li>
                     <li>• Diminution durable de la pilosité jusqu'à disparition quasi complète</li>
@@ -150,8 +150,8 @@ export default function EpilationLaser() {
                   </ul>
                 </div>
 
-                <div className="bg-amber-800/30 p-6 rounded-lg">
-                  <h3 className="font-medium text-amber-200 mb-4">Résultats attendus :</h3>
+                <div className="bg-stone-300/50 p-6 rounded-lg">
+                  <h3 className="font-medium text-stone-700 mb-4">Résultats attendus :</h3>
                   <ul className="space-y-2 text-sm">
                     <li>• Peau douce et nette, sans poils persistants</li>
                     <li>• Confort durable (fini les rasages répétés)</li>
@@ -174,7 +174,7 @@ export default function EpilationLaser() {
       </section>
 
       {/* Section 3 - Light - Protocole personnalisé */}
-      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-amber-100 via-orange-100 to-stone-50">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section3Ref}
@@ -243,7 +243,7 @@ export default function EpilationLaser() {
       </section>
 
       {/* Section 4 - Dark - Call to Action */}
-      <section className="py-12 lg:py-24 bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
           ref={section4Ref}

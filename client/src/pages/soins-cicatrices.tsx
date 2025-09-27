@@ -34,7 +34,7 @@ export default function SoinsCicatrices() {
       
       {/* Hero Section - Dark */}
       <section 
-        className="relative min-h-[80vh] lg:min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white flex items-center"
+        className="relative min-h-[80vh] lg:min-h-screen bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800 flex items-center"
         data-testid="hero-section"
       >
         <div className="absolute inset-0 bg-black/20"></div>
@@ -46,10 +46,10 @@ export default function SoinsCicatrices() {
             <h1 className="text-3xl sm:text-4xl lg:text-6xl font-light mb-6 lg:mb-8 heading-font">
               Soins de cicatrices innovants
             </h1>
-            <p className="text-lg sm:text-xl lg:text-2xl mb-6 lg:mb-8 text-slate-200 leading-relaxed">
+            <p className="text-lg sm:text-xl lg:text-2xl mb-6 lg:mb-8 text-stone-600 leading-relaxed">
               Endneedling : notre approche signature
             </p>
-            <div className="text-base sm:text-lg text-slate-300 leading-relaxed space-y-4 lg:space-y-6">
+            <div className="text-base sm:text-lg text-stone-600 leading-relaxed space-y-4 lg:space-y-6">
               <p>
                 Lorsque la peau a vécu des agressions ou des interventions chirurgicales, elle peut présenter des cicatrices inesthétiques ou inconfortables.
               </p>
@@ -66,14 +66,14 @@ export default function SoinsCicatrices() {
                 className="w-full h-[300px] sm:h-[400px] lg:h-[600px] object-cover rounded-lg shadow-2xl"
                 data-testid="cicatrices-hero-image"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent rounded-lg"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-800/20 to-transparent rounded-lg"></div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Section 1 - Light - Technique Endneedling */}
-      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-amber-100 via-orange-100 to-stone-50">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section1Ref}
@@ -124,23 +124,23 @@ export default function SoinsCicatrices() {
       </section>
 
       {/* Section 2 - Dark - Protocole personnalisé */}
-      <section className="py-12 lg:py-24 bg-gradient-to-br from-amber-950 via-amber-900 via-stone-800 via-amber-900 to-amber-950 text-white">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-amber-100 via-stone-200 via-orange-200 via-stone-200 to-amber-100 text-stone-800">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section2Ref}
         >
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className={`fade-in ${section2Visible ? "visible" : ""} order-2 lg:order-1`}>
-              <h2 className="text-3xl lg:text-4xl font-light mb-8 text-amber-200 heading-font">
+              <h2 className="text-3xl lg:text-4xl font-light mb-8 text-stone-700 heading-font">
                 Protocole personnalisé jusqu'au phénotype VI
               </h2>
-              <div className="text-lg text-amber-100 leading-relaxed space-y-6 body-font">
+              <div className="text-lg text-stone-600 leading-relaxed space-y-6 body-font">
                 <p>
                   Notre approche est entièrement sur mesure et s'adapte à chaque profil de peau et de cicatrice.
                 </p>
                 
-                <div className="bg-amber-800/30 p-6 rounded-lg">
-                  <h3 className="font-medium text-amber-200 mb-4">Nos critères d'adaptation :</h3>
+                <div className="bg-stone-300/50 p-6 rounded-lg">
+                  <h3 className="font-medium text-stone-700 mb-4">Nos critères d'adaptation :</h3>
                   <ul className="space-y-2 text-sm">
                     <li>• Type de cicatrices : atrophique, hypertrophique, chéloïde</li>
                     <li>• Ancienneté et localisation de la cicatrice</li>
@@ -148,8 +148,8 @@ export default function SoinsCicatrices() {
                   </ul>
                 </div>
 
-                <div className="bg-amber-800/30 p-6 rounded-lg">
-                  <h3 className="font-medium text-amber-200 mb-4">Nos soins permettent :</h3>
+                <div className="bg-stone-300/50 p-6 rounded-lg">
+                  <h3 className="font-medium text-stone-700 mb-4">Nos soins permettent :</h3>
                   <ul className="space-y-2 text-sm">
                     <li>• Un lissage progressif du relief cicatriciel</li>
                     <li>• Une souplesse restaurée et un meilleur confort</li>
@@ -172,7 +172,7 @@ export default function SoinsCicatrices() {
       </section>
 
       {/* Section 3 - Light - Résultats et Processus */}
-      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-amber-100 via-orange-100 to-stone-50">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section3Ref}
@@ -234,7 +234,7 @@ export default function SoinsCicatrices() {
       </section>
 
       {/* Section 4 - Dark - Call to Action */}
-      <section className="py-12 lg:py-24 bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white">
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
           ref={section4Ref}
