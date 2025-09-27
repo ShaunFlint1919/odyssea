@@ -36,7 +36,7 @@ export default function RenataFranca() {
       
       {/* Hero Section - Dark */}
       <section 
-        className="relative min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white flex items-center"
+        className="relative min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white flex items-center"
         data-testid="hero-section"
       >
         <div className="absolute inset-0 bg-black/20"></div>
@@ -83,7 +83,7 @@ export default function RenataFranca() {
       </section>
 
       {/* Section 1 - Light - Drainage Lymphatique */}
-      <section className="py-24 bg-gradient-to-br from-stone-50 to-amber-50">
+      <section className="py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section1Ref}
@@ -131,7 +131,7 @@ export default function RenataFranca() {
       </section>
 
       {/* Section 2 - Dark - Massage Remodelant & Miracle Touch */}
-      <section className="py-24 bg-gradient-to-br from-amber-900 via-stone-800 to-amber-900 text-white">
+      <section className="py-24 bg-gradient-to-br from-amber-950 via-amber-900 via-stone-800 via-amber-900 to-amber-950 text-white">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section2Ref}
@@ -183,7 +183,7 @@ export default function RenataFranca() {
       </section>
 
       {/* Section 3 - Light - Soins Visage et Relaxant */}
-      <section className="py-24 bg-gradient-to-br from-stone-50 to-amber-50">
+      <section className="py-24 bg-gradient-to-br from-stone-50 via-stone-100 via-amber-100 to-amber-50">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section3Ref}
@@ -233,7 +233,7 @@ export default function RenataFranca() {
       </section>
 
       {/* Section 4 - Dark - Call to Action */}
-      <section className="py-24 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+      <section className="py-24 bg-gradient-to-br from-slate-950 via-slate-900 via-slate-800 via-slate-900 to-slate-950 text-white">
         <div 
           className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
           ref={section4Ref}
