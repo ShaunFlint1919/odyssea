@@ -240,10 +240,10 @@ export default function SoinsCicatrices() {
           ref={section4Ref}
         >
           <div className={`fade-in ${section4Visible ? "visible" : ""}`}>
-            <h2 className="text-3xl lg:text-4xl font-light mb-8 text-slate-200 heading-font">
+            <h2 className="text-3xl lg:text-4xl font-light mb-8 text-stone-800 heading-font">
               Entamons un chemin vers une cicatrisation harmonieuse
             </h2>
-            <p className="text-xl text-slate-300 mb-12 leading-relaxed max-w-3xl mx-auto">
+            <p className="text-xl text-stone-700 mb-12 leading-relaxed max-w-3xl mx-auto">
               Contactez-nous dès aujourd'hui pour une évaluation sur mesure et découvrez notre approche innovante.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">

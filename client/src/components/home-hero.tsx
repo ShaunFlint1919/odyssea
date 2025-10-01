@@ -206,7 +206,7 @@ export default function HomeHero() {
               />
             </div>
           </div>
-          <div className="mt-12 text-slate-300 body-font">
+          <div className="mt-12 text-stone-700 body-font">
             <p className="text-lg max-w-3xl mx-auto">
               Découvrez nos techniques exclusives qui allient savoir-faire traditionnel et innovations technologiques 
               pour révéler votre beauté naturelle.
@@ -221,7 +221,7 @@ export default function HomeHero() {
           <h2 className="text-3xl lg:text-4xl font-light mb-8 heading-font">
             Prêt à commencer votre parcours bien-être ?
           </h2>
-          <p className="text-xl mb-12 text-slate-200 leading-relaxed body-font">
+          <p className="text-xl mb-12 text-stone-700 leading-relaxed body-font">
             Réservez votre consultation personnalisée et découvrez comment nous pouvons vous accompagner.
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center">

@@ -249,10 +249,10 @@ export default function EpilationLaser() {
           ref={section4Ref}
         >
           <div className={`fade-in ${section4Visible ? "visible" : ""}`}>
-            <h2 className="text-3xl lg:text-4xl font-light mb-8 text-slate-200 heading-font">
+            <h2 className="text-3xl lg:text-4xl font-light mb-8 text-stone-800 heading-font">
               Prêt pour une peau parfaitement lisse ?
             </h2>
-            <p className="text-xl text-slate-300 mb-12 leading-relaxed max-w-3xl mx-auto">
+            <p className="text-xl text-stone-700 mb-12 leading-relaxed max-w-3xl mx-auto">
               Réservez votre consultation personnalisée et découvrez les bienfaits de l'épilation laser.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">

@@ -247,10 +247,10 @@ export default function RenataFranca() {
                 data-testid="renata-vertical-logo"
               />
             </div>
-            <h2 className="text-3xl lg:text-4xl font-light mb-8 text-slate-200 heading-font">
+            <h2 className="text-3xl lg:text-4xl font-light mb-8 text-stone-800 heading-font">
               Prenez rendez-vous pour un voyage sensoriel brésilien
             </h2>
-            <p className="text-xl text-slate-300 mb-12 leading-relaxed max-w-3xl mx-auto">
+            <p className="text-xl text-stone-700 mb-12 leading-relaxed max-w-3xl mx-auto">
               Votre corps mérite ce qu'il y a de mieux. Offrez-lui un soin signé Renata Franca, dans un service de beauté et bien-être unique.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
