@@ -41,11 +41,11 @@ export default function RenataFranca() {
       >
         <div className="absolute inset-0 bg-black/20"></div>
         <div 
-          className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center"
+          className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={heroRef}
         >
-          <div className={`fade-in ${heroVisible ? "visible" : ""}`}>
-            <div className="mb-8 bg-white/10 rounded-lg p-6 backdrop-blur-sm">
+          <div className={`fade-in ${heroVisible ? "visible" : ""} mb-12 text-center`}>
+            <div className="bg-white/10 rounded-lg p-6 backdrop-blur-sm inline-block">
               <img 
                 src={renataFrancaHorizontal} 
                 alt="Méthode Renata França"
@@ -53,6 +53,9 @@ export default function RenataFranca() {
                 data-testid="renata-logo"
               />
             </div>
+          </div>
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className={`fade-in ${heroVisible ? "visible" : ""}`}>
             <h1 className="text-3xl sm:text-4xl lg:text-6xl font-light mb-6 lg:mb-8 heading-font">
               Les soins Renata Franca
             </h1>
@@ -66,9 +69,9 @@ export default function RenataFranca() {
               <p>
                 <strong>Nos protocoles authentiques et uniques</strong> sont les fondements de notre savoir-être et bien-être pour notre clientèle.
               </p>
+              </div>
             </div>
-          </div>
-          <div className={`fade-in ${heroVisible ? "visible" : ""} lg:delay-300`}>
+            <div className={`fade-in ${heroVisible ? "visible" : ""} lg:delay-300`}>
             <div className="relative">
               <img 
                 src={renataProducts} 
@@ -77,6 +80,7 @@ export default function RenataFranca() {
                 data-testid="renata-products-image"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-stone-800/20 to-transparent rounded-lg"></div>
+            </div>
             </div>
           </div>
         </div>
