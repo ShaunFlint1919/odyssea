@@ -1,7 +1,7 @@
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 import img1 from "@assets/IMG_0718_1758988530094.jpg";
 import img2 from "@assets/IMG_0386_1758988530094.jpg";
-import img3 from "@assets/photo-output_1758988530094.jpg";
+import img3 from "@assets/IMG_2583_1759596370786.jpg";
 import beforeAfterLegs from "@assets/Photoroom_20250720_101228_1759340420304.jpg";
 import artisticPortrait from "@assets/IMG_0374_1758988603443.jpg";
 
