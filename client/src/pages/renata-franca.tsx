@@ -6,7 +6,7 @@ import renataFrancaHorizontal from "@assets/logo-horizontal-noir-or (1)_17579616
 import renataFrancaVertical from "@assets/logo-vertical-noir-or_1757961640279.jpg";
 import renataProducts from "@assets/IMG_4146_1758988530094.jpg";
 import massageImage from "@assets/IMG_0385_1758988530094.jpg";
-import drainageResults from "@assets/photo-output 2_1758988530094.jpg";
+import drainageResults from "@assets/photo-output 2_1759593940577.jpg";
 import salonAtmosphere from "@assets/Photoroom_20250720_101228_1758988530094.jpg";
 
 export default function RenataFranca() {
@@ -97,7 +97,7 @@ export default function RenataFranca() {
               <img 
                 src={drainageResults} 
                 alt="Résultats drainage lymphatique Renata França - Transformation visible"
-                className="w-full h-[250px] sm:h-[350px] lg:h-[500px] object-cover rounded-lg shadow-xl"
+                className="w-full h-auto object-contain rounded-lg shadow-xl"
                 data-testid="drainage-results-image"
               />
             </div>
