@@ -5,7 +5,7 @@ import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 import renataFrancaHorizontal from "@assets/logo-horizontal-noir-or (1)_1757961640279.jpg";
 import renataFrancaVertical from "@assets/logo-vertical-noir-or_1757961640279.jpg";
 import renataProducts from "@assets/IMG_4146_1758988530094.jpg";
-import massageImage from "@assets/IMG_0385_1758988530094.jpg";
+import massageImage from "@assets/photo-output(2)_1759594113789.jpg";
 import drainageResults from "@assets/photo-output 2_1759593940577.jpg";
 import salonAtmosphere from "@assets/Photoroom_20250720_101228_1758988530094.jpg";
 
@@ -177,8 +177,8 @@ export default function RenataFranca() {
             <div className={`fade-in ${section2Visible ? "visible" : ""} lg:delay-200 order-1 lg:order-2`}>
               <img 
                 src={massageImage} 
-                alt="Techniques de massage Renata França - Gestes professionnels"
-                className="w-full h-[250px] sm:h-[350px] lg:h-[500px] object-cover rounded-lg shadow-xl"
+                alt="Résultats massage Renata França - Transformation visible avant/après"
+                className="w-full h-auto object-contain rounded-lg shadow-xl"
                 data-testid="massage-techniques-image"
               />
             </div>
