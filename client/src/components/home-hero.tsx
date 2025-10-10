@@ -1,9 +1,9 @@
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 import img1 from "@assets/IMG_0718_1758988530094.jpg";
 import img2 from "@assets/IMG_0386_1758988530094.jpg";
-import img3 from "@assets/IMG_2583_1759596370786.jpg";
 import beforeAfterLegs from "@assets/Photoroom_20250720_101228_1759340420304.jpg";
 import artisticPortrait from "@assets/IMG_0374_1758988603443.jpg";
+import artSoinEsthetique from "@assets/WhatsApp Image 2025-10-01 à 22.06.40_a62b9996_1760096768908.jpg";
 
 export default function HomeHero() {
   const { elementRef: heroRef, isVisible: heroVisible } = useIntersectionObserver();
@@ -175,40 +175,19 @@ export default function HomeHero() {
         </div>
       </section>
 
-      {/* Section 4 - Galerie Artistique */}
+      {/* Section 4 - L'art du soin esthétique */}
       <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800">
         <div 
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+          className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
           ref={section4Ref}
         >
-          <h2 className="text-3xl lg:text-4xl font-light mb-12 heading-font">
-            L'art du soin esthétique
-          </h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className={`fade-in ${section4Visible ? "visible" : ""}`}>
-              <img 
-                src={artisticPortrait} 
-                alt="Portrait artistique - Beauté naturelle sublimée"
-                className="w-full h-[400px] object-cover rounded-lg shadow-xl"
-                data-testid="gallery-image-1"
-              />
-            </div>
-            <div className={`fade-in ${section4Visible ? "visible" : ""} lg:delay-100`}>
-              <img 
-                src={img3} 
-                alt="Résultats avant/après traitement corporel"
-                className="w-full h-[400px] object-cover rounded-lg shadow-xl"
-                data-testid="gallery-image-2"
-              />
-            </div>
-            <div className={`fade-in ${section4Visible ? "visible" : ""} lg:delay-200`}>
-              <img 
-                src={img1} 
-                alt="Soins du visage professionnels et détente"
-                className="w-full h-[400px] object-cover rounded-lg shadow-xl"
-                data-testid="gallery-image-3"
-              />
-            </div>
+          <div className={`fade-in ${section4Visible ? "visible" : ""}`}>
+            <img 
+              src={artSoinEsthetique} 
+              alt="L'art du soin esthétique - Produits et soins de qualité"
+              className="w-full h-auto object-contain rounded-lg shadow-xl"
+              data-testid="art-soin-image"
+            />
           </div>
           <div className="mt-12 text-stone-700 body-font">
             <p className="text-lg max-w-3xl mx-auto">
