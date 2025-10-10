@@ -10,6 +10,7 @@ export default function HomeHero() {
   const { elementRef: section1Ref, isVisible: section1Visible } = useIntersectionObserver();
   const { elementRef: section2Ref, isVisible: section2Visible } = useIntersectionObserver();
   const { elementRef: section3Ref, isVisible: section3Visible } = useIntersectionObserver();
+  const { elementRef: section4Ref, isVisible: section4Visible } = useIntersectionObserver();
 
   return (
     <div className="pt-16">
@@ -176,12 +177,15 @@ export default function HomeHero() {
 
       {/* Section 4 - Galerie Artistique */}
       <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div 
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+          ref={section4Ref}
+        >
           <h2 className="text-3xl lg:text-4xl font-light mb-12 heading-font">
             L'art du soin esthétique
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="fade-in">
+            <div className={`fade-in ${section4Visible ? "visible" : ""}`}>
               <img 
                 src={artisticPortrait} 
                 alt="Portrait artistique - Beauté naturelle sublimée"
@@ -189,7 +193,7 @@ export default function HomeHero() {
                 data-testid="gallery-image-1"
               />
             </div>
-            <div className="fade-in lg:delay-100">
+            <div className={`fade-in ${section4Visible ? "visible" : ""} lg:delay-100`}>
               <img 
                 src={img3} 
                 alt="Résultats avant/après traitement corporel"
@@ -197,7 +201,7 @@ export default function HomeHero() {
                 data-testid="gallery-image-2"
               />
             </div>
-            <div className="fade-in lg:delay-200">
+            <div className={`fade-in ${section4Visible ? "visible" : ""} lg:delay-200`}>
               <img 
                 src={img1} 
                 alt="Soins du visage professionnels et détente"
