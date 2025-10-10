@@ -13,6 +13,7 @@ export default function EpilationLaser() {
   const { elementRef: section2Ref, isVisible: section2Visible } = useIntersectionObserver();
   const { elementRef: section3Ref, isVisible: section3Visible } = useIntersectionObserver();
   const { elementRef: section4Ref, isVisible: section4Visible } = useIntersectionObserver();
+  const { elementRef: section5Ref, isVisible: section5Visible } = useIntersectionObserver();
 
   useEffect(() => {
     document.title = "Épilation laser définitive - Odyssea Lymphea | Waterloo";
@@ -242,17 +243,176 @@ export default function EpilationLaser() {
         </div>
       </section>
 
-      {/* Section 4 - Dark - Call to Action */}
+      {/* Section 4 - Tarifs */}
       <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800">
         <div 
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section4Ref}
         >
           <div className={`fade-in ${section4Visible ? "visible" : ""}`}>
+            <h2 className="text-3xl lg:text-4xl font-light mb-12 text-center text-stone-800 heading-font">
+              Nos tarifs
+            </h2>
+            
+            <div className="grid lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+              {/* VISAGE */}
+              <div className="bg-white/80 p-8 rounded-lg shadow-lg">
+                <h3 className="text-2xl font-medium text-stone-700 mb-6 heading-font text-center">
+                  Visage
+                </h3>
+                <div className="space-y-3 text-stone-700 body-font text-sm">
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Inter sourcilier</span>
+                    <span className="font-medium">30,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Oreilles ou nez</span>
+                    <span className="font-medium">40,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Pommettes</span>
+                    <span className="font-medium">60,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Favoris</span>
+                    <span className="font-medium">50,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Cou</span>
+                    <span className="font-medium">60,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Nuque</span>
+                    <span className="font-medium">60,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Lèvre supérieure</span>
+                    <span className="font-medium">40,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Menton</span>
+                    <span className="font-medium">50,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2">
+                    <span>Barbe</span>
+                    <span className="font-medium">100,00 €</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* BUSTE */}
+              <div className="bg-white/80 p-8 rounded-lg shadow-lg">
+                <h3 className="text-2xl font-medium text-stone-700 mb-6 heading-font text-center">
+                  Buste
+                </h3>
+                <div className="space-y-3 text-stone-700 body-font text-sm">
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Aréoles</span>
+                    <span className="font-medium">40,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Aisselles</span>
+                    <span className="font-medium">60,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Épaules</span>
+                    <span className="font-medium">65,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Mains + doigts</span>
+                    <span className="font-medium">50,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Haut du bras ou avant bras</span>
+                    <span className="font-medium">80,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Bras entier</span>
+                    <span className="font-medium">130,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Torse</span>
+                    <span className="font-medium">130,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Ventre</span>
+                    <span className="font-medium">90,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Haut du dos (hors épaules)</span>
+                    <span className="font-medium">100,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Bas du dos</span>
+                    <span className="font-medium">70,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Dos entier (hors épaules)</span>
+                    <span className="font-medium">160,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Fesses</span>
+                    <span className="font-medium">80,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Bikini classique</span>
+                    <span className="font-medium">70,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Bikini échancré</span>
+                    <span className="font-medium">90,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Bikini intégral</span>
+                    <span className="font-medium">100,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2">
+                    <span>Sillon inter fessiers</span>
+                    <span className="font-medium">55,00 €</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* JAMBES */}
+              <div className="bg-white/80 p-8 rounded-lg shadow-lg">
+                <h3 className="text-2xl font-medium text-stone-700 mb-6 heading-font text-center">
+                  Jambes
+                </h3>
+                <div className="space-y-3 text-stone-700 body-font text-sm">
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Pieds + orteils</span>
+                    <span className="font-medium">50,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>½ jambes</span>
+                    <span className="font-medium">135,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Cuisses entières</span>
+                    <span className="font-medium">160,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2">
+                    <span>Jambes complètes</span>
+                    <span className="font-medium">250,00 €</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 5 - Call to Action */}
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-amber-100 via-orange-100 to-stone-50">
+        <div 
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+          ref={section5Ref}
+        >
+          <div className={`fade-in ${section5Visible ? "visible" : ""}`}>
             <h2 className="text-3xl lg:text-4xl font-light mb-8 text-stone-800 heading-font">
               Prêt pour une peau parfaitement lisse ?
             </h2>
-            <p className="text-xl text-stone-700 mb-12 leading-relaxed max-w-3xl mx-auto">
+            <p className="text-xl text-stone-700 mb-12 leading-relaxed max-w-3xl mx-auto body-font">
               Réservez votre consultation personnalisée et découvrez les bienfaits de l'épilation laser.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
