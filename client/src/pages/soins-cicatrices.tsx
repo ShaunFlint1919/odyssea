@@ -6,6 +6,7 @@ import cicatricesImage from "@assets/IMG_0976_1758988530094.jpg";
 import beforeAfterImage from "@assets/photo-output(2)_1758988530094.jpg";
 import treatmentDetails from "@assets/IMG_2583_1758988530094.jpg";
 import salonModern from "@assets/IMG_3606_1758988530094.jpg";
+import phototypesImage from "@assets/WhatsApp Image 2025-10-04 à 19.47.22_0274719c_1760097215054.jpg";
 
 export default function SoinsCicatrices() {
   const { elementRef: heroRef, isVisible: heroVisible } = useIntersectionObserver();
@@ -161,10 +162,10 @@ export default function SoinsCicatrices() {
             </div>
             <div className={`fade-in ${section2Visible ? "visible" : ""} lg:delay-200 order-1 lg:order-2`}>
               <img 
-                src={salonModern} 
-                alt="Cabinet Odyssea Lymphea - Équipement moderne pour soins cicatrices"
-                className="w-full h-[250px] sm:h-[350px] lg:h-[500px] object-cover rounded-lg shadow-xl"
-                data-testid="salon-equipment-image"
+                src={phototypesImage} 
+                alt="Tous les phototypes de peau - Adapté aux peaux foncées I à VI"
+                className="w-full h-auto object-contain rounded-lg shadow-xl"
+                data-testid="phototypes-image"
               />
             </div>
           </div>
