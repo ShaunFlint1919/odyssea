@@ -202,35 +202,73 @@ export default function DrainageLymphatique() {
         </div>
       </section>
 
-      {/* Section 4 - Dark - Call to Action */}
+      {/* Section 4 - Tarifs */}
       <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800">
         <div 
-          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+          className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={section4Ref}
         >
           <div className={`fade-in ${section4Visible ? "visible" : ""}`}>
-            <h2 className="text-3xl lg:text-4xl font-light mb-8 text-stone-800 heading-font">
-              Venez vivre votre propre expérience
+            <h2 className="text-3xl lg:text-4xl font-light mb-12 text-center text-stone-800 heading-font">
+              Nos tarifs
             </h2>
-            <p className="text-xl text-stone-700 mb-12 leading-relaxed max-w-3xl mx-auto">
-              Réservez votre séance aujourd'hui et découvrez l'art du soin en douceur.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <a 
-                href="tel:+32494741777"
-                className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-lg font-medium inline-block transition-colors"
-                data-testid="button-phone"
-              >
-                Appeler maintenant
-              </a>
-              <a 
-                href="mailto:odyssea.lymphea@gmail.com"
-                className="border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white px-8 py-4 rounded-lg font-medium inline-block transition-colors"
-                data-testid="button-email"
-              >
-                Envoyer un email
-              </a>
+            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              <div className="bg-white/80 p-8 rounded-lg shadow-lg">
+                <h3 className="text-2xl font-medium text-stone-700 mb-6 heading-font">
+                  Drainage conventionnel
+                </h3>
+                <div className="space-y-4 text-stone-700 body-font">
+                  <div className="flex justify-between items-center pb-3 border-b border-stone-300">
+                    <span className="text-lg">30 minutes</span>
+                    <span className="text-xl font-medium">50€</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-stone-300">
+                    <span className="text-lg">1 heure</span>
+                    <span className="text-xl font-medium">100€</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white/80 p-8 rounded-lg shadow-lg">
+                <h3 className="text-2xl font-medium text-stone-700 mb-6 heading-font">
+                  Bottes de pressothérapie
+                </h3>
+                <div className="space-y-4 text-stone-700 body-font">
+                  <div className="flex justify-between items-center pb-3 border-b border-stone-300">
+                    <span className="text-lg">30 minutes</span>
+                    <span className="text-xl font-medium">50€</span>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 5 - Call to Action */}
+      <section className="py-12 lg:py-24 bg-gradient-to-br from-stone-50 via-amber-100 via-orange-100 to-stone-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl lg:text-4xl font-light mb-8 text-stone-800 heading-font">
+            Venez vivre votre propre expérience
+          </h2>
+          <p className="text-xl text-stone-700 mb-12 leading-relaxed max-w-3xl mx-auto body-font">
+            Réservez votre séance aujourd'hui et découvrez l'art du soin en douceur.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+            <a 
+              href="tel:+32494741777"
+              className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-lg font-medium inline-block transition-colors"
+              data-testid="button-phone"
+            >
+              Appeler maintenant
+            </a>
+            <a 
+              href="mailto:odyssea.lymphea@gmail.com"
+              className="border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white px-8 py-4 rounded-lg font-medium inline-block transition-colors"
+              data-testid="button-email"
+            >
+              Envoyer un email
+            </a>
           </div>
         </div>
       </section>
