@@ -1,0 +1,81 @@
+# Dépendances
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build artifacts
+dist/
+.vite/
+
+# Assets compilés (seront générés par le build)
+assets/*.css
+assets/*.js
+assets/chunks/
+asset-manifest.php
+
+# Index de référence
+index.html.reference
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# WordPress specific (si vous avez WordPress en local)
+wp-config.php
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/backup-db/
+wp-content/cache/
+
+# Ne pas ignorer les fichiers WordPress essentiels du thème
+!index.php
+!style.css
+!functions.php
+!header.php
+!footer.php
+!page.php
+!single.php
+!404.php
+!screenshot.png

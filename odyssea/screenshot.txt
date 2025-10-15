@@ -1,0 +1,31 @@
+AJOUTER UN SCREENSHOT DU THÈME
+================================
+
+WordPress utilise un fichier screenshot.png pour afficher un aperçu du thème dans l'admin.
+
+📸 INSTRUCTIONS :
+
+1. Ouvrez votre site avec le thème activé
+2. Prenez une capture d'écran de la page d'accueil
+3. Redimensionnez l'image à 1200×900 pixels (ratio 4:3)
+4. Enregistrez-la comme "screenshot.png" dans ce dossier
+5. Le fichier sera automatiquement détecté par WordPress
+
+DIMENSIONS RECOMMANDÉES :
+- Largeur : 1200px
+- Hauteur : 900px
+- Format : PNG
+- Ratio : 4:3
+
+OUTILS GRATUITS POUR REDIMENSIONNER :
+- GIMP (gratuit, multiplateforme)
+- Paint.NET (Windows)
+- Preview (Mac)
+- ImageMagick (ligne de commande)
+
+EXEMPLE IMAGEMAGICK :
+convert ma-capture.png -resize 1200x900 screenshot.png
+
+📝 NOTE :
+Le thème fonctionne parfaitement sans screenshot.png
+C'est uniquement pour l'aperçu dans WordPress Admin → Apparence → Thèmes
