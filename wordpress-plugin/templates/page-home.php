@@ -188,7 +188,7 @@ if (!defined('ABSPATH')) {
     <section class="odyssea-section" style="padding: 6rem 0; background: linear-gradient(to bottom right, hsl(45 25% 85%), hsl(45 45% 85%), hsl(35 50% 85%), hsl(45 45% 85%), hsl(45 25% 85%)); text-align: center;">
         <div class="odyssea-container" style="max-width: 1024px;">
             <div class="odyssea-fade-in">
-                <img src="<?php echo esc_url(ODYSSEA_PLUGIN_URL . 'assets/images/WhatsApp Image 2025-10-01 à 22.06.40_a62b9996_1760096768908.jpg'); ?>" 
+                <img src="<?php echo esc_url(ODYSSEA_PLUGIN_URL . 'assets/images/WhatsApp_Image_2025-10-01_a_22.06.40_a62b9996_1760096768908.jpg'); ?>" 
                      alt="L'art du soin esthétique - Produits et soins de qualité"
                      style="width: 100%; height: auto; object-fit: contain; border-radius: var(--odyssea-radius); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15); margin-bottom: 3rem;">
             </div>
