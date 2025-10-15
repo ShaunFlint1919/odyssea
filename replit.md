@@ -105,3 +105,45 @@ The theme includes comprehensive documentation:
 - `assets/README.md` - Image naming and asset preparation guide
 
 The WordPress theme provides the same user experience as the React application with proper WordPress integration for content management.
+
+## WordPress Plugin
+
+### WordPress Plugin Architecture (October 2025)
+Following the theme, a complete WordPress **plugin** has been created as an alternative approach that works with any WordPress theme.
+
+**Plugin Advantages:**
+- **Theme-independent**: Works with any WordPress theme
+- **Auto-installation**: Creates all 5 pages automatically on activation
+- **Auto-menu**: Sets up navigation menu automatically  
+- **Settings page**: Admin interface to customize clinic details
+- **Scoped styles**: CSS isolated with odyssea- prefix to avoid theme conflicts
+- **Conditional loading**: Assets only load on relevant pages
+
+**Plugin Structure:**
+- **Language**: PHP with WordPress plugin API
+- **Shortcodes**: `[odyssea_home]`, `[odyssea_renata_franca]`, `[odyssea_drainage]`, `[odyssea_cicatrices]`, `[odyssea_epilation]`
+- **Auto-creation**: Pages and menu created on plugin activation
+- **Admin Settings**: Customizable contact info (Settings → Odyssea Lymphea)
+- **Scoped CSS**: All styles prefixed with `.odyssea-page` and `--odyssea-` variables
+- **Conditional Assets**: CSS/JS only enqueued when shortcodes are present
+
+**Key Files:**
+- `wordpress-plugin/odyssea-lymphea.php` - Main plugin file
+- `wordpress-plugin/includes/class-activator.php` - Page/menu creation on activation
+- `wordpress-plugin/includes/class-shortcodes.php` - Shortcode handlers
+- `wordpress-plugin/includes/class-settings.php` - Admin settings page
+- `wordpress-plugin/includes/class-assets.php` - Conditional CSS/JS loading
+- `wordpress-plugin/templates/page-*.php` - Page templates
+- `wordpress-plugin/assets/` - Scoped CSS, JS, and images
+- `wordpress-plugin/uninstall.php` - Cleanup on uninstall
+
+**Installation:**
+The plugin includes comprehensive documentation:
+- `README.md` - Plugin description, features, and usage
+- `INSTALLATION-GUIDE.md` - Step-by-step installation instructions
+
+**Comparison: Theme vs Plugin**
+- **Theme**: Full site control, custom templates, header/footer integration
+- **Plugin**: Works with existing theme, auto-setup, portable, easier to maintain
+
+Both implementations provide the same user experience with full-featured pages for the physiotherapy clinic services.

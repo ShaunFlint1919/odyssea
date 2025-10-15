@@ -1,0 +1,58 @@
+/**
+ * Odyssea Lymphea Admin Styles
+ * 
+ * @package Odyssea_Lymphea
+ * @version 1.0.0
+ */
+
+.odyssea-settings-header {
+  background: #f8f9fa;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.odyssea-settings-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #50575e;
+}
+
+.odyssea-settings-info {
+  background: #ffffff;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.odyssea-settings-info h3 {
+  margin-top: 0;
+  font-size: 16px;
+  color: #1d2327;
+}
+
+.odyssea-settings-info ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+}
+
+.odyssea-settings-info li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f1;
+}
+
+.odyssea-settings-info li:last-child {
+  border-bottom: none;
+}
+
+.odyssea-settings-info a {
+  text-decoration: none;
+  color: #2271b1;
+}
+
+.odyssea-settings-info a:hover {
+  color: #135e96;
+}

@@ -1,0 +1,219 @@
+/**
+ * Odyssea Lymphea Plugin Styles
+ * Fully scoped to .odyssea-page to avoid conflicts with themes
+ * 
+ * @package Odyssea_Lymphea
+ * @version 1.0.0
+ */
+
+/* All styles are scoped under .odyssea-page to prevent theme conflicts */
+.odyssea-page {
+  /* Warm Beige Color Palette - scoped variables */
+  --odyssea-background: hsl(45 25% 96%);
+  --odyssea-foreground: hsl(30 15% 25%);
+  --odyssea-card: hsl(45 25% 97%);
+  --odyssea-card-foreground: hsl(30 15% 25%);
+  --odyssea-primary: hsl(38 45% 55%);
+  --odyssea-primary-foreground: hsl(45 25% 96%);
+  --odyssea-secondary: hsl(45 20% 90%);
+  --odyssea-secondary-foreground: hsl(30 15% 25%);
+  --odyssea-muted: hsl(45 15% 93%);
+  --odyssea-muted-foreground: hsl(30 12% 45%);
+  --odyssea-accent: hsl(40 50% 60%);
+  --odyssea-border: hsl(45 18% 88%);
+  --odyssea-font-heading: 'Optima', 'Avenir Next', 'Avenir Light', 'Cormorant', sans-serif;
+  --odyssea-font-body: 'EB Garamond', 'Garamond', Georgia, serif;
+  --odyssea-radius: 0.5rem;
+  
+  font-family: var(--odyssea-font-body);
+  line-height: 1.6;
+  color: var(--odyssea-foreground);
+}
+
+.odyssea-page h1, 
+.odyssea-page h2, 
+.odyssea-page h3, 
+.odyssea-page h4, 
+.odyssea-page h5, 
+.odyssea-page h6 {
+  font-family: var(--odyssea-font-heading);
+  font-weight: 300;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+.odyssea-page h1 {
+  font-size: 3rem;
+  font-weight: 300;
+}
+
+.odyssea-page h2 {
+  font-size: 2.25rem;
+  font-weight: 300;
+}
+
+.odyssea-page h3 {
+  font-size: 1.5rem;
+  font-weight: 400;
+}
+
+.odyssea-page p {
+  margin-bottom: 1rem;
+}
+
+.odyssea-page img {
+  max-width: 100%;
+  height: auto;
+}
+
+.odyssea-page a {
+  color: var(--odyssea-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.odyssea-page a:hover {
+  color: var(--odyssea-accent);
+}
+
+/* Container */
+.odyssea-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.odyssea-container-lg {
+  max-width: 1536px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Utility Classes */
+.odyssea-text-center {
+  text-align: center;
+}
+
+.odyssea-primary-text {
+  color: var(--odyssea-primary);
+}
+
+.odyssea-muted-text {
+  color: var(--odyssea-muted-foreground);
+}
+
+/* Animations */
+.odyssea-fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.6s ease;
+}
+
+.odyssea-fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Buttons */
+.odyssea-button-minimal {
+  background: var(--odyssea-primary);
+  color: var(--odyssea-primary-foreground);
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: var(--odyssea-radius);
+  font-size: 1.125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-block;
+}
+
+.odyssea-button-minimal:hover {
+  background: var(--odyssea-accent);
+  transform: translateY(-1px);
+  color: var(--odyssea-primary-foreground);
+}
+
+.odyssea-button-outline {
+  background: transparent;
+  color: var(--odyssea-primary);
+  border: 1px solid var(--odyssea-primary);
+  padding: 1rem 2rem;
+  border-radius: var(--odyssea-radius);
+  font-size: 1.125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-block;
+}
+
+.odyssea-button-outline:hover {
+  background: var(--odyssea-primary);
+  color: var(--odyssea-primary-foreground);
+}
+
+/* Sections */
+.odyssea-section {
+  padding: 5rem 0;
+}
+
+.odyssea-section-gradient-1 {
+  background: linear-gradient(135deg, hsl(45 25% 96%), hsl(38 45% 90%), hsl(35 50% 85%));
+}
+
+.odyssea-section-gradient-2 {
+  background: linear-gradient(135deg, hsl(30 20% 92%), hsl(38 30% 88%), hsl(35 45% 90%), hsl(38 30% 88%), hsl(30 20% 92%));
+}
+
+.odyssea-section-gradient-3 {
+  background: linear-gradient(135deg, hsl(45 25% 96%), hsl(38 45% 90%), hsl(35 50% 85%), hsl(38 45% 90%), hsl(45 25% 96%));
+}
+
+/* Grid */
+.odyssea-grid {
+  display: grid;
+  gap: 3rem;
+}
+
+.odyssea-grid-2 {
+  grid-template-columns: 1fr;
+}
+
+.odyssea-grid-3 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .odyssea-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .odyssea-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Cards */
+.odyssea-service-card {
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2rem;
+  border-radius: var(--odyssea-radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .odyssea-page h1 {
+    font-size: 1.875rem;
+  }
+  
+  .odyssea-page h2 {
+    font-size: 1.5rem;
+  }
+  
+  .odyssea-section {
+    padding: 3rem 0;
+  }
+}
