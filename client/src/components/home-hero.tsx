@@ -57,21 +57,21 @@ export default function HomeHero() {
       </section>
 
       {/* Info Section - Pratique */}
-      <section className="py-8 lg:py-12 bg-gradient-to-br from-stone-100 via-amber-50 to-stone-100">
+      <section className="py-8 lg:py-12 bg-gradient-to-br from-stone-100 via-amber-50 to-stone-100" data-testid="info-section">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-3 gap-8 text-center">
-            <div className="bg-white/60 p-6 rounded-lg">
+            <div className="bg-white/60 p-6 rounded-lg shadow-md">
               <h3 className="font-medium text-stone-800 mb-3 heading-font">📍 Adresse</h3>
               <p className="text-stone-700 body-font text-sm">Rue de la station 70</p>
               <p className="text-stone-700 body-font text-sm">1410 Waterloo</p>
             </div>
-            <div className="bg-white/60 p-6 rounded-lg">
+            <div className="bg-white/60 p-6 rounded-lg shadow-md">
               <h3 className="font-medium text-stone-800 mb-3 heading-font">🕐 Horaires</h3>
               <p className="text-stone-700 body-font text-sm">Lun - Jeu : 9h - 19h</p>
               <p className="text-stone-700 body-font text-sm">Ven : 9h - 18h</p>
               <p className="text-stone-700 body-font text-sm">Sam : 9h30 - 13h</p>
             </div>
-            <div className="bg-white/60 p-6 rounded-lg">
+            <div className="bg-white/60 p-6 rounded-lg shadow-md">
               <h3 className="font-medium text-stone-800 mb-3 heading-font">📞 Contact</h3>
               <p className="text-stone-700 body-font text-sm">+32 494 74 17 77</p>
               <p className="text-stone-700 body-font text-sm">odyssea.lymphea@gmail.com</p>
