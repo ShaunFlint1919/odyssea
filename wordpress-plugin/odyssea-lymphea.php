@@ -63,12 +63,17 @@ class Odyssea_Lymphea_Plugin {
         require_once ODYSSEA_PLUGIN_DIR . 'includes/class-blocks.php';
         require_once ODYSSEA_PLUGIN_DIR . 'includes/class-shortcodes.php';
         require_once ODYSSEA_PLUGIN_DIR . 'includes/class-settings.php';
+        require_once ODYSSEA_PLUGIN_DIR . 'includes/class-template.php';
     }
     
     /**
      * Define WordPress hooks
      */
     private function define_hooks() {
+        // Template - Takes full control of page display
+        $template = new Odyssea_Template();
+        $template->init();
+        
         // Assets
         $assets = new Odyssea_Assets();
         add_action('wp_enqueue_scripts', array($assets, 'enqueue_frontend_assets'));
