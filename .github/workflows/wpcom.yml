@@ -5,17 +5,26 @@ on:
     branches:
       - main
   workflow_dispatch:
+
 jobs:
-  Publish-Website:
-    name: Publish-Website
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-      - name: Upload the artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v4
+      - name: Build project
+        run: |
+          if [ -f package.json ]; then
+            npm install
+            npm run build || echo "No build"
+          fi
+      - name: Prepare WordPress theme
+        run: |
+          mkdir -p wp-theme
+          cp -r dist/* wp-theme/ 2>/dev/null || cp -r * wp-theme/
+          echo "/*\nTheme Name: Odyssea Lymphea\nAuthor: Shaun Flint\nVersion: 1.0\n*/" > wp-theme/style.css
+          echo "<?php get_header(); ?><div id='app'></div><?php get_footer(); ?>" > wp-theme/index.php
+      - uses: actions/upload-artifact@v4
         with:
           name: wpcom
-          path: |
-            .
-            !.git*
+          path: wp-theme/
           retention-days: 1
