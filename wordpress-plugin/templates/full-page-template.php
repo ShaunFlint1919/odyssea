@@ -226,9 +226,16 @@ if (empty($menu_items)) {
 <!-- Navigation -->
 <nav class="odyssea-navigation">
     <div class="odyssea-nav-container">
-        <a href="<?php echo esc_url(home_url('/')); ?>" class="odyssea-nav-brand">
-            <?php echo esc_html($settings['clinic_name']); ?>
-        </a>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;">
+                <img src="<?php echo esc_url(ODYSSEA_PLUGIN_URL . 'assets/images/logo.png'); ?>" 
+                     alt="Logo Odyssea Lymphea" 
+                     style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            </div>
+            <a href="<?php echo esc_url(home_url('/')); ?>" class="odyssea-nav-brand" style="font-family: var(--odyssea-font-heading); font-size: 1.5rem; font-weight: 300;">
+                Odyssea Lymphea
+            </a>
+        </div>
         
         <button class="odyssea-nav-toggle" onclick="this.nextElementSibling.classList.toggle('active')">
             ☰
