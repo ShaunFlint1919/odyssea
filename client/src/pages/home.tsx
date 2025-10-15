@@ -41,24 +41,33 @@ export default function Home() {
       <Navigation />
       
       {/* Info Section - Right below navigation */}
-      <section className="pt-20 pb-8 lg:pb-12 bg-gradient-to-br from-stone-100 via-amber-50 to-stone-100" data-testid="info-section">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8 text-center">
-            <div className="bg-white/60 p-6 rounded-lg shadow-md">
-              <h3 className="font-medium text-stone-800 mb-3 heading-font">📍 Adresse</h3>
-              <p className="text-stone-700 body-font text-sm">Rue de la station 70</p>
-              <p className="text-stone-700 body-font text-sm">1410 Waterloo</p>
+      <section className="pt-20 pb-12 border-b" data-testid="info-section">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-3 gap-16 text-center">
+            <div data-testid="info-location">
+              <h3 className="font-medium text-foreground mb-4">Emplacement</h3>
+              <div className="space-y-1 text-muted-foreground text-sm">
+                <p data-testid="text-address-street">Rue de la station, 70</p>
+                <p data-testid="text-address-city">1410 Waterloo</p>
+              </div>
             </div>
-            <div className="bg-white/60 p-6 rounded-lg shadow-md">
-              <h3 className="font-medium text-stone-800 mb-3 heading-font">🕐 Horaires</h3>
-              <p className="text-stone-700 body-font text-sm">Lun - Jeu : 9h - 19h</p>
-              <p className="text-stone-700 body-font text-sm">Ven : 9h - 18h</p>
-              <p className="text-stone-700 body-font text-sm">Sam : 9h30 - 13h</p>
+            
+            <div data-testid="info-hours">
+              <h3 className="font-medium text-foreground mb-4">Heures d'ouverture</h3>
+              <div className="space-y-1 text-muted-foreground text-sm">
+                <p>Lundi - Jeudi : 9h - 19h</p>
+                <p>Vendredi : 9h - 18h</p>
+                <p>Samedi : 9h30 - 13h</p>
+                <p data-testid="text-hours-closed">Dimanche : Fermé</p>
+              </div>
             </div>
-            <div className="bg-white/60 p-6 rounded-lg shadow-md">
-              <h3 className="font-medium text-stone-800 mb-3 heading-font">📞 Contact</h3>
-              <p className="text-stone-700 body-font text-sm">+32 494 74 17 77</p>
-              <p className="text-stone-700 body-font text-sm">odyssea.lymphea@gmail.com</p>
+            
+            <div data-testid="info-contact">
+              <h3 className="font-medium text-foreground mb-4">Contact</h3>
+              <div className="space-y-1 text-muted-foreground text-sm">
+                <p data-testid="text-phone">+32 494 74 17 77</p>
+                <p data-testid="text-email">odyssea.lymphea@gmail.com</p>
+              </div>
             </div>
           </div>
         </div>
