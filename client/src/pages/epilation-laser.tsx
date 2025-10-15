@@ -271,7 +271,7 @@ export default function EpilationLaser() {
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Pommettes</span>
-                    <span className="font-medium">60,00 €</span>
+                    <span className="font-medium">40,00 €</span>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Favoris</span>
@@ -279,7 +279,7 @@ export default function EpilationLaser() {
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Cou</span>
-                    <span className="font-medium">60,00 €</span>
+                    <span className="font-medium">70,00 €</span>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Nuque</span>
@@ -287,11 +287,11 @@ export default function EpilationLaser() {
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Lèvre supérieure</span>
-                    <span className="font-medium">40,00 €</span>
+                    <span className="font-medium">50,00 €</span>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Menton</span>
-                    <span className="font-medium">50,00 €</span>
+                    <span className="font-medium">60,00 €</span>
                   </div>
                   <div className="flex justify-between items-center pb-2">
                     <span>Barbe</span>
@@ -312,7 +312,7 @@ export default function EpilationLaser() {
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Aisselles</span>
-                    <span className="font-medium">60,00 €</span>
+                    <span className="font-medium">70,00 €</span>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Épaules</span>
@@ -328,31 +328,31 @@ export default function EpilationLaser() {
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Bras entier</span>
-                    <span className="font-medium">130,00 €</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
-                    <span>Torse</span>
-                    <span className="font-medium">130,00 €</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
-                    <span>Ventre</span>
-                    <span className="font-medium">90,00 €</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
-                    <span>Haut du dos (hors épaules)</span>
-                    <span className="font-medium">100,00 €</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
-                    <span>Bas du dos</span>
-                    <span className="font-medium">70,00 €</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
-                    <span>Dos entier (hors épaules)</span>
                     <span className="font-medium">160,00 €</span>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Torse</span>
+                    <span className="font-medium">120,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Ventre (hors navel piercing)</span>
+                    <span className="font-medium">110,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Haut du dos (hors épaules)</span>
+                    <span className="font-medium">110,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Torse + ventre</span>
+                    <span className="font-medium">210,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
+                    <span>Dos entier (hors épaules)</span>
+                    <span className="font-medium">250,00 €</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Fesses</span>
-                    <span className="font-medium">80,00 €</span>
+                    <span className="font-medium">110,00 €</span>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Bikini classique</span>
@@ -385,15 +385,15 @@ export default function EpilationLaser() {
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>½ jambes</span>
-                    <span className="font-medium">135,00 €</span>
+                    <span className="font-medium">190,00 €</span>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-stone-300">
                     <span>Cuisses entières</span>
-                    <span className="font-medium">160,00 €</span>
+                    <span className="font-medium">190,00 €</span>
                   </div>
                   <div className="flex justify-between items-center pb-2">
                     <span>Jambes complètes</span>
-                    <span className="font-medium">250,00 €</span>
+                    <span className="font-medium">350,00 €</span>
                   </div>
                 </div>
               </div>
