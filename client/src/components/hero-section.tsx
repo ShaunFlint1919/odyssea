@@ -32,13 +32,15 @@ export default function HeroSection() {
             le traitement de cicatrices et l'épilation au laser à Waterloo.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center" data-testid="hero-cta-buttons">
-            <Button
-              onClick={() => scrollToSection("contact")}
-              className="button-modern text-primary-foreground px-8 py-4 rounded-lg font-medium h-auto"
+            <a
+              href="https://salonkee.be/salon/odyssea-lymphea"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="button-modern text-primary-foreground px-8 py-4 rounded-lg font-medium inline-block h-auto text-center"
               data-testid="button-appointment"
             >
               Prendre rendez-vous
-            </Button>
+            </a>
             <Button
               variant="secondary"
               onClick={() => scrollToSection("services")}

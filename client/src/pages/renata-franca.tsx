@@ -259,18 +259,20 @@ export default function RenataFranca() {
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <a 
-                href="tel:+32494741777"
+                href="https://salonkee.be/salon/odyssea-lymphea"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-lg font-medium inline-block transition-colors"
+                data-testid="button-appointment"
+              >
+                Prendre rendez-vous
+              </a>
+              <a 
+                href="tel:+32494741777"
+                className="border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white px-8 py-4 rounded-lg font-medium inline-block transition-colors"
                 data-testid="button-phone"
               >
                 Appeler maintenant
-              </a>
-              <a 
-                href="mailto:odyssea.lymphea@gmail.com"
-                className="border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white px-8 py-4 rounded-lg font-medium inline-block transition-colors"
-                data-testid="button-email"
-              >
-                Envoyer un email
               </a>
             </div>
           </div>
