@@ -14,10 +14,10 @@ export default function MinimalFooter() {
           <div data-testid="footer-hours">
             <h3 className="font-medium text-foreground mb-4">Heures d'ouverture</h3>
             <div className="space-y-1 text-muted-foreground text-sm">
-              <p>lundi - vendredi</p>
-              <p data-testid="text-hours-weekdays">9h - 19h</p>
-              <p>samedi</p>
-              <p data-testid="text-hours-saturday">10h - 13h</p>
+              <p>Lundi - Jeudi : 9h - 19h</p>
+              <p>Vendredi : 9h - 18h</p>
+              <p>Samedi : 9h30 - 13h</p>
+              <p data-testid="text-hours-closed">Dimanche : Fermé</p>
             </div>
           </div>
           

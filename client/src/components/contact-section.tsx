@@ -125,16 +125,20 @@ export default function ContactSection() {
                 </h3>
                 <div className="space-y-2 text-muted-foreground">
                   <div className="flex justify-between">
-                    <span>Lundi - Vendredi</span>
+                    <span>Lundi - Jeudi</span>
                     <span data-testid="text-hours-weekdays">9h - 19h</span>
                   </div>
                   <div className="flex justify-between">
+                    <span>Vendredi</span>
+                    <span data-testid="text-hours-friday">9h - 18h</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span>Samedi</span>
-                    <span data-testid="text-hours-saturday">9h - 17h</span>
+                    <span data-testid="text-hours-saturday">9h30 - 13h</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Dimanche</span>
-                    <span data-testid="text-hours-sunday">10h - 15h</span>
+                    <span data-testid="text-hours-sunday">Fermé</span>
                   </div>
                 </div>
               </CardContent>
