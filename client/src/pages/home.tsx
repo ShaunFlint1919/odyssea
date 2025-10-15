@@ -48,7 +48,7 @@ export default function Home() {
               <h3 className="font-medium text-foreground mb-4">Emplacement</h3>
               <div className="space-y-1 text-muted-foreground text-sm">
                 <p data-testid="text-address-street">Rue de la station, 70</p>
-                <p data-testid="text-address-city">1411 Waterloo</p>
+                <p data-testid="text-address-city">1410 Waterloo</p>
               </div>
             </div>
             
