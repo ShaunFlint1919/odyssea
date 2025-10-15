@@ -1,67 +1,97 @@
 <?php
 /**
  * Plugin Name: Odyssea Lymphea
- * Plugin URI: https://odyssealymphea.be
- * Description: Site complet pour Odyssea Lymphea - Kinésithérapie à Waterloo
- * Version: 1.0.1
+ * Description: Cabinet de kinésithérapie Odyssea Lymphea - Waterloo
+ * Version: 1.0.2
  * Author: Odyssea Lymphea
- * Author URI: https://odyssealymphea.be
- * License: GPL v2 or later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: odyssea-lymphea
  */
 
-// Exit if accessed directly
-if (!defined('ABSPATH')) {
-    exit;
-}
+if (!defined('ABSPATH')) exit;
 
-// Define constants
-define('ODYSSEA_VERSION', '1.0.1');
+define('ODYSSEA_VERSION', '1.0.2');
 define('ODYSSEA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ODYSSEA_PLUGIN_URL', plugin_dir_url(__FILE__));
 
-// Include only essential files
-require_once ODYSSEA_PLUGIN_DIR . 'includes/class-activator.php';
-require_once ODYSSEA_PLUGIN_DIR . 'includes/class-shortcodes.php';
-require_once ODYSSEA_PLUGIN_DIR . 'includes/class-settings.php';
-
-// Activation hook
-register_activation_hook(__FILE__, array('Odyssea_Activator', 'activate'));
-
-// Register shortcodes
-add_action('init', function() {
-    $shortcodes = new Odyssea_Shortcodes();
-    $shortcodes->register_shortcodes();
-});
-
-// Add settings page
-add_action('admin_menu', function() {
-    $settings = new Odyssea_Settings();
-    $settings->add_settings_page();
-});
-
-add_action('admin_init', function() {
-    $settings = new Odyssea_Settings();
-    $settings->register_settings();
-});
-
-// Enqueue styles and scripts
-add_action('wp_enqueue_scripts', function() {
-    global $post;
+// Activation
+register_activation_hook(__FILE__, 'odyssea_activate');
+function odyssea_activate() {
+    $pages = array(
+        array('title' => 'Accueil', 'slug' => 'accueil', 'content' => '[odyssea_home]'),
+        array('title' => 'Renata Franca', 'slug' => 'renata-franca', 'content' => '[odyssea_renata_franca]'),
+        array('title' => 'Drainage Lymphatique', 'slug' => 'drainage-lymphatique', 'content' => '[odyssea_drainage]'),
+        array('title' => 'Soins de Cicatrices', 'slug' => 'soins-cicatrices', 'content' => '[odyssea_cicatrices]'),
+        array('title' => 'Épilation Laser', 'slug' => 'epilation-laser', 'content' => '[odyssea_epilation]')
+    );
     
-    if (!is_a($post, 'WP_Post')) {
-        return;
-    }
-    
-    $odyssea_shortcodes = array('odyssea_home', 'odyssea_renata_franca', 'odyssea_drainage', 'odyssea_cicatrices', 'odyssea_epilation');
-    
-    foreach ($odyssea_shortcodes as $shortcode) {
-        if (has_shortcode($post->post_content, $shortcode)) {
-            wp_enqueue_style('odyssea-main', ODYSSEA_PLUGIN_URL . 'assets/css/odyssea-style.css', array(), ODYSSEA_VERSION);
-            wp_enqueue_style('odyssea-fonts', 'https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap', array(), null);
-            wp_enqueue_script('odyssea-animations', ODYSSEA_PLUGIN_URL . 'assets/js/animations.js', array(), ODYSSEA_VERSION, true);
-            break;
+    $page_ids = array();
+    foreach ($pages as $page) {
+        $existing = get_page_by_path($page['slug']);
+        if (!$existing) {
+            $page_id = wp_insert_post(array(
+                'post_title' => $page['title'],
+                'post_name' => $page['slug'],
+                'post_content' => $page['content'],
+                'post_status' => 'publish',
+                'post_type' => 'page'
+            ));
+            $page_ids[] = $page_id;
         }
     }
-});
+    
+    if (!empty($page_ids)) {
+        update_option('page_on_front', $page_ids[0]);
+        update_option('show_on_front', 'page');
+    }
+}
+
+// Shortcodes
+add_action('init', 'odyssea_register_shortcodes');
+function odyssea_register_shortcodes() {
+    add_shortcode('odyssea_home', 'odyssea_home_shortcode');
+    add_shortcode('odyssea_renata_franca', 'odyssea_renata_shortcode');
+    add_shortcode('odyssea_drainage', 'odyssea_drainage_shortcode');
+    add_shortcode('odyssea_cicatrices', 'odyssea_cicatrices_shortcode');
+    add_shortcode('odyssea_epilation', 'odyssea_epilation_shortcode');
+}
+
+function odyssea_home_shortcode() {
+    ob_start();
+    include ODYSSEA_PLUGIN_DIR . 'templates/page-home.php';
+    return ob_get_clean();
+}
+
+function odyssea_renata_shortcode() {
+    ob_start();
+    include ODYSSEA_PLUGIN_DIR . 'templates/page-renata-franca.php';
+    return ob_get_clean();
+}
+
+function odyssea_drainage_shortcode() {
+    ob_start();
+    include ODYSSEA_PLUGIN_DIR . 'templates/page-drainage.php';
+    return ob_get_clean();
+}
+
+function odyssea_cicatrices_shortcode() {
+    ob_start();
+    include ODYSSEA_PLUGIN_DIR . 'templates/page-cicatrices.php';
+    return ob_get_clean();
+}
+
+function odyssea_epilation_shortcode() {
+    ob_start();
+    include ODYSSEA_PLUGIN_DIR . 'templates/page-epilation.php';
+    return ob_get_clean();
+}
+
+// Enqueue styles
+add_action('wp_enqueue_scripts', 'odyssea_enqueue_assets');
+function odyssea_enqueue_assets() {
+    global $post;
+    if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'odyssea_')) {
+        wp_enqueue_style('odyssea-style', ODYSSEA_PLUGIN_URL . 'assets/css/odyssea-style.css', array(), ODYSSEA_VERSION);
+        wp_enqueue_style('odyssea-fonts', 'https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&display=swap');
+        wp_enqueue_script('odyssea-js', ODYSSEA_PLUGIN_URL . 'assets/js/animations.js', array(), ODYSSEA_VERSION, true);
+    }
+}
