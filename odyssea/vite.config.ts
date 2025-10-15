@@ -13,18 +13,18 @@ export default defineConfig({
   },
   root: path.resolve(__dirname, "client"),
   build: {
-    outDir: path.resolve(__dirname, "assets"),
-    emptyOutDir: true,
+    outDir: path.resolve(__dirname, "client"),
+    emptyOutDir: false,
     rollupOptions: {
       output: {
         assetFileNames: (assetInfo) => {
-          if (assetInfo.name === 'index.css') {
-            return 'index-[hash].css';
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'style.css';
           }
-          return 'assets/[name]-[hash][extname]';
+          return '[name].[ext]';
         },
-        chunkFileNames: 'chunks/[name]-[hash].js',
-        entryFileNames: 'index-[hash].js',
+        chunkFileNames: 'main.js',
+        entryFileNames: 'main.js',
       },
     },
   },

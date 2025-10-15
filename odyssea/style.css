@@ -1,21 +1,10 @@
 /*
 Theme Name: Odyssea Lymphea
-Theme URI: https://odyssea-lymphea.be
-Author: Odyssea Lymphea
-Author URI: https://odyssea-lymphea.be
-Description: Thème WordPress moderne pour cabinet de kinésithérapie spécialisé en drainage lymphatique, soins de cicatrices et épilation laser. Design élégant avec React pour une expérience utilisateur optimale.
-Version: 1.0.0
+Theme URI: https://odyssealymphea.com
+Author: Shaun Flint
+Description: Thème WordPress basé sur le site Replit Odyssea. Inclut la mise en page, les animations et le design original.
+Version: 1.0
 License: GNU General Public License v2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
-Text Domain: odyssea-lymphea
-Tags: physiotherapy, healthcare, modern, react, responsive, spa
-
-Odyssea Lymphea WordPress Theme, Copyright 2025
-Odyssea Lymphea is distributed under the terms of the GNU GPL.
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: odyssea
 */
-
-/* 
- * This theme uses React for its frontend.
- * All styling is handled by the React application using Tailwind CSS.
- * The compiled CSS will be loaded via functions.php.
- */

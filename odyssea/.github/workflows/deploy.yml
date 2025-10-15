@@ -30,8 +30,8 @@ jobs:
       working-directory: ./odyssea
       run: |
         echo "Checking if assets were built..."
-        ls -la assets/
-        ls -la asset-manifest.php
+        ls -la client/main.js
+        ls -la client/style.css
         echo "Build verification complete!"
 
     - name: Deploy to WordPress via FTP
