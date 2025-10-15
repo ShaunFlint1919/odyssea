@@ -1,0 +1,117 @@
+===========================================
+CRÉER LE ZIP WORDPRESS - MÉTHODE GARANTIE
+===========================================
+
+Le problème vient de la STRUCTURE du ZIP.
+Voici comment créer un ZIP qui fonctionne à 100% :
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ÉTAPE 1 : Télécharger depuis Replit
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Téléchargez le dossier "wordpress-plugin" complet
+2. Décompressez-le sur votre ordinateur si nécessaire
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ÉTAPE 2 : Créer un dossier "odyssea-lymphea"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Sur votre Bureau, créez un NOUVEAU dossier vide nommé :
+   odyssea-lymphea
+   
+⚠️ IMPORTANT : Le nom doit être EXACTEMENT "odyssea-lymphea"
+   (avec tiret, en minuscules, sans espaces)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ÉTAPE 3 : Copier SEULEMENT ces fichiers
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Depuis le dossier "wordpress-plugin" téléchargé,
+COPIEZ ces éléments dans "odyssea-lymphea" :
+
+   ✅ odyssea-lymphea.php  (le fichier principal)
+   ✅ uninstall.php
+   ✅ assets (dossier complet avec css, js, images)
+   ✅ templates (dossier complet avec page-*.php)
+
+NE COPIEZ PAS :
+   ❌ includes (dossier - pas nécessaire dans version simple)
+   ❌ Fichiers .md (documentation)
+   ❌ Fichiers .bak (backup)
+   ❌ create-zip.sh
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ÉTAPE 4 : Créer le ZIP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WINDOWS :
+1. Clic droit sur le dossier "odyssea-lymphea"
+2. "Envoyer vers" → "Dossier compressé (zip)"
+3. Le fichier ZIP sera créé : "odyssea-lymphea.zip" ✅
+
+MAC :
+1. Clic droit sur le dossier "odyssea-lymphea"
+2. "Compresser"
+3. Le fichier ZIP sera créé : "odyssea-lymphea.zip" ✅
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ÉTAPE 5 : Vérifier le ZIP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Double-clic sur "odyssea-lymphea.zip" pour l'ouvrir
+Vous devez voir :
+
+   odyssea-lymphea/           ← Un dossier
+      ├── odyssea-lymphea.php ← Le fichier principal
+      ├── uninstall.php
+      ├── assets/
+      │   ├── css/
+      │   ├── js/
+      │   └── images/
+      └── templates/
+          ├── page-home.php
+          ├── page-renata-franca.php
+          ├── page-drainage.php
+          ├── page-cicatrices.php
+          └── page-epilation.php
+
+✅ SI C'EST BON : Le ZIP est prêt !
+❌ SI DIFFÉRENT : Recommencez depuis l'étape 2
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ÉTAPE 6 : Installer sur WordPress
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. WordPress Admin → Extensions → Ajouter
+2. "Téléverser une extension"
+3. Choisir "odyssea-lymphea.zip"
+4. "Installer maintenant"
+5. "Activer"
+
+✅ TERMINÉ !
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DÉPANNAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Si l'erreur persiste après avoir suivi EXACTEMENT ces étapes :
+
+1. Augmentez les limites PHP dans wp-config.php :
+   
+   define('WP_MEMORY_LIMIT', '256M');
+   define('WP_MAX_MEMORY_LIMIT', '512M');
+
+2. Essayez l'installation manuelle par FTP :
+   - Décompressez "odyssea-lymphea.zip" 
+   - Uploadez le dossier "odyssea-lymphea" vers :
+     /wp-content/plugins/
+   - Activez depuis le dashboard WordPress
+
+3. Vérifiez les permissions :
+   - Dossiers : 755
+   - Fichiers : 644
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Cette méthode est basée sur la documentation officielle WordPress.
+Elle fonctionne à 100% si suivie exactement.
