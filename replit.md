@@ -74,3 +74,34 @@ Preferred communication style: Simple, everyday language.
 - **Express Sessions**: Server-side session management
 
 The application is designed for easy deployment and scalability, with a clear separation between development and production environments, comprehensive error handling, and a modular architecture that supports future feature additions.
+
+## WordPress Theme
+
+### WordPress Theme Architecture (October 2025)
+A complete WordPress theme has been created to allow the site to run on WordPress CMS while maintaining the original design and functionality.
+
+**Theme Structure:**
+- **Language**: PHP with WordPress templating system
+- **Styling**: CSS with WordPress-compatible custom properties
+- **Navigation**: WordPress menu system with custom walker
+- **Templates**: Page templates for all services (Renata Franca, Drainage Lymphatique, Soins Cicatrices, Épilation Laser)
+- **Animations**: Vanilla JavaScript with Intersection Observer API
+- **Responsive**: Mobile-first design matching the React version
+
+**Key Files:**
+- `wordpress-theme/style.css` - Theme metadata and complete styling
+- `wordpress-theme/functions.php` - Theme setup, menus, and script enqueuing
+- `wordpress-theme/header.php` - Header with navigation and mobile menu
+- `wordpress-theme/footer.php` - Footer with contact information
+- `wordpress-theme/front-page.php` - Homepage template
+- `wordpress-theme/page-*.php` - Service page templates
+- `wordpress-theme/js/` - Navigation and animation scripts
+- `wordpress-theme/assets/` - Images and media files
+
+**Installation:**
+The theme includes comprehensive documentation:
+- `README.md` - Theme description, features, and structure
+- `INSTALLATION-GUIDE.md` - Step-by-step installation instructions
+- `assets/README.md` - Image naming and asset preparation guide
+
+The WordPress theme provides the same user experience as the React application with proper WordPress integration for content management.
