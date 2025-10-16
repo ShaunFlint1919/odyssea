@@ -209,8 +209,17 @@ export default function HomeHero() {
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <a 
-              href="tel:+32494741777"
+              href="https://salonkee.be/salon/odyssea-lymphea?lang=fr"
+              target="_blank"
+              rel="noopener noreferrer"
               className="button-minimal px-8 py-4 rounded-lg font-medium text-lg"
+              data-testid="button-appointment"
+            >
+              Prendre rendez-vous en ligne
+            </a>
+            <a 
+              href="tel:+32494741777"
+              className="button-outline px-8 py-4 rounded-lg font-medium text-lg"
               data-testid="button-phone"
             >
               Appeler maintenant
