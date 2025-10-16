@@ -215,13 +215,6 @@ export default function HomeHero() {
             >
               Appeler maintenant
             </a>
-            <a 
-              href="mailto:odyssea.lymphea@gmail.com"
-              className="button-outline px-8 py-4 rounded-lg font-medium text-lg"
-              data-testid="button-email"
-            >
-              Envoyer un email
-            </a>
           </div>
         </div>
       </section>
