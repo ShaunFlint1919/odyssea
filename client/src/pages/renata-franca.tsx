@@ -208,7 +208,7 @@ export default function RenataFranca() {
               <div className="text-lg text-stone-700 leading-relaxed space-y-6 body-font">
                 
                 <div className="bg-white/60 p-6 rounded-lg">
-                  <h3 className="font-medium primary-text mb-3">Miracle Face - 90 min - 95 €</h3>
+                  <h3 className="font-medium primary-text mb-3">Miracle Face - 30 min - 95 €</h3>
                   <p className="text-sm mb-3">
                     Le soin du visage qui change tout ! Le Miracle Face combine drainage et remodelage du visage selon la méthode Renata Franca.
                   </p>
@@ -222,7 +222,7 @@ export default function RenataFranca() {
                 </div>
 
                 <div className="bg-white/60 p-6 rounded-lg">
-                  <h3 className="font-medium primary-text mb-3">Massage Relaxant - 60 min - 70 €</h3>
+                  <h3 className="font-medium primary-text mb-3">Massage Relaxant - 60 min - 190 €</h3>
                   <p className="text-sm mb-3">
                     L'instant pour soi - Un moment personnel d'abandon et de bien-être où se détendre.
                   </p>
