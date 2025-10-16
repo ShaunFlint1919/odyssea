@@ -34,7 +34,7 @@ export default function DrainageLymphatique() {
       
       {/* Hero Section - Dark */}
       <section 
-        className="relative min-h-[80vh] lg:min-h-screen bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800 flex items-center"
+        className="relative min-h-[80vh] lg:min-h-screen bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800 flex items-center pt-20"
         data-testid="hero-section"
       >
         <div className="absolute inset-0 bg-black/20"></div>
