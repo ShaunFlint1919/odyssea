@@ -44,7 +44,7 @@ export default function RenataFranca() {
           className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={heroRef}
         >
-          <div className={`fade-in ${heroVisible ? "visible" : ""} mb-12 text-center`}>
+          <div className={`fade-in ${heroVisible ? "visible" : ""} mb-12 text-center pt-8 sm:pt-0`}>
             <div className="bg-white/10 rounded-lg p-6 backdrop-blur-sm inline-block">
               <img 
                 src={renataFrancaHorizontal} 
