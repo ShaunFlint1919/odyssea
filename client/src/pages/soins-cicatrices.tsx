@@ -3,7 +3,7 @@ import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 import cicatricesImage from "@assets/IMG_0976_1758988530094.jpg";
-import beforeAfterImage from "@assets/photo-output(2)_1758988530094.jpg";
+import beforeAfterImage from "@assets/WhatsApp Image 2025-10-16 à 20.33.08_0586925e_1760644113214.jpg";
 import treatmentDetails from "@assets/IMG_2583_1758988530094.jpg";
 import salonModern from "@assets/IMG_3606_1758988530094.jpg";
 import phototypesImage from "@assets/WhatsApp Image 2025-10-04 à 19.47.22_0274719c_1760097215054.jpg";
