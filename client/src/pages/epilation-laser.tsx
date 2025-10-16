@@ -83,8 +83,8 @@ export default function EpilationLaser() {
             <div className={`fade-in ${section1Visible ? "visible" : ""}`}>
               <img 
                 src={laserEquipment} 
-                alt="Équipement laser médical de dernière génération"
-                className="w-full h-[250px] sm:h-[350px] lg:h-[500px] object-cover rounded-lg shadow-xl"
+                alt="Phototypes de peau I à VI - Tous types de peau traités"
+                className="w-full h-auto object-contain rounded-lg shadow-xl"
                 data-testid="laser-equipment-image"
               />
             </div>
