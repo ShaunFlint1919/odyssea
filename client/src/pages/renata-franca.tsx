@@ -148,7 +148,7 @@ export default function RenataFranca() {
               <div className="text-lg text-stone-600 leading-relaxed space-y-6 body-font">
                 
                 <div className="bg-stone-300/50 p-6 rounded-lg">
-                  <h3 className="font-medium text-stone-700 mb-3">Massage Remodelant - 60 min - 90 €</h3>
+                  <h3 className="font-medium text-stone-700 mb-3">Massage Remodelant - 60 min - 190 €</h3>
                   <p className="text-sm mb-3">
                     Ce massage très thérapeutique est destiné spécialement pour les <strong>zones graisseuses et la cellulite</strong>. Modifie les tissus pour apporter plus de fermeté et de tonus.
                   </p>
@@ -161,7 +161,7 @@ export default function RenataFranca() {
                 </div>
 
                 <div className="bg-stone-300/50 p-6 rounded-lg">
-                  <h3 className="font-medium text-stone-700 mb-3">Miracle Touch - 60 min - 90 €</h3>
+                  <h3 className="font-medium text-stone-700 mb-3">Miracle Touch - 60 min - 190 €</h3>
                   <p className="text-sm mb-3">
                     Le Miracle Touch combine les <strong>effets drainants du drainage lymphatique</strong> et les <strong>bienfaits anti-inflammatoires</strong> pour un soin complet.
                   </p>
