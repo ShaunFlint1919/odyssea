@@ -182,8 +182,8 @@ export default function SoinsCicatrices() {
             <div className={`fade-in ${section3Visible ? "visible" : ""}`}>
               <img 
                 src={beforeAfterImage} 
-                alt="Résultats soins cicatrices - Amélioration visible de la texture"
-                className="w-full h-[250px] sm:h-[350px] lg:h-[500px] object-cover rounded-lg shadow-xl"
+                alt="Résultats soins cicatrices - Avant/après traitement endneedling"
+                className="w-full h-auto object-contain rounded-lg shadow-xl"
                 data-testid="results-cicatrices-image"
               />
             </div>
