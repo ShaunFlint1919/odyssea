@@ -3,7 +3,7 @@ import MinimalFooter from "@/components/minimal-footer";
 import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 import epilationImage from "@assets/WhatsApp Image 2025-10-16 à 20.34.08_ca469188_1760644305764.jpg";
-import laserEquipment from "@assets/IMG_4135_1758988530094.jpg";
+import laserEquipment from "@assets/WhatsApp Image 2025-10-16 à 20.34.27_8f1dc6d8_1760644317775.jpg";
 import productsRenata from "@assets/IMG_4146_1758988530094.jpg";
 import salonView from "@assets/IMG_3606_1758988530094.jpg";
 
