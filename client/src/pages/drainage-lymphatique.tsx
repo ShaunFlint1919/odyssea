@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 import drainageImage from "@assets/WhatsApp Image 2025-10-16 à 20.26.23_4d4ed85d_1760644035585.jpg";
 import salonImage from "@assets/WhatsApp Image 2025-10-16 à 20.27.33_04701b03_1760643142700.jpg";
-import beforeAfterImage from "@assets/photo-output_1758988530094.jpg";
+import beforeAfterImage from "@assets/WhatsApp Image 2025-10-16 à 20.28.53_7c8b3759_1760644077488.jpg";
 import treatmentImage from "@assets/IMG_0385_1758988530094.jpg";
 
 export default function DrainageLymphatique() {
