@@ -42,7 +42,7 @@ export default function AboutSection() {
             </p>
             <p className="text-muted-foreground mb-8 leading-relaxed" data-testid="about-description-3">
               Nous utilisons la dernière génération de machine épilation laser diode qui nous permet de traiter 
-              la totalité des phototypes de peau de 0 à VI (peaux blanches à peaux noires).
+              la totalité des phototypes de peau de I à VI (peaux blanches à peaux noires).
             </p>
             
             <div className="space-y-4" data-testid="about-credentials">
