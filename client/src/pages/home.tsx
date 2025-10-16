@@ -39,40 +39,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navigation />
-      
-      {/* Info Section - Right below navigation */}
-      <section className="pt-20 pb-12 border-b" data-testid="info-section">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-16 text-center">
-            <div data-testid="info-location">
-              <h3 className="font-medium text-foreground mb-4">Emplacement</h3>
-              <div className="space-y-1 text-muted-foreground text-sm">
-                <p data-testid="text-address-street">Rue de la station, 70</p>
-                <p data-testid="text-address-city">1410 Waterloo</p>
-              </div>
-            </div>
-            
-            <div data-testid="info-hours">
-              <h3 className="font-medium text-foreground mb-4">Heures d'ouverture</h3>
-              <div className="space-y-1 text-muted-foreground text-sm">
-                <p>Lundi - Jeudi : 9h - 19h</p>
-                <p>Vendredi : 9h - 18h</p>
-                <p>Samedi : 9h30 - 13h</p>
-                <p data-testid="text-hours-closed">Dimanche : Fermé</p>
-              </div>
-            </div>
-            
-            <div data-testid="info-contact">
-              <h3 className="font-medium text-foreground mb-4">Contact</h3>
-              <div className="space-y-1 text-muted-foreground text-sm">
-                <p data-testid="text-phone">+32 494 74 17 77</p>
-                <p data-testid="text-email">odyssea.lymphea@gmail.com</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <HomeHero />
       <AboutSection />
       <MinimalFooter />
