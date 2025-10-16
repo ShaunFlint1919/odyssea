@@ -36,7 +36,7 @@ export default function RenataFranca() {
       
       {/* Hero Section - Dark */}
       <section 
-        className="relative min-h-[80vh] lg:min-h-screen bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800 flex items-center"
+        className="relative min-h-[80vh] lg:min-h-screen bg-gradient-to-br from-stone-200 via-amber-200 via-orange-200 via-amber-200 to-stone-200 text-stone-800 flex items-center pt-20"
         data-testid="hero-section"
       >
         <div className="absolute inset-0 bg-black/20"></div>
@@ -44,7 +44,7 @@ export default function RenataFranca() {
           className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
           ref={heroRef}
         >
-          <div className={`fade-in ${heroVisible ? "visible" : ""} mb-12 text-center pt-8 sm:pt-0`}>
+          <div className={`fade-in ${heroVisible ? "visible" : ""} mb-12 text-center`}>
             <div className="bg-white/10 rounded-lg p-6 backdrop-blur-sm inline-block">
               <img 
                 src={renataFrancaHorizontal} 
