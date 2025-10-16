@@ -1,0 +1,44 @@
+==> Cloning from https://github.com/ShaunFlint1919/odyssea
+==> Checking out commit f5931daba14721b9651560a9dd14d09b927ea6be in branch main
+==> Running build command 'npm install && npm run build:static || vite build'...
+==> Using Node.js version 22.16.0 (default)
+==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+added 481 packages, and audited 482 packages in 15s
+64 packages are looking for funding
+  run `npm fund` for details
+10 vulnerabilities (3 low, 7 moderate)
+To address issues that do not require attention, run:
+  npm audit fix
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+Run `npm audit` for details.
+npm error Missing script: "build:static"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /opt/render/.cache/_logs/2025-10-16T16_39_52_058Z-debug-0.log
+vite v5.4.19 building for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 12 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+warn - The `content` option in your Tailwind CSS configuration is missing or empty.
+warn - Configure your content sources or your generated CSS will be missing styles.
+warn - https://tailwindcss.com/docs/content-configuration
+✓ 3 modules transformed.
+x Build failed in 728ms
+error during build:
+[vite:css] [postcss] /opt/render/project/src/client/src/index.css:2:1: The `border-border` class does not exist. If `border-border` is a custom class, make sure it is defined within a `@layer` directive.
+file: /opt/render/project/src/client/src/index.css:2:0
+    at Input.error (/opt/render/project/src/node_modules/postcss/lib/input.js:106:16)
+    at AtRule.error (/opt/render/project/src/node_modules/postcss/lib/node.js:115:32)
+    at processApply (/opt/render/project/src/node_modules/tailwindcss/lib/lib/expandApplyAtRules.js:380:29)
+    at /opt/render/project/src/node_modules/tailwindcss/lib/lib/expandApplyAtRules.js:551:9
+    at /opt/render/project/src/node_modules/tailwindcss/lib/processTailwindFeatures.js:55:50
+    at async plugins (/opt/render/project/src/node_modules/tailwindcss/lib/plugin.js:38:17)
+    at async LazyResult.runAsync (/opt/render/project/src/node_modules/postcss/lib/lazy-result.js:261:11)
+    at async compileCSS (file:///opt/render/project/src/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:36898:21)
+    at async Object.transform (file:///opt/render/project/src/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:36171:11)
+    at async transform (file:///opt/render/project/src/node_modules/rollup/dist/es/shared/node-entry.js:19640:16)
+==> Build failed 😞
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
