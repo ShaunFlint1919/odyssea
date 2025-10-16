@@ -64,7 +64,7 @@ export default function RenataFranca() {
             </p>
             <div className="text-base sm:text-lg text-stone-600 leading-relaxed space-y-4 lg:space-y-6">
               <p>
-                Chez Odyssea Lymphea, nous avons fait le choix du changement, nous vous amenons au <strong>Brésil</strong>, chez Carmen célèbre de <strong>Renata Franca</strong>, pour une formation authentique en <strong>méthode originale</strong>.
+                Chez Odyssea Lymphea, nous avons fait le choix du changement, nous vous amenons au <strong>Brésil</strong>, chez la célèbre Carmen de <strong>Renata Franca</strong>, pour une formation authentique en <strong>méthode originale</strong>.
               </p>
               <p>
                 <strong>Nos protocoles authentiques et uniques</strong> sont les fondements de notre savoir-être et bien-être pour notre clientèle.
