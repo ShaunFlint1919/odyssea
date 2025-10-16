@@ -107,7 +107,7 @@ export default function RenataFranca() {
               </h2>
               <div className="text-lg text-stone-700 leading-relaxed space-y-6 body-font">
                 <div className="bg-white/60 p-6 rounded-lg">
-                  <h3 className="font-medium primary-text mb-3">80 minutes - 190 €</h3>
+                  <h3 className="font-medium primary-text mb-3">60 min - 190 €</h3>
                   <p className="text-sm mb-4">
                     Le drainage lymphatique Renata Franca se distingue d'un drainage classique. C'est un massage <strong>ferme et rapide</strong>, qui utilise des <strong>pressions intenses</strong>, très spécialisé et segmenté.
                   </p>
