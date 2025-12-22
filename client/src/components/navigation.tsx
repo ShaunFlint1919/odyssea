@@ -37,16 +37,6 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-3" data-testid="logo-section">
-            <a 
-              href="https://www.instagram.com/odyssealymphea_?igsh=MTZ4dHI3dWZ0amJhaA=="
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-light text-sm text-foreground hover:text-primary transition-colors flex items-center space-x-1"
-              data-testid="link-instagram-header"
-            >
-              <span>Instagram</span>
-              <SiInstagram className="h-4 w-4" />
-            </a>
             <Logo />
             <div className="font-light text-2xl text-foreground">Odyssea Lymphea</div>
           </div>
@@ -83,6 +73,16 @@ export default function Navigation() {
                 Épilation Laser
               </span>
             </Link>
+            <a 
+              href="https://www.instagram.com/odyssealymphea_?igsh=MTZ4dHI3dWZ0amJhaA=="
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground hover:text-primary transition-colors text-sm flex items-center space-x-1"
+              data-testid="link-instagram"
+            >
+              <span>Instagram</span>
+              <SiInstagram className="h-4 w-4" />
+            </a>
           </div>
           
           <Button
