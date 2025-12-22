@@ -80,7 +80,7 @@ export default function Navigation() {
               className="text-foreground hover:text-primary transition-colors"
               data-testid="link-instagram"
             >
-              <SiInstagram className="h-9 w-9" />
+              <SiInstagram className="h-12 w-12" />
             </a>
           </div>
           
