@@ -44,8 +44,8 @@ export default function Navigation() {
               className="font-light text-sm text-foreground hover:text-primary transition-colors flex items-center space-x-1"
               data-testid="link-instagram-header"
             >
-              <SiInstagram className="h-4 w-4" />
               <span>Instagram</span>
+              <SiInstagram className="h-4 w-4" />
             </a>
             <Logo />
             <div className="font-light text-2xl text-foreground">Odyssea Lymphea</div>
