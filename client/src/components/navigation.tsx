@@ -37,15 +37,6 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-3" data-testid="logo-section">
-            <a 
-              href="https://www.instagram.com/odyssealymphea_?igsh=MTZ4dHI3dWZ0amJhaA=="
-              target="_blank"
-              rel="noopener noreferrer"
-              className="md:hidden text-foreground hover:text-primary transition-colors"
-              data-testid="mobile-instagram-icon"
-            >
-              <SiInstagram className="h-5 w-5" />
-            </a>
             <Logo />
             <div className="font-light text-2xl text-foreground">Odyssea Lymphea</div>
           </div>
@@ -94,15 +85,25 @@ export default function Navigation() {
             </a>
           </div>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            data-testid="button-mobile-menu"
-          >
-            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </Button>
+          <div className="flex items-center space-x-2 md:hidden">
+            <a 
+              href="https://www.instagram.com/odyssealymphea_?igsh=MTZ4dHI3dWZ0amJhaA=="
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground hover:text-primary transition-colors"
+              data-testid="mobile-instagram-icon"
+            >
+              <SiInstagram className="h-5 w-5" />
+            </a>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              data-testid="button-mobile-menu"
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </Button>
+          </div>
         </div>
 
         {/* Mobile Menu */}
