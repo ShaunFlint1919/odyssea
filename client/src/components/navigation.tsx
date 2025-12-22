@@ -3,6 +3,7 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import Logo from "@/components/logo";
+import { SiInstagram } from "react-icons/si";
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -72,6 +73,15 @@ export default function Navigation() {
                 Épilation Laser
               </span>
             </Link>
+            <a 
+              href="https://www.instagram.com/odyssealymphea_?igsh=MTZ4dHI3dWZ0amJhaA=="
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground hover:text-primary transition-colors"
+              data-testid="link-instagram"
+            >
+              <SiInstagram className="h-5 w-5" />
+            </a>
           </div>
           
           <Button
@@ -134,6 +144,17 @@ export default function Navigation() {
                   Épilation Laser
                 </span>
               </Link>
+              <a 
+                href="https://www.instagram.com/odyssealymphea_?igsh=MTZ4dHI3dWZ0amJhaA=="
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-3 py-2 text-muted-foreground hover:text-primary transition-colors"
+                data-testid="mobile-link-instagram"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <SiInstagram className="h-5 w-5 mr-2" />
+                Instagram
+              </a>
             </div>
           </div>
         )}
