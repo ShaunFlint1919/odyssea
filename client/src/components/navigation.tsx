@@ -80,7 +80,7 @@ export default function Navigation() {
               className="text-foreground hover:text-primary transition-colors"
               data-testid="link-instagram"
             >
-              <SiInstagram className="h-12 w-12" />
+              <SiInstagram className="h-5 w-5" />
             </a>
           </div>
           
@@ -152,7 +152,7 @@ export default function Navigation() {
                 data-testid="mobile-link-instagram"
                 onClick={() => setIsMenuOpen(false)}
               >
-                <SiInstagram className="h-8 w-8 mr-2" />
+                <SiInstagram className="h-5 w-5 mr-2" />
                 Instagram
               </a>
             </div>
