@@ -7,6 +7,7 @@ Odyssea Lymphea is a modern physiotherapy practice website built as a full-stack
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Git workflow: Never push to Git without asking for user permission first.
 
 ## System Architecture
 
