@@ -53,6 +53,10 @@ export interface TerrainStats {
   /** Longest time (ms) spent on terrain work in one frame during play, and on the initial screen. */
   maxFrameMs: number;
   initMs: number;
+  /** Longest single painting step, slot copy and GPU upload (ms). */
+  maxStepMs: number;
+  maxCopyMs: number;
+  maxUploadMs: number;
 }
 
 class Slot {
@@ -73,7 +77,7 @@ let instanceSeq = 0;
 export class Background {
   /** Total terrain scroll distance in px. */
   scrolled: number;
-  readonly stats: TerrainStats = { chunks: 0, sync: 0, maxFrameMs: 0, initMs: 0 };
+  readonly stats: TerrainStats = { chunks: 0, sync: 0, maxFrameMs: 0, initMs: 0, maxStepMs: 0, maxCopyMs: 0, maxUploadMs: 0 };
   private readonly gen: TerrainGenerator;
   private readonly slots: Slot[] = [];
   /** Next chunk index to build (every index below it is ready or pending upload). */
@@ -228,14 +232,18 @@ export class Background {
   work(frameMs: number): void {
     const t0 = performance.now();
     // one kind of work per frame: GPU upload | copy into the slot | painting steps | new job
+    const st = this.stats;
     if (this.uploadSlot) {
       this.upload(this.uploadSlot);
       this.uploadSlot = null;
+      st.maxUploadMs = Math.max(st.maxUploadMs, performance.now() - t0);
     } else if (this.job && this.jobDone) {
       this.finishJob(false);
+      st.maxCopyMs = Math.max(st.maxCopyMs, performance.now() - t0);
     } else if (this.job) {
       const urgent = this.aheadPx() < EMERGENCY_PX + CHUNK_H * 0.25;
       this.jobDone = this.job.step(urgent ? BUDGET_CALM * 2 : frameMs > BUSY_FRAME_MS ? BUDGET_BUSY : BUDGET_CALM);
+      st.maxStepMs = Math.max(st.maxStepMs, performance.now() - t0);
     } else if (this.aheadPx() < LOOKAHEAD_PX) {
       const slot = this.freeSlot();
       if (slot) {

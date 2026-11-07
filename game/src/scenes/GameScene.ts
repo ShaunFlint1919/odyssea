@@ -559,6 +559,9 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       terrainMaxFrameMs: this.bg ? this.bg.stats.maxFrameMs : 0,
       terrainChunks: this.bg ? this.bg.stats.chunks : 0,
       terrainSync: this.bg ? this.bg.stats.sync : 0,
+      terrainStepMs: this.bg ? r1(this.bg.stats.maxStepMs) : 0,
+      terrainCopyMs: this.bg ? r1(this.bg.stats.maxCopyMs) : 0,
+      terrainUploadMs: this.bg ? r1(this.bg.stats.maxUploadMs) : 0,
     };
   }
 
