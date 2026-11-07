@@ -40,7 +40,7 @@ const SPARK_COLS: Record<string, [string, number]> = {
 };
 
 /** Impact spark: white-hot star whose rays fly out and cool (4 frames, 8x8, centre at 3.5). */
-function sparkFrames(): HTMLCanvasElement[] {
+function sparkFrames(): PixBuf[] {
   const frames = [
     ['...o...', '.o.y.o.', '..yWy..', 'oyWWWyo', '..yWy..', '.o.y.o.', '...o...'],
     ['o..y..o', '.o.y.o.', '...W...', 'yyWWWyy', '...W...', '.o.y.o.', 'o..y..o'],
@@ -50,7 +50,7 @@ function sparkFrames(): HTMLCanvasElement[] {
   return frames.map((rows) => {
     const b = new PixBuf(8, 8);
     stampMap(b, rows, SPARK_COLS);
-    return b.toCanvas();
+    return b;
   });
 }
 
@@ -61,7 +61,7 @@ const MUZZLE_COLS: Record<string, [string, number]> = {
 };
 
 /** Neutral (white / pale steel) muzzle flash with a forward (UP) spike: tint it or use as is. */
-function muzzleFrames(): HTMLCanvasElement[] {
+function muzzleFrames(): PixBuf[] {
   const frames = [
     ['....mm....', '....LL....', '...mLLm...', '...LwwL...', '.m.LwwL.m.', 'mLLwwwwLLm', '.mLwwwwLm.', '..mLwwLm..', '...mLLm...', '....mm....'],
     ['..........', '....mm....', '....LL....', '...mLLm...', '...LwwL...', '.mLwwwwLm.', '..mLwwLm..', '...mLLm...', '....mm....', '..........'],
@@ -70,14 +70,14 @@ function muzzleFrames(): HTMLCanvasElement[] {
   return frames.map((rows) => {
     const b = new PixBuf(10, 10);
     stampMap(b, rows, MUZZLE_COLS);
-    return b.toCanvas();
+    return b;
   });
 }
 
 // ------------------------------------------------------------------ smoke puff
 
 /** Sphere-lit cluster of billows that grows, drifts and erodes (6 frames, 16x16). */
-function smokeFrames(): HTMLCanvasElement[] {
+function smokeFrames(): PixBuf[] {
   const size = 16, n = 6;
   const puffs = [
     { x: 8.2, y: 8.8, r: 5.1, z: 0.5, die: 1.2 },
@@ -85,7 +85,7 @@ function smokeFrames(): HTMLCanvasElement[] {
     { x: 10.6, y: 6.9, r: 3.4, z: 0.7, die: 1.08 },
     { x: 6.4, y: 10.6, r: 2.9, z: 0.2, die: 0.9 },
   ];
-  const out: HTMLCanvasElement[] = [];
+  const out: PixBuf[] = [];
   for (let f = 0; f < n; f++) {
     const t = f / (n - 1);
     const buf = new PixBuf(size, size);
@@ -117,9 +117,9 @@ function smokeFrames(): HTMLCanvasElement[] {
 // ------------------------------------------------------------------ shockwave ring
 
 /** Expanding ring, white / pale steel (tint it if needed): sharp leading edge, fades out. */
-function shockwaveFrames(): HTMLCanvasElement[] {
+function shockwaveFrames(): PixBuf[] {
   const size = 64, n = 6, c = 32, seed = 4711;
-  const out: HTMLCanvasElement[] = [];
+  const out: PixBuf[] = [];
   for (let f = 0; f < n; f++) {
     const t = f / (n - 1);
     const r = 7 + 23.5 * easeOut(t, 1.7);
@@ -219,12 +219,12 @@ function debrisFrames(): HTMLCanvasElement[] {
 const FLAME_RAMP = ['#ffffff', '#fff4b4', '#ffd050', '#ff9a26', '#f05a1c', '#b0341a'];
 
 /** 8 x 12 engine flame pointing DOWN (nozzle on row 0), 4 flicker frames. */
-function engineFrames(): HTMLCanvasElement[] {
+function engineFrames(): PixBuf[] {
   const { w, h } = ENGINE_FLAME_SIZE;
   const lens = [11.6, 9.4, 12, 10.4];
   const wob = [0, 0.5, -0.45, 0.25];
   const swell = [0, 0.25, -0.15, 0.1];
-  const out: HTMLCanvasElement[] = [];
+  const out: PixBuf[] = [];
   for (let f = 0; f < 4; f++) {
     const buf = new PixBuf(w, h);
     const len = lens[f];

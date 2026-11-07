@@ -343,7 +343,6 @@ export class GameScene extends Phaser.Scene implements FlowHost {
 
   startBoss(def: BossDef): void {
     const w = this.w;
-    w.bullets.clearAll(true);
     this.hud.showBanner('WARNING', def.name.toUpperCase(), 2800);
     this.sfx('boss_alarm');
     audio.music('boss');

@@ -212,7 +212,7 @@ const STYLES: Record<Biome, PlanetStyle> = {
   },
   // The Rift: banded violet gas giant with a great storm and rings.
   space: {
-    tilt: -0.62, lean: 0.36, spin: 0.9, atmo: '#f0a0ff', atmoStrength: 0.45, halo: 0.35,
+    tilt: -0.5, lean: -0.38, spin: 0.9, atmo: '#f0a0ff', atmoStrength: 0.45, halo: 0.35,
     rings: { inner: 1.32, outer: 1.95 },
     radius: 0.56,
     surface(s, out, ctx) {

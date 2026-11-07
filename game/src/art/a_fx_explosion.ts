@@ -41,7 +41,7 @@ function fireIndex(t: number): number {
 }
 
 /** Render every frame of one explosion size. */
-export function explosionFrames(spec: ExplosionSpec): HTMLCanvasElement[] {
+export function explosionFrames(spec: ExplosionSpec): PixBuf[] {
   const { size, frames, seed } = spec;
   const rnd = mulberry32(seed);
   const R = size / 2 - 1.5;
@@ -89,7 +89,7 @@ export function explosionFrames(spec: ExplosionSpec): HTMLCanvasElement[] {
   const spikes: { ang: number; len: number }[] = [];
   for (let i = 0; i < spec.spikes; i++) spikes.push({ ang: (i / spec.spikes) * Math.PI * 2 + rnd() * 0.7, len: 0.48 + rnd() * 0.3 });
 
-  const out: HTMLCanvasElement[] = [];
+  const out: PixBuf[] = [];
   const D = new Float32Array(size * size);
   const T = new Float32Array(size * size);
   const S = new Float32Array(size * size);
@@ -190,15 +190,20 @@ export function explosionFrames(spec: ExplosionSpec): HTMLCanvasElement[] {
     }
 
     const buf = new PixBuf(size, size);
-    const at = (arr: Float32Array, x: number, y: number) => (x < 0 || y < 0 || x >= size || y >= size ? 0 : arr[y * size + x]);
+    const coverK = smoothstep(0.3, 0.7, t) * 0.45;
+    const tempNoise = 0.1 + 0.25 * t;
+    const shadeK = R * 0.32;
+    const last = size - 1;
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const i = y * size + x;
-        const shadeF = clamp((at(D, x + 1, y + 1) - at(D, x - 1, y - 1)) * R * 0.32, -1, 1);
         if (D[i] <= 0 && S[i] < 0) continue;
-        const temp = T[i] > 0 ? T[i] + 0.14 * shadeF + n2(x, y) * (0.1 + 0.25 * t) : 0;
+        const dn = x < last && y < last ? D[i + size + 1] : 0;
+        const up = x > 0 && y > 0 ? D[i - size - 1] : 0;
+        const shadeF = clamp((dn - up) * shadeK, -1, 1);
+        const temp = T[i] > 0 ? T[i] + 0.14 * shadeF + n2(x, y) * tempNoise : 0;
         // smoke billows hide the cooling fire: it only peeks through gaps and thin edges
-        const cover = S[i] >= 0 ? SZ[i] * smoothstep(0.3, 0.7, t) * 0.45 : 0;
+        const cover = S[i] >= 0 ? SZ[i] * coverK : 0;
         const fi = D[i] > 0 && temp - cover >= FIRE_T[FIRE_T.length - 1] ? fireIndex(temp) : -1;
         if (fi >= 0) {
           buf.put(x, y, FIRE_RAMP[fi]);
@@ -274,7 +279,7 @@ export function explosionFrames(spec: ExplosionSpec): HTMLCanvasElement[] {
       }
       buf.put(x, y, a < 0.35 ? FIRE_RAMP[4] : '#6a6076');
     }
-    out.push(buf.toCanvas());
+    out.push(buf);
   }
   return out;
 }

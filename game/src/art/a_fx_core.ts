@@ -4,6 +4,7 @@
 //  (used by the faceted gems) and char-map utilities used by the hull banking transform.
 //  Everything is pixel exact (no anti-aliasing) unless a caller deliberately writes alpha.
 // =====================================================================================
+import type Phaser from 'phaser';
 import { makeCanvas, parseColor } from './pixel';
 
 /** RGBA pixel buffer. Coordinates outside the buffer are ignored. */
@@ -77,6 +78,30 @@ export class PixBuf {
     ctx.putImageData(img, 0, 0);
     return canvas;
   }
+}
+
+/** Pack same-size buffers side by side into ONE canvas (single putImageData, no per-frame canvas). */
+export function stripCanvas(frames: PixBuf[]): HTMLCanvasElement {
+  const fw = frames[0].w, fh = frames[0].h;
+  const strip = new PixBuf(fw * frames.length, fh);
+  frames.forEach((f, i) => {
+    for (let y = 0; y < fh; y++) strip.data.set(f.data.subarray(y * fw * 4, (y + 1) * fw * 4), (y * strip.w + i * fw) * 4);
+  });
+  return strip.toCanvas();
+}
+
+/** Register a horizontal strip canvas as a sheet with numbered frames 0..n-1 (same layout as pixel.addSheet). */
+export function addStrip(scene: Phaser.Scene, key: string, canvas: HTMLCanvasElement, n: number): void {
+  if (scene.textures.exists(key)) scene.textures.remove(key);
+  const tex = scene.textures.addCanvas(key, canvas);
+  if (!tex) return;
+  const fw = canvas.width / n;
+  for (let i = 0; i < n; i++) tex.add(i, 0, i * fw, 0, fw, canvas.height);
+}
+
+/** Convenience: register PixBuf frames as a numbered sheet. */
+export function addBufSheet(scene: Phaser.Scene, key: string, frames: PixBuf[]): void {
+  if (frames.length) addStrip(scene, key, stripCanvas(frames), frames.length);
 }
 
 /** Clamp to [lo, hi]. */

@@ -11,29 +11,29 @@ export const KESSRA_LEVELS: LevelDef[] = [
     briefing: 'Directorate scouts sweep the dunes. Break their patrols, crack the turret line and earn your first pay.',
     waves: [
       // teach: darts, mites, turrets
-      vee(1, 'k_dart', 0.5, 3, 26),
+      vee(1, 'k_dart', 0.5, 5, 26),
       snake(3, 'k_mite', 0.25, 5, 0.32),
       snake(4.6, 'k_mite', 0.75, 5, 0.32),
       vees(6.6, 'k_dart', 0.28, 3, 24),
       ground(8.6, 'k_turret', [0.2, 0.8]),
-      line(10.2, 'k_dart', 0.5, 4, 46),
+      line(10.2, 'k_dart', 0.5, 5, 40),
       // first loot disc, wasps, tanks
       one(12.2, 'k_loot', 0.02, 'strafe'), snake(12.6, 'k_mite', 0.5, 6, 0.3),
       swoop(14.6, 'k_wasp', 3, 0.35),
-      convoy(16.8, 'k_tank', 0.32, 2, 1.6),
+      convoy(16.8, 'k_tank', 0.32, 3, 1.4),
       vee(18.4, 'k_dart', 0.66, 5, 24),
-      wall(20.4, 'k_mite', 7, 32),
+      wall(20.4, 'k_mite', 8, 30),
       ground(22.4, 'k_turret', [0.14, 0.5, 0.86]), col(22.8, 'k_wasp', 0.5, 3, 0.5),
       // breather: the relay dish carries the intel
       ground(25, 'k_relay', [0.5]), snakes(25.4, 'k_mite', 0.18, 4, 0.34),
       cols(27.4, 'k_dart', 0.22, 4, 0.42),
-      vee(29.4, 'k_dart', 0.5, 5, 24), convoy(29.8, 'k_tank', 0.76, 2, 1.6),
-      arc(31.6, 'k_mite', 0.5, 7, 28),
+      vee(29.4, 'k_dart', 0.5, 5, 24), convoy(29.8, 'k_tank', 0.76, 3, 1.4),
+      arc(31.6, 'k_mite', 0.5, 7, 28), one(32, 'k_loot', 0.98, 'strafe'),
       cross(33.6, 'k_dart', 3, 0.5),
       ground(35.6, 'k_turret', [0.3, 0.7]), line(36, 'k_dart', 0.5, 5, 40),
       swoop(38, 'k_wasp', 4, 0.3),
       // first climax
-      vees(40, 'k_dart', 0.26, 5, 22), snake(41.4, 'k_mite', 0.5, 8, 0.25),
+      vees(40, 'k_dart', 0.26, 5, 22), ground(40.4, 'k_turret', [0.5]), snake(41.4, 'k_mite', 0.5, 8, 0.25),
       // breather, then hornets are introduced
       one(43.6, 'k_loot', 0.98, 'strafe'), convoy(44, 'k_tank', 0.2, 2, 1.6),
       duo(46, 'k_hornet', 0.3),
@@ -41,7 +41,7 @@ export const KESSRA_LEVELS: LevelDef[] = [
       wall(50.2, 'k_mite', 8, 30),
       swoop(52.2, 'k_wasp', 4, 0.3), duo(53, 'k_hornet', 0.18),
       ground(54.8, 'k_turret', [0.2, 0.5, 0.8]),
-      dives(56.4, 'k_dart', [0.3, 0.5, 0.7], 0.3),
+      dives(56.4, 'k_dart', [0.3, 0.5, 0.7], 0.3), convoy(56.8, 'k_tank', 0.82, 2, 1.4),
       snakes(58.2, 'k_mite', 0.3, 5, 0.3),
       // crescendo
       vees(60, 'k_dart', 0.28, 5, 22),
@@ -83,17 +83,17 @@ export const KESSRA_LEVELS: LevelDef[] = [
       // breather before the frigate: relay with the intel
       ground(37.6, 'k_relay', [0.5]), snakes(38, 'k_mite', 0.2, 4, 0.34),
       vee(40, 'k_dart', 0.5, 5, 24),
-      // mid-boss at 43 s: light escorts only
+      // mid-boss at 43 s: light escorts only while the frigate is up
       snakes(44, 'k_mite', 0.12, 5, 0.32),
-      one(46.6, 'k_loot', 0.98, 'strafe'),
-      cols(48.6, 'k_dart', 0.1, 3, 0.5),
-      snake(50.8, 'k_mite', 0.5, 6, 0.3),
-      duo(53, 'k_wasp', 0.2),
-      snakes(55.2, 'k_mite', 0.3, 4, 0.3),
+      one(46.4, 'k_loot', 0.98, 'strafe'),
+      cols(48.4, 'k_dart', 0.1, 3, 0.5),
+      snake(50.4, 'k_mite', 0.5, 6, 0.3),
+      duo(52.6, 'k_wasp', 0.2),
+      snakes(54.8, 'k_mite', 0.3, 4, 0.3),
+      cols(57, 'k_dart', 0.12, 3, 0.45),
       // combine
-      vees(57.4, 'k_dart', 0.26, 5, 22), ground(57.8, 'k_turret', [0.5]),
-      convoy(59.4, 'k_tank', 0.4, 3, 1.2), duo(59.8, 'k_hornet', 0.2),
-      dives(61.4, 'k_diver', [0.15, 0.5, 0.85], 0.25),
+      vees(59.2, 'k_dart', 0.26, 5, 22), ground(59.6, 'k_turret', [0.5]),
+      dives(61.4, 'k_diver', [0.15, 0.5, 0.85], 0.25), convoy(61.6, 'k_tank', 0.4, 2, 1.2),
       // crescendo
       wall(63.2, 'k_mite', 8, 30), ground(63.4, 'k_turret', [0.2, 0.8]),
       swoop(64.8, 'k_wasp', 5, 0.26),

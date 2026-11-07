@@ -21,7 +21,7 @@ interface Route {
 const STYLE: Record<RouteState, { color: number; alpha: number; speed: number; spacing: number; size: number }> = {
   done: { color: COLORS.teal, alpha: 0.8, speed: 5, spacing: 6, size: 2 },
   active: { color: COLORS.accent, alpha: 1, speed: 22, spacing: 6, size: 2 },
-  locked: { color: 0x8a84a0, alpha: 0.42, speed: 0, spacing: 7, size: 2 },
+  locked: { color: 0x8a84a0, alpha: 0.55, speed: 0, spacing: 7, size: 2 },
 };
 
 /** Dotted animated routes drawn into a single Graphics. */

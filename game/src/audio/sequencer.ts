@@ -222,13 +222,14 @@ class DrumKit {
 
   /** Plays every drum of a step bit mask at time t. */
   hit(t: number, m: number, vel: number): void {
+    let click = 0;
     if (m & DR.KICK) {
       const [f0, f1, dec] = this.kick;
       const v = (m & DR.KICK_ACC ? 1 : 0.85) * vel;
       this.kOsc.frequency.setValueAtTime(f0, t);
       this.kOsc.frequency.setTargetAtTime(f1, t + 0.002, 0.028);
       this.hitGain(this.kGain, t, v, dec, 0.02);
-      this.hitGain(this.clickGain, t, v * 0.35, 0.012, 0.001);
+      click = v * 0.35;
     }
     if (m & (DR.SNARE | DR.GHOST)) {
       const v = (m & DR.GHOST ? 0.28 : m & DR.SNARE_ACC ? 1 : 0.8) * vel;
@@ -251,8 +252,9 @@ class DrumKit {
       this.tOsc.frequency.setValueAtTime(f, t);
       this.tOsc.frequency.setTargetAtTime(f * 0.66, t + 0.003, 0.06);
       this.hitGain(this.tGain, t, 0.85 * vel, 0.2, 0.01);
-      this.hitGain(this.clickGain, t, 0.12 * vel, 0.01, 0.001);
+      click = Math.max(click, 0.12 * vel);
     }
+    if (click > 0) this.hitGain(this.clickGain, t, click, 0.012, 0.001);
     if (m & DR.CRASH) {
       this.hitGain(this.crGain, t, 0.42 * vel, 1.1, 0.005);
     } else if (m & DR.RIDE) {
@@ -376,16 +378,23 @@ export class SongPlayer {
     }
   }
 
+  /** Duration in seconds of `len` steps starting at pattern step `i` (swing-aware). */
+  private span(i: number, len: number): number {
+    const s = this.song;
+    if (!s.swing) return len * s.stepDur;
+    const sw = s.swing * s.stepDur;
+    return len * s.stepDur + ((i + len) % 2 === 1 ? sw : 0) - (i % 2 === 1 ? sw : 0);
+  }
+
   private playStep(p: CompiledPattern, i: number, t: number): void {
     const s = this.song;
-    const sd = s.stepDur;
     const vel = i % s.bar === 0 ? 1 : i % s.beat === 0 ? 0.9 : 0.78;
     let n = p.lead[i];
-    if (n >= 0) this.lead.note(t, n, p.leadLen[i] * sd, Math.min(1, vel + 0.1));
+    if (n >= 0) this.lead.note(t, n, this.span(i, p.leadLen[i]), Math.min(1, vel + 0.1));
     n = p.bass[i];
-    if (n >= 0) this.bass.note(t, n, p.bassLen[i] * sd, vel);
+    if (n >= 0) this.bass.note(t, n, this.span(i, p.bassLen[i]), vel);
     n = p.arp[i];
-    if (n >= 0) this.arp.note(t, n, p.arpLen[i] * sd, vel);
+    if (n >= 0) this.arp.note(t, n, this.span(i, p.arpLen[i]), vel);
     const d = p.drums[i];
     if (d) this.kit.hit(t, d, vel > 0.85 ? 1 : 0.9);
   }

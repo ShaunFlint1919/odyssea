@@ -146,6 +146,25 @@ export function bodyTexture(scene: Phaser.Scene, key: string, size: number, colo
 }
 
 /**
+ * The uniform middle band of a beam texture (top / bottom 15 % cut off) under a private
+ * key, so it can be stretched into a long beam without pointed ends.
+ */
+export function beamCoreTexture(scene: Phaser.Scene, key: string): TexInfo {
+  const fb = `__ars_core_${key}`;
+  if (!scene.textures.exists(fb)) {
+    const tex = scene.textures.get(key);
+    const frame = tex.get(tex.has('0') ? 0 : undefined);
+    const src = tex.getSourceImage() as CanvasImageSource;
+    const y0 = Math.floor(frame.cutHeight * 0.15);
+    const h = Math.max(1, Math.ceil(frame.cutHeight * 0.85) - y0);
+    const { canvas, ctx } = makeCanvas(frame.cutWidth, h);
+    ctx.drawImage(src, frame.cutX, frame.cutY + y0, frame.cutWidth, h, 0, 0, frame.cutWidth, h);
+    addTexture(scene, fb, canvas);
+  }
+  return texInfo(scene, fb);
+}
+
+/**
  * Ground-shadow texture for `key` (frame 0 silhouette). Uses the art module's
  * shadowKey(key) when it matches one frame, otherwise builds one once.
  */

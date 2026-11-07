@@ -126,6 +126,7 @@ export const AXIOM_LEVELS: LevelDef[] = [
       duo(62, 'a_gunship', 0.28), snake(62.4, 'a_mite', 0.5, 8, 0.22),
       vees(64, 'a_hornet', 0.3, 3, 24), ground(64.4, 'a_silo', [0.15, 0.85]),
       duo(66, 'a_eye', 0.25), cols(66.4, 'a_wasp', 0.3, 3, 0.4),
+      snakes(68.6, 'a_mite', 0.2, 4, 0.3),
       // mid-boss at 71 s: light escorts
       snakes(71.6, 'a_mite', 0.12, 5, 0.3),
       one(74, 'a_loot', 0.98, 'strafe'),
