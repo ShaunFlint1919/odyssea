@@ -96,8 +96,12 @@ export class GameScene extends Phaser.Scene implements FlowHost {
   private slowMoScale = 1;
   private realMs = 0;
   private startTime = 0;
-  private shakeEnd = 0;
-  private shakeIntensity = 0;
+  /** Camera shake state (real ms): start amplitude (px), duration, elapsed, wobble phases. */
+  private shakeAmp = 0;
+  private shakeDur = 0;
+  private shakeT = 0;
+  private shakePh1 = 0;
+  private shakePh2 = 0;
   private readonly hapticLast: Record<HapticKind, number> = { light: -1e9, medium: -1e9, heavy: -1e9 };
   private energyFlashT = 0;
   private hookT = 0;
@@ -213,7 +217,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     });
 
     if (DEBUG.fps || settings.showFps) {
-      this.fpsText = this.add.bitmapText(4, 26, FONT.s, '').setDepth(DEPTH.overlay).setTint(COLORS.good);
+      this.fpsText = this.add.bitmapText(4, 26, FONT.s, '').setDepth(DEPTH.overlay).setTint(COLORS.good).setScrollFactor(0);
     }
 
     audio.music(level.biome);
@@ -233,8 +237,8 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.slowMoMs = 0;
     this.slowMoScale = 1;
     this.realMs = 0;
-    this.shakeEnd = 0;
-    this.shakeIntensity = 0;
+    this.shakeAmp = this.shakeDur = this.shakeT = 0;
+    this.cameras.main.setScroll(0, 0);
     this.hapticLast.light = this.hapticLast.medium = this.hapticLast.heavy = -1e9;
     this.energyFlashT = 0;
     this.hookT = 0;
@@ -297,14 +301,45 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     haptic(kind);
   }
 
+  /**
+   * Camera shake: a smooth two-frequency wobble (~9 / 22 Hz) whose amplitude decays
+   * quadratically over `ms` of real time. intensity = fraction of the screen width, as with
+   * Phaser's camera.shake (0.002 tiny .. 0.014 huge); horizontal swing is 70 % of the
+   * vertical one. Applied as camera SCROLL, so scrollFactor-0 objects (the HUD) never move.
+   * A weaker request never cuts a stronger shake short.
+   */
   private shake(intensity: number, ms: number): void {
-    if (!this.w.settings.shake) return;
+    if (!this.w.settings.shake || ms <= 0) return;
+    const amp = intensity * W;
+    if (amp <= this.shakeNow()) return;
+    this.shakeAmp = amp;
+    this.shakeDur = ms;
+    this.shakeT = 0;
+    this.shakePh1 = this.w.fxRng() * Math.PI * 2;
+    this.shakePh2 = this.w.fxRng() * Math.PI * 2;
+  }
+
+  /** Current shake amplitude (px). */
+  private shakeNow(): number {
+    if (this.shakeT >= this.shakeDur) return 0;
+    const k = 1 - this.shakeT / this.shakeDur;
+    return this.shakeAmp * k * k;
+  }
+
+  private updateShake(realMs: number): void {
+    if (this.shakeAmp <= 0) return;
+    this.shakeT += realMs;
+    const a = this.shakeNow();
     const cam = this.cameras.main;
-    const running = this.realMs < this.shakeEnd;
-    if (running && intensity <= this.shakeIntensity) return;
-    this.shakeIntensity = intensity;
-    this.shakeEnd = this.realMs + ms;
-    cam.shake(ms, intensity, true);
+    if (a < 0.3) {
+      this.shakeAmp = 0;
+      cam.setScroll(0, 0);
+      return;
+    }
+    const t = this.shakeT, p1 = this.shakePh1, p2 = this.shakePh2;
+    const ox = (Math.sin(t * 0.061 + p1) * 0.65 + Math.sin(t * 0.137 + p2) * 0.35) * a * 0.7;
+    const oy = (Math.sin(t * 0.053 + p2) * 0.6 + Math.sin(t * 0.149 + p1) * 0.4) * a;
+    cam.setScroll(Math.round(ox), Math.round(oy));
   }
 
   private energyEmpty(): void {
@@ -455,10 +490,14 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       const stepMs = dtMs / steps;
       for (let i = 0; i < steps && !this.finished; i++) this.step(stepMs, c.firing);
       if (!this.finished) w.fx.update(dtMs);
+    } else {
+      // hit-stop: the finger keeps moving, the ship catches up when the simulation resumes
+      this.ship.queueDrag(c.dragDX, c.dragDY);
     }
     if (this.finished) return;
-    // terrain generation runs on real time (also during hit-stop / slow-motion)
+    // terrain generation and the camera shake run on real time (also during hit-stop / slow-motion)
     this.bg.work(delta);
+    this.updateShake(real);
     this.updateHud();
     this.hookT -= real;
     if (this.hookT <= 0) {
@@ -541,6 +580,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       fps: Math.round(this.game.loop.actualFps),
       done: this.finished,
       bot: !!this.bot,
+      botMode: this.bot ? `${this.bot.mode} ${Math.round(this.bot.goalX)}` : null,
       spawned: w ? w.stats.spawned : 0,
       killRatio: w && w.stats.spawned > 0 ? Math.round((w.stats.kills / w.stats.spawned) * 1000) / 1000 : 0,
       creditsEarned: w ? Math.round(w.stats.credits) : 0,
@@ -558,6 +598,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       shotHits: m ? m.shotHits : 0,
       damageDealt: m ? Math.round(m.damageDealt) : 0,
       pickups: m ? m.pickups : 0,
+      creditsMissed: m ? Math.round(m.creditsMissed) : 0,
       shipArmor: this.ship ? r1(this.ship.energy.armor) : 0,
       shipShield: this.ship ? r1(this.ship.energy.shield) : 0,
       terrainInitMs: this.bg ? this.bg.stats.initMs : 0,

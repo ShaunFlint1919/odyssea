@@ -108,6 +108,11 @@ export class PowerRow {
     this.cost.setText(fmt(s.next)).setTint(s.next <= s.credits ? COLORS.gold : COLORS.bad);
   }
 
+  /** Centres of the left / right arrow buttons (automated UI tests). */
+  arrows(): { left: [number, number]; right: [number, number] } {
+    return { left: [this.left.x, this.left.y], right: [this.right.x, this.right.y] };
+  }
+
   /** Flash the pips after a change. */
   pulse(up: boolean): void {
     this.flashG.setFillStyle(up ? COLORS.teal : COLORS.accent, 0.55);

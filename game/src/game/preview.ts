@@ -1,22 +1,29 @@
 // =====================================================================================
 //  WEAPON PREVIEW — createWeaponPreview(scene, x, y, w, h, loadout) (contract:
-//  src/game/contracts.ts). A self-contained mini simulation clipped to the rectangle:
-//  dark starry backdrop, the loadout's hull (frame 0) with its engine flames near the
-//  bottom centre, the REAL arsenal (createArsenalWith + a fake host: infinite energy,
-//  bounds = the rectangle) firing continuously at a few dummy drones drifting in the upper
-//  half (they flash when hit, pop and respawn). With a rear gun, modes A/B alternate every
-//  3 s (small label bottom-left). Everything lives in one masked Layer; destroy() (or the
-//  scene shutting down) removes every object, listener and update hook.
+//  src/game/contracts.ts). A self-contained "live fire" showcase clipped to the rectangle:
+//   - deep-space backdrop with three parallax star layers;
+//   - the loadout's hull (banking with its sway) and engine flames near the bottom centre,
+//     firing the REAL arsenal (createArsenalWith + a fake host: infinite energy, bounds =
+//     the rectangle) at target drones hovering in the upper half;
+//   - the drones react: white hit flash and recoil, smoke once damaged, explosion + embers
+//     on death, warp-in flash on respawn; they lob slow bullets at the ship, which an
+//     orbiter sidekick eats (flash) and the ship's shield absorbs;
+//   - labels (bitmap font): front power "P<n>" + 10 pips in the weapon colour (top-right;
+//     the shop's own tag sits top-left) and, with a rear gun, its mode REAR A / REAR B
+//     (toggled every 3 s, bottom-left) — both pulse white when they change.
+//  Everything lives in one masked Layer; destroy() (or the scene shutting down) removes
+//  every object, listener and update hook. No allocation per frame.
 // =====================================================================================
 import Phaser from 'phaser';
-import type { Loadout } from '../types';
+import type { Loadout, ShotColor } from '../types';
 import type { CreateWeaponPreview, WeaponPreviewApi } from './contracts';
-import { ANIM, FONT, enemyKey, hullKey } from '../art/keys';
+import { ANIM, FONT, SHOT_RGB, enemyBulletKey, enemyKey, hullKey } from '../art/keys';
 import { HULL_MOUNTS } from '../art/player';
-import type { Arsenal, ArsenalBlocker, ArsenalHost, PlayerShot } from './arsenal/api';
-import { createArsenalWith } from './arsenal';
+import type { ArsenalBlocker, ArsenalHost, PlayerShot } from './arsenal/api';
+import { createArsenalWith, type ArsenalImpl } from './arsenal';
 import { findWeapon } from './arsenal/defs';
-import { bodyTexture, fxTexture, texInfo } from './arsenal/textures';
+import { emberTex, flashTex, smokeTex, sparkTex } from './arsenal/art';
+import { bodyTexture, fxTexture, texInfo, type TexInfo } from './arsenal/textures';
 
 /** The preview handle (WeaponPreviewApi + a few conveniences for the shop). */
 export interface WeaponPreview extends WeaponPreviewApi {
@@ -30,18 +37,26 @@ const D_BACK = 0;
 const D_STARS = 1;
 const D_DRONES = 2;
 const D_BOOM = 2.5;
-const D_SHOTS = 3;
+const D_SHOTS = 3;      // arsenal shots / impacts use 2.6 .. 3.5
+const D_BULLETS = 4;    // enemy bullets above the player's fire (as in game)
 const D_ENGINE = 4.8;
-const D_SHIP = 5;
+const D_SHIP = 5;       // hull + sidekicks (muzzles 5.5)
 const D_LABEL = 8;
 
-const DRONE_R = 7;
 const DRONE_HP = 70;
 const RESPAWN_MS = 650;
 const SPAWN_IN_MS = 260;
-const FLASH_MS = 70;
+const FLASH_MS = 60;
 const REAR_TOGGLE_MS = 3000;
-const DRONE_PALETTES = ['steel', 'violet', 'amber', 'cobalt'] as const;
+const BULLET_SPEED = 70;
+const MAX_BULLETS = 16;
+const SHIELD_R = 13;
+const PULSE_MS = 260;
+const LABEL_TINT = 0x2ee6c8;
+const PIP_OFF = 0x2c2a3c;
+const DRONE_TYPES: readonly (readonly [string, string, number])[] = [
+  ['en_drone', 'steel', 7], ['en_dart', 'crimson', 8], ['en_drone', 'violet', 7], ['en_wasp', 'amber', 8],
+];
 
 interface Star {
   img: Phaser.GameObjects.Image;
@@ -64,7 +79,19 @@ class Drone {
   flash = 0;
   respawn = 0;
   spawnIn = 0;
-  constructor(readonly img: Phaser.GameObjects.Image, readonly boom: Phaser.GameObjects.Sprite) {}
+  kick = 0;
+  smokeT = 0;
+  fireT = 0;
+  constructor(readonly img: Phaser.GameObjects.Image, readonly boom: Phaser.GameObjects.Sprite, readonly r: number) {}
+}
+
+class Bullet {
+  alive = false;
+  x = 0;
+  y = 0;
+  vx = 0;
+  vy = 0;
+  constructor(readonly img: Phaser.GameObjects.Image) {}
 }
 
 class WeaponPreviewImpl implements WeaponPreview {
@@ -72,14 +99,20 @@ class WeaponPreviewImpl implements WeaponPreview {
   private readonly maskGfx: Phaser.GameObjects.Graphics;
   private readonly mask: Phaser.Display.Masks.GeometryMask;
   private readonly hull: Phaser.GameObjects.Image;
+  private hullFrames = 1;
+  private hullFrame = 0;
   private readonly engines: Phaser.GameObjects.Sprite[] = [];
   private engineOffsets: readonly (readonly [number, number])[] = [];
   private readonly stars: Star[] = [];
   private readonly drones: Drone[] = [];
-  private readonly label: Phaser.GameObjects.BitmapText | null = null;
-  private readonly arsenal: Arsenal;
+  private readonly bullets: Bullet[] = [];
+  private readonly powerText: Phaser.GameObjects.BitmapText | null = null;
+  private readonly rearText: Phaser.GameObjects.BitmapText | null = null;
+  private readonly pips: Phaser.GameObjects.Graphics;
+  private readonly arsenal: ArsenalImpl;
   private readonly target = { x: 0, y: 0 };
   private readonly host: ArsenalHost;
+  private readonly fx: { flashS: TexInfo; flashM: TexInfo; flashL: TexInfo; spark: TexInfo; ember: TexInfo; smoke: TexInfo };
   private loadout: Loadout;
   private shipX = 0;
   private shipY = 0;
@@ -88,6 +121,8 @@ class WeaponPreviewImpl implements WeaponPreview {
   private nextId = 1;
   private rearTimer = REAR_TOGGLE_MS;
   private hasRear = false;
+  private powerPulse = 0;
+  private rearPulse = 0;
   private running = true;
   private dead = false;
 
@@ -100,31 +135,48 @@ class WeaponPreviewImpl implements WeaponPreview {
     this.maskGfx.fillRect(x, y, w, h);
     this.mask = this.maskGfx.createGeometryMask();
     this.layer.setMask(this.mask);
+    this.fx = {
+      flashS: flashTex(scene, 1), flashM: flashTex(scene, 2), flashL: flashTex(scene, 3),
+      spark: sparkTex(scene, 'white', 1), ember: emberTex(scene), smoke: smokeTex(scene),
+    };
 
     // backdrop
     const back = scene.make.graphics({}, false);
-    back.fillGradientStyle(0x0d0b1c, 0x0d0b1c, 0x040309, 0x040309, 1);
+    back.fillGradientStyle(0x0e0c20, 0x0e0c20, 0x040309, 0x040309, 1);
     back.fillRect(x, y, w, h);
     back.setDepth(D_BACK);
     this.layer.add(back);
     this.buildStars();
     this.buildDrones();
+    this.buildBullets();
 
     // ship
     this.shipX = x + w / 2;
     this.shipY = this.baseShipY();
     const hullTex = bodyTexture(scene, hullKey(loadout.hull), 32, 0x2ee6c8);
-    this.hull = scene.make.image({ x: this.shipX, y: this.shipY, key: hullTex, frame: texInfo(scene, hullTex).first }, false);
+    const hi = texInfo(scene, hullTex);
+    this.hullFrames = hi.frames;
+    this.hull = scene.make.image({ x: this.shipX, y: this.shipY, key: hullTex, frame: hi.first }, false);
     this.hull.setDepth(D_SHIP);
     this.layer.add(this.hull);
     this.buildEngines();
 
+    // labels
+    this.pips = scene.make.graphics({}, false);
+    this.pips.setDepth(D_LABEL);
+    this.layer.add(this.pips);
     if (scene.cache.bitmapFont.exists(FONT.s)) {
-      const lbl = scene.make.bitmapText({ x: x + 4, y: y + h - 11, font: FONT.s, text: 'REAR A' }, false);
-      lbl.setTint(0x2ee6c8);
-      lbl.setDepth(D_LABEL);
-      this.layer.add(lbl);
-      this.label = lbl;
+      const pt = scene.make.bitmapText({ x: 0, y: y + 6, font: FONT.s, text: 'P1' }, false);
+      pt.setOrigin(1, 0);
+      pt.setTint(LABEL_TINT);
+      pt.setDepth(D_LABEL);
+      this.layer.add(pt);
+      this.powerText = pt;
+      const rt = scene.make.bitmapText({ x: x + 9, y: y + h - 13, font: FONT.s, text: 'REAR A' }, false);
+      rt.setTint(LABEL_TINT);
+      rt.setDepth(D_LABEL);
+      this.layer.add(rt);
+      this.rearText = rt;
     }
 
     const bounds = { x, y, w, h };
@@ -140,9 +192,9 @@ class WeaponPreviewImpl implements WeaponPreview {
     };
     this.arsenal = createArsenalWith(this.host, this.loadout, { shots: D_SHOTS, sidekicks: D_SHIP, shadows: -1 }, {
       layer: this.layer,
-      poolSize: 160,
+      poolSize: 180,
     });
-    this.applyLoadoutExtras();
+    this.applyLoadoutExtras(false);
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.tick, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
   }
@@ -172,7 +224,8 @@ class WeaponPreviewImpl implements WeaponPreview {
     const count = w >= 150 ? 4 : 3;
     const boomTex = fxTexture(scene, 'fx_explosion_s');
     for (let i = 0; i < count; i++) {
-      const key = bodyTexture(scene, enemyKey('en_drone', DRONE_PALETTES[i % DRONE_PALETTES.length]), 12, 0xff5050);
+      const [sprite, pal, r] = DRONE_TYPES[i % DRONE_TYPES.length];
+      const key = bodyTexture(scene, enemyKey(sprite, pal as Parameters<typeof enemyKey>[1]), 12, 0xff5050);
       const img = scene.make.image({ x: 0, y: 0, key }, false);
       img.setDepth(D_DRONES);
       this.layer.add(img);
@@ -181,19 +234,29 @@ class WeaponPreviewImpl implements WeaponPreview {
       boom.setVisible(false);
       this.layer.add(boom);
       boom.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => boom.setVisible(false));
-      const d = new Drone(img, boom);
-      this.placeDrone(d, i, count);
-      d.spawnIn = 0;
+      const d = new Drone(img, boom, r);
+      this.placeDrone(d, i, count, false);
       this.drones.push(d);
     }
   }
 
-  private placeDrone(d: Drone, slot: number, count: number): void {
+  private buildBullets(): void {
+    const key = bodyTexture(this.scene, enemyBulletKey('eb_orb', 'orange'), 8, 0xff8020);
+    for (let i = 0; i < MAX_BULLETS; i++) {
+      const img = this.scene.make.image({ x: 0, y: 0, key }, false);
+      img.setDepth(D_BULLETS);
+      img.setVisible(false);
+      this.layer.add(img);
+      this.bullets.push(new Bullet(img));
+    }
+  }
+
+  private placeDrone(d: Drone, slot: number, count: number, warp: boolean): void {
     const { x, y, w, h } = this;
     const lane = (slot + 0.5) / count;
     d.id = this.nextId++;
-    d.bx = x + w * (0.12 + 0.76 * lane) + (Math.random() - 0.5) * w * 0.12;
-    d.by = y + h * (0.12 + Math.random() * 0.3);
+    d.bx = x + w * (0.12 + 0.76 * lane) + (Math.random() - 0.5) * w * 0.1;
+    d.by = y + h * (0.13 + Math.random() * 0.28);
     d.ax = Math.min(22, w * 0.1) * (0.5 + Math.random() * 0.5);
     d.ay = Math.min(14, h * 0.05) * (0.5 + Math.random() * 0.5);
     d.wx = 0.6 + Math.random() * 0.7;
@@ -202,13 +265,19 @@ class WeaponPreviewImpl implements WeaponPreview {
     d.hp = DRONE_HP;
     d.alive = true;
     d.flash = 0;
-    d.spawnIn = SPAWN_IN_MS;
+    d.kick = 0;
+    d.smokeT = 0;
+    d.fireT = 900 + Math.random() * 1600;
+    d.spawnIn = warp ? SPAWN_IN_MS : 0;
     d.x = d.bx;
     d.y = d.by;
     d.img.setPosition(d.x, d.y);
     d.img.setVisible(true);
     d.img.clearTint();
+    d.img.setScale(warp ? 0.4 : 1);
+    d.img.setAlpha(warp ? 0 : 1);
     d.boom.setVisible(false);
+    if (warp) this.arsenal.fx.play(this.fx.flashS, d.x, d.y, 220, 0xb07cff, 0.8);
   }
 
   private buildEngines(): void {
@@ -223,21 +292,56 @@ class WeaponPreviewImpl implements WeaponPreview {
       const s = this.scene.make.sprite({ x: this.shipX + o[0], y: this.shipY + o[1] - 1, key: eng.key, frame: eng.first }, false);
       s.setOrigin(0.5, 0);
       s.setDepth(D_ENGINE);
-      if (this.engineOffsets.length > 2) s.setScale(0.8);
       this.layer.add(s);
       if (hasAnim) s.play({ key: ANIM.engine, startFrame: i % Math.max(1, eng.frames) });
       this.engines.push(s);
     }
   }
 
-  private applyLoadoutExtras(): void {
+  /** Labels and rear showcase for the current loadout; `pulse` flashes what changed. */
+  private applyLoadoutExtras(pulse: boolean): void {
     const rear = findWeapon(this.loadout.rear);
-    this.hasRear = !!rear;
+    this.hasRear = !!rear && rear.slot === 'rear';
     this.rearTimer = REAR_TOGGLE_MS;
     if (this.arsenal.rearMode !== 0) this.arsenal.toggleRearMode();
-    if (this.label) {
-      this.label.setVisible(this.hasRear);
-      this.label.setText('REAR A');
+    const front = findWeapon(this.loadout.front);
+    const color: ShotColor = front && SHOT_RGB[front.color] ? front.color : 'cyan';
+    this.drawPower(this.arsenal.frontPower, SHOT_RGB[color].glow);
+    if (this.rearText) {
+      this.rearText.setVisible(this.hasRear);
+      this.rearText.setText(`REAR A  P${this.arsenal.rearPower}`);
+    }
+    if (pulse) {
+      this.powerPulse = PULSE_MS;
+      this.rearPulse = this.hasRear ? PULSE_MS : 0;
+      this.arsenal.fx.play(this.fx.flashL, this.shipX, this.shipY, 260, SHOT_RGB[color].glow, 0.75);
+    }
+  }
+
+  /** "P<n>" + 10 power pips, right-aligned at the top-right corner. */
+  private drawPower(power: number, lit: number): void {
+    const g = this.pips;
+    g.clear();
+    const right = this.x + this.w - 9;
+    const top = this.y + 7;
+    const pipsW = this.w >= 120 ? 10 * 4 - 1 : 0;
+    if (pipsW > 0) {
+      const x0 = right - pipsW;
+      for (let i = 0; i < 10; i++) {
+        g.fillStyle(0x08070e, 0.9);
+        g.fillRect(x0 + i * 4 - 1, top - 1, 5, 7);
+        g.fillStyle(i < power ? lit : PIP_OFF, 1);
+        g.fillRect(x0 + i * 4, top, 3, 5);
+        if (i < power) {
+          g.fillStyle(0xffffff, 0.55);
+          g.fillRect(x0 + i * 4, top, 3, 1);
+        }
+      }
+    }
+    if (this.powerText) {
+      this.powerText.setText(`P${power}`);
+      this.powerText.x = right - pipsW - (pipsW > 0 ? 4 : 0);
+      this.powerText.y = top - 1;
     }
   }
 
@@ -271,8 +375,11 @@ class WeaponPreviewImpl implements WeaponPreview {
   private damage(d: Drone, amount: number): void {
     if (!d.alive) return;
     d.hp -= amount;
-    d.flash = FLASH_MS;
-    d.img.setTintFill(0xffffff);
+    if (d.flash <= 0) {
+      d.flash = FLASH_MS;
+      d.img.setTintFill(0xffffff);
+    }
+    d.kick = Math.min(4, d.kick + 0.8 + amount * 0.04);
     if (d.hp <= 0) {
       d.alive = false;
       d.respawn = RESPAWN_MS;
@@ -281,6 +388,8 @@ class WeaponPreviewImpl implements WeaponPreview {
       d.boom.setVisible(true);
       if (this.scene.anims.exists(ANIM.explosion_s)) d.boom.play(ANIM.explosion_s);
       else d.respawn = RESPAWN_MS * 0.5;
+      this.arsenal.fx.play(this.fx.flashM, d.x, d.y, 200, 0xffb050, 0.85);
+      this.arsenal.fx.burst(this.fx.ember, d.x, d.y, 6, 110, 0xffc060);
     }
   }
 
@@ -290,7 +399,7 @@ class WeaponPreviewImpl implements WeaponPreview {
     for (let i = 0; i < drones.length; i++) {
       const d = drones[i];
       if (!d.alive || d.spawnIn > 0) continue;
-      const dx = shot.x - d.x, dy = shot.y - d.y, rr = shot.radius + DRONE_R;
+      const dx = shot.x - d.x, dy = shot.y - d.y, rr = shot.radius + d.r;
       if (dx * dx + dy * dy > rr * rr) continue;
       if (shot.pierce) {
         if (!shot.registerHit(d.id)) this.damage(d, shot.damage);
@@ -299,12 +408,11 @@ class WeaponPreviewImpl implements WeaponPreview {
       shot.registerHit(d.id);
       this.damage(d, shot.damage);
       if (shot.splash > 0) {
-        const s2 = shot.splash * shot.splash;
         for (let j = 0; j < drones.length; j++) {
           const o = drones[j];
           if (o === d || !o.alive) continue;
-          const ox = o.x - shot.x, oy = o.y - shot.y;
-          if (ox * ox + oy * oy <= s2) this.damage(o, shot.damage);
+          const ox = o.x - shot.x, oy = o.y - shot.y, sr = shot.splash + o.r;
+          if (ox * ox + oy * oy <= sr * sr) this.damage(o, shot.damage);
         }
       }
       shot.impact(shot.x, shot.y);
@@ -312,15 +420,49 @@ class WeaponPreviewImpl implements WeaponPreview {
     }
   };
 
+  /** Orbiters: eat the drones' bullets (flash) and grind drones they touch. */
   private readonly onBlocker = (b: ArsenalBlocker): void => {
+    const bullets = this.bullets;
+    for (let i = 0; i < bullets.length; i++) {
+      const u = bullets[i];
+      if (!u.alive) continue;
+      const dx = u.x - b.x, dy = u.y - b.y, rr = b.radius + 4;
+      if (dx * dx + dy * dy > rr * rr) continue;
+      this.killBullet(u);
+      this.arsenal.fx.play(this.fx.flashS, u.x, u.y, 140, 0x60a0ff, 0.9);
+      this.arsenal.fx.play(this.fx.spark, u.x, u.y, 130);
+    }
+    if (b.contactDps <= 0) return;
     const drones = this.drones;
     for (let i = 0; i < drones.length; i++) {
       const d = drones[i];
       if (!d.alive || d.spawnIn > 0) continue;
-      const dx = b.x - d.x, dy = b.y - d.y, rr = b.radius + DRONE_R;
+      const dx = b.x - d.x, dy = b.y - d.y, rr = b.radius + d.r;
       if (dx * dx + dy * dy <= rr * rr) this.damage(d, b.contactDps * this.dtS);
     }
   };
+
+  private fireBullet(d: Drone): void {
+    for (let i = 0; i < this.bullets.length; i++) {
+      const u = this.bullets[i];
+      if (u.alive) continue;
+      const dx = this.shipX - d.x, dy = this.shipY - d.y;
+      const inv = 1 / Math.max(1, Math.sqrt(dx * dx + dy * dy));
+      u.alive = true;
+      u.x = d.x;
+      u.y = d.y + 6;
+      u.vx = dx * inv * BULLET_SPEED;
+      u.vy = dy * inv * BULLET_SPEED;
+      u.img.setPosition(u.x, u.y);
+      u.img.setVisible(true);
+      return;
+    }
+  }
+
+  private killBullet(u: Bullet): void {
+    u.alive = false;
+    u.img.setVisible(false);
+  }
 
   // ---------------------------------------------------------------- frame
 
@@ -332,12 +474,20 @@ class WeaponPreviewImpl implements WeaponPreview {
     this.t += dt;
     const { x, y, w, h } = this;
 
-    // ship sway + engines
+    // ship sway (banking frames) + engines
     const sway = Math.min(26, w * 0.16);
     this.shipX = x + w / 2 + Math.sin(this.t * 1.3) * sway;
     this.shipY = this.baseShipY() + Math.sin(this.t * 2.1) * 2;
     this.hull.x = this.shipX;
     this.hull.y = this.shipY;
+    if (this.hullFrames >= 3) {
+      const vx = Math.cos(this.t * 1.3);
+      const f = vx < -0.55 ? 1 : vx > 0.55 ? 2 : 0;
+      if (f !== this.hullFrame) {
+        this.hullFrame = f;
+        this.hull.setFrame(f);
+      }
+    }
     for (let i = 0; i < this.engines.length; i++) {
       const e = this.engines[i];
       const o = this.engineOffsets[i];
@@ -355,46 +505,92 @@ class WeaponPreviewImpl implements WeaponPreview {
       }
     }
 
-    // drones
-    for (let i = 0; i < this.drones.length; i++) {
+    this.updateDrones(dtMs);
+    this.updateBullets(dt);
+    this.updateLabels(dtMs);
+
+    this.arsenal.update(dtMs, true);
+    this.arsenal.forEachShot(this.onShot);
+    this.arsenal.forEachBlocker(this.onBlocker);
+  }
+
+  private updateDrones(dtMs: number): void {
+    const n = this.drones.length;
+    for (let i = 0; i < n; i++) {
       const d = this.drones[i];
       if (!d.alive) {
         d.respawn -= dtMs;
-        if (d.respawn <= 0) this.placeDrone(d, i, this.drones.length);
+        if (d.respawn <= 0) this.placeDrone(d, i, n, true);
         continue;
       }
+      d.kick *= dtMs < 50 ? 1 - dtMs * 0.012 : 0.4;
       d.x = d.bx + Math.sin(this.t * d.wx + d.ph) * d.ax;
-      d.y = d.by + Math.sin(this.t * d.wy + d.ph * 1.7) * d.ay;
+      d.y = d.by + Math.sin(this.t * d.wy + d.ph * 1.7) * d.ay - d.kick;
       d.img.x = d.x;
       d.img.y = d.y;
       if (d.spawnIn > 0) {
         d.spawnIn -= dtMs;
         const k = 1 - Math.max(0, d.spawnIn) / SPAWN_IN_MS;
-        d.img.setScale(0.4 + 0.6 * k);
+        d.img.setScale(k < 1 ? 0.4 + 0.6 * k : 1);
         d.img.setAlpha(k);
-      } else if (d.img.alpha < 1) {
-        d.img.setScale(1);
-        d.img.setAlpha(1);
+        continue;
       }
       if (d.flash > 0) {
         d.flash -= dtMs;
         if (d.flash <= 0) d.img.clearTint();
       }
+      if (d.hp < DRONE_HP * 0.4) {
+        d.smokeT -= dtMs;
+        if (d.smokeT <= 0) {
+          d.smokeT = 110;
+          this.arsenal.smoke.play(this.fx.smoke, d.x + (Math.random() - 0.5) * 6, d.y - 2, 380);
+        }
+      }
+      d.fireT -= dtMs;
+      if (d.fireT <= 0) {
+        d.fireT = 1800 + Math.random() * 1200;
+        this.fireBullet(d);
+      }
     }
+  }
 
-    // rear mode showcase
+  private updateBullets(dt: number): void {
+    const { x, y, w, h } = this;
+    for (let i = 0; i < this.bullets.length; i++) {
+      const u = this.bullets[i];
+      if (!u.alive) continue;
+      u.x += u.vx * dt;
+      u.y += u.vy * dt;
+      u.img.x = u.x;
+      u.img.y = u.y;
+      const dx = u.x - this.shipX, dy = u.y - this.shipY;
+      if (dx * dx + dy * dy < SHIELD_R * SHIELD_R) {
+        this.killBullet(u);
+        this.arsenal.fx.play(this.fx.flashM, u.x, u.y, 170, 0x40a0ff, 0.85);
+      } else if (u.x < x - 8 || u.x > x + w + 8 || u.y < y - 8 || u.y > y + h + 8) {
+        this.killBullet(u);
+      }
+    }
+  }
+
+  private updateLabels(dtMs: number): void {
     if (this.hasRear) {
       this.rearTimer -= dtMs;
       if (this.rearTimer <= 0) {
         this.rearTimer += REAR_TOGGLE_MS;
         const m = this.arsenal.toggleRearMode();
-        if (this.label) this.label.setText(m === 0 ? 'REAR A' : 'REAR B');
+        if (this.rearText) this.rearText.setText(`REAR ${m === 0 ? 'A' : 'B'}  P${this.arsenal.rearPower}`);
+        this.rearPulse = PULSE_MS;
       }
     }
-
-    this.arsenal.update(dtMs, true);
-    this.arsenal.forEachShot(this.onShot);
-    this.arsenal.forEachBlocker(this.onBlocker);
+    if (this.powerPulse > 0) {
+      this.powerPulse -= dtMs;
+      if (this.powerText) this.powerText.setTint(this.powerPulse > 0 && ((this.powerPulse / 65) | 0) % 2 === 0 ? 0xffffff : LABEL_TINT);
+    }
+    if (this.rearPulse > 0) {
+      this.rearPulse -= dtMs;
+      if (this.rearText) this.rearText.setTint(this.rearPulse > 0 && ((this.rearPulse / 65) | 0) % 2 === 0 ? 0xffffff : LABEL_TINT);
+    }
   }
 
   // ---------------------------------------------------------------- API
@@ -407,10 +603,13 @@ class WeaponPreviewImpl implements WeaponPreview {
     this.arsenal.setLoadout(this.loadout);
     if (hullChanged) {
       const key = bodyTexture(this.scene, hullKey(loadout.hull), 32, 0x2ee6c8);
-      this.hull.setTexture(key, texInfo(this.scene, key).first);
+      const hi = texInfo(this.scene, key);
+      this.hullFrames = hi.frames;
+      this.hullFrame = 0;
+      this.hull.setTexture(key, hi.first);
       this.buildEngines();
     }
-    this.applyLoadoutExtras();
+    this.applyLoadoutExtras(true);
   }
 
   setDepth(depth: number): this {
@@ -437,6 +636,7 @@ class WeaponPreviewImpl implements WeaponPreview {
     this.mask.destroy();
     this.maskGfx.destroy();
     this.drones.length = 0;
+    this.bullets.length = 0;
     this.stars.length = 0;
     this.engines.length = 0;
   }

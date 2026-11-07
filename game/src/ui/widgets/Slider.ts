@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import { COLORS } from '../../config';
 import { audio } from '../../audio';
-import { text } from '../kit';
+import { inputBlocked, text } from '../kit';
 
 export interface SliderOpts {
   x: number;                       // top-left
@@ -66,9 +66,10 @@ export class Slider {
     const zl = scene.add.zone(-4, 0, 22, this.h).setOrigin(0).setInteractive({ useHandCursor: true });
     const zr = scene.add.zone(w - 18, 0, 22, this.h).setOrigin(0).setInteractive({ useHandCursor: true });
     const zb = scene.add.zone(this.barX - 2, 0, this.barW + 4, this.h).setOrigin(0).setInteractive({ useHandCursor: true });
-    zl.on('pointerdown', () => { audio.unlock(); opts.onTouch?.(); this.step(-1); });
-    zr.on('pointerdown', () => { audio.unlock(); opts.onTouch?.(); this.step(1); });
+    zl.on('pointerdown', () => { if (inputBlocked(scene)) return; audio.unlock(); opts.onTouch?.(); this.step(-1); });
+    zr.on('pointerdown', () => { if (inputBlocked(scene)) return; audio.unlock(); opts.onTouch?.(); this.step(1); });
     zb.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (inputBlocked(scene)) return;
       audio.unlock();
       opts.onTouch?.();
       this.dragging = true;

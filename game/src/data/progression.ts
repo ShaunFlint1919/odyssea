@@ -17,7 +17,7 @@ import type { GeneratorDef, HullDef, LevelDef, Loadout, ShieldDef, SidekickDef, 
 import { MAX_POWER } from '../config';
 import { weaponFireStats } from '../game/arsenal/scaling';
 import { SIDEKICK_PROJECTILES } from './sidekicks';
-import { DPS_UPTIME, MIDBOSS_UPTIME } from './balance';
+import { BOSS_UPTIME, DPS_UPTIME, MIDBOSS_UPTIME } from './balance';
 
 /** Ship value at which the reference player buys the Lancer (second sidekick mount). */
 export const LANCER_VALUE = 12000;
@@ -27,16 +27,23 @@ export const SHIELD_SHARE = 0.12;
 /** Split of the weapon budget (rear gets the rest). */
 export const FRONT_SHARE = 0.62;
 export const SIDEKICK_SHARE = 0.28;
-/** Share of a rear gun's DPS that reaches a target in front (mode B diagonals / flank shots). */
-export const REAR_ON_TARGET = 0.3;
-/** Forward-DPS weight per sidekick pattern (the orbiter only grinds what it touches). */
-export const SIDEKICK_ON_TARGET: Record<string, number> = { pod: 1, twin: 1, orbiter: 0, rocket: 1, shard: 1, charge: 1 };
+/**
+ * Share of a rear gun's DPS that reaches a target in front (mode B diagonals / flank shots
+ * part of the time; the autopilot never leaves mode A).
+ */
+export const REAR_ON_TARGET = 0.2;
+/**
+ * Single-target weight per drone pattern: twin needles splay +-9 deg and the shard fan +-14 deg
+ * from mounts beside the hull, so about half of them miss one boss; rockets home; the orbiter
+ * only grinds what it touches.
+ */
+export const SIDEKICK_ON_TARGET: Record<string, number> = { pod: 1, twin: 0.5, orbiter: 0, rocket: 0.9, shard: 0.5, charge: 1 };
 /**
  * Share of the level's expected 'power' drops (loot discs, relays, bombers... dropped before
  * the fight starts) that the reference player has collected when a (mid-)boss fight starts.
  * Each one is +1 front power for the rest of the level (src/game/pickups.ts).
  */
-export const POWER_COLLECT = 0.8;
+export const POWER_COLLECT = 0.6;
 
 export interface ProgressionInput {
   hulls: HullDef[];
@@ -99,6 +106,27 @@ export function sidekickDps(s: SidekickDef | null | undefined): number {
   return s.damage * s.fireRate * (SIDEKICK_PROJECTILES[s.pattern] ?? 1) * (SIDEKICK_ON_TARGET[s.pattern] ?? 1);
 }
 
+/** Half-angle (deg) under which a boss-sized target (~112 px wide, ~330 px ahead) is seen. */
+export const TARGET_HALF_ANGLE = 9.6;
+
+/**
+ * Share of a front gun's volley that hits one boss-sized target: the scatter fan (half-angle
+ * 10 -> 40.6 deg) and the prism shard fan (spread 10 -> 30 deg after the 80 px split) spread
+ * past it at high power; every other front pattern lands its whole volley (homing, beams,
+ * narrow streams). Same geometry as src/game/arsenal/weapons (ramp over power 1..10).
+ */
+export function singleTargetShare(def: WeaponDef, power: number): number {
+  const t = (Math.max(1, Math.min(MAX_POWER, power)) - 1) / (MAX_POWER - 1);
+  if (def.pattern === 'scatter') return Math.min(1, TARGET_HALF_ANGLE / (10 + 30.6 * t));
+  if (def.pattern === 'prism') return Math.min(1, 0.4 + 0.6 * Math.min(1, TARGET_HALF_ANGLE / (10 + 20 * t)));
+  return 1;
+}
+
+/** Single-target DPS of a front gun at a fractional power (nominal x singleTargetShare). */
+export function targetDps(def: WeaponDef, power: number): number {
+  return dpsAtPower(def, power) * (def.slot === 'front' ? singleTargetShare(def, power) : 1);
+}
+
 /** Nominal DPS of a weapon at a fractional power (linear in p, like M(p)), capped at MAX_POWER. */
 export function dpsAtPower(def: WeaponDef, power: number): number {
   const p = Math.max(1, Math.min(MAX_POWER, power));
@@ -110,8 +138,8 @@ export function dpsAtPower(def: WeaponDef, power: number): number {
 interface GunPick { def: WeaponDef; power: number; cost: number; dps: number; eps: number }
 
 /**
- * Strongest gun of `list` (max nominal DPS, then cheapest) whose total value fits in `budget`
- * and whose drain fits in `maxEps` energy/s.
+ * Strongest gun of `list` (max single-target DPS, then cheapest) whose total value fits in
+ * `budget` and whose drain fits in `maxEps` energy/s.
  */
 function bestGun(list: WeaponDef[], budget: number, maxEps: number): GunPick | null {
   let best: GunPick | null = null;
@@ -121,8 +149,9 @@ function bestGun(list: WeaponDef[], budget: number, maxEps: number): GunPick | n
       if (cost > budget) continue;
       const st = weaponFireStats(def, p);
       if (st.energyPerSec > maxEps + 1e-9) continue;
-      if (!best || st.dps > best.dps + 1e-9 || (Math.abs(st.dps - best.dps) <= 1e-9 && cost < best.cost)) {
-        best = { def, power: p, cost, dps: st.dps, eps: st.energyPerSec };
+      const dps = targetDps(def, p);
+      if (!best || dps > best.dps + 1e-9 || (Math.abs(dps - best.dps) <= 1e-9 && cost < best.cost)) {
+        best = { def, power: p, cost, dps, eps: st.energyPerSec };
       }
       break;
     }
@@ -168,7 +197,7 @@ function arm(input: ProgressionInput, fronts: WeaponDef[], rears: WeaponDef[], s
   const startFront = input.front.find((w) => w.id === input.startLoadout.front) ?? input.front[0];
   const fallback = (): GunPick => {
     const st = weaponFireStats(startFront, 1);
-    return { def: startFront, power: 1, cost: startFront.cost, dps: st.dps, eps: st.energyPerSec };
+    return { def: startFront, power: 1, cost: startFront.cost, dps: targetDps(startFront, 1), eps: st.energyPerSec };
   };
   let front = bestGun(fronts, FRONT_SHARE * budget, spare) ?? fallback();
   const pair = bestPair(sks, hull.sidekickSlots, SIDEKICK_SHARE * budget + Math.max(0, FRONT_SHARE * budget - front.cost));
@@ -233,8 +262,8 @@ export function simulateProgression(input: ProgressionInput): ProgressionStep[] 
     const midbossPower = level.midboss
       ? Math.min(MAX_POWER, kit.front.power + POWER_COLLECT * input.powerDrops(level, level.midboss.t))
       : kit.front.power;
-    const fightDps = bossHp > 0 ? dps - kit.front.dps + dpsAtPower(kit.front.def, bossPower) : 0;
-    const midbossDps = midbossHp > 0 ? dps - kit.front.dps + dpsAtPower(kit.front.def, midbossPower) : 0;
+    const fightDps = bossHp > 0 ? dps - kit.front.dps + targetDps(kit.front.def, bossPower) : 0;
+    const midbossDps = midbossHp > 0 ? dps - kit.front.dps + targetDps(kit.front.def, midbossPower) : 0;
     steps.push({
       levelId: level.id,
       index,
@@ -263,7 +292,7 @@ export function simulateProgression(input: ProgressionInput): ProgressionStep[] 
       energyOut: kit.gen.output,
       bossHp,
       midbossHp,
-      bossTtk: bossHp > 0 ? bossHp / (fightDps * DPS_UPTIME) : null,
+      bossTtk: bossHp > 0 ? bossHp / (fightDps * (BOSS_UPTIME[level.boss ?? ''] ?? DPS_UPTIME)) : null,
       midbossTtk: midbossHp > 0 ? midbossHp / (midbossDps * MIDBOSS_UPTIME) : null,
     });
     value += income;

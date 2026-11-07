@@ -31,13 +31,20 @@ export function clearBonus(i: number, bossLevel: boolean, n = 24): number {
 }
 
 /**
- * Share of a loadout's NOMINAL boss DPS (weaponFireStats, every projectile hitting) that
- * actually lands while dodging: missed and part-absorbed shots, the moves of the boss,
- * minus the x1.5 weak-point core. Calibrated with tools/playtest.mjs (docs/BALANCE.md §10).
+ * Share of a kit's nominal single-target DPS (progression.ts fightDps: weaponFireStats x the
+ * pattern's single-target share) that lands on a planet boss while the autopilot dodges:
+ * missed shots, shots eaten by destroyable parts, the boss moves, plus the x1.5 weak-point
+ * core. Measured per boss with tools/playtest.mjs (docs/BALANCE.md §10, run A: Kestrel p10 +
+ * two Twinfangs, god mode). DPS_UPTIME is the default for unknown bosses.
  */
+export const BOSS_UPTIME: Record<string, number> = {
+  colossus: 0.83, hydra: 0.74, dreadnought: 0.54, hive: 0.71, forge: 0.68, cryo: 0.66, voidcarrier: 0.7, architect: 0.75,
+};
 export const DPS_UPTIME = 0.7;
-/** Same for the mid-boss (one big, slow target that hovers in front of the player). */
+/** Same for the mid-bosses (one big, slow target hovering in front of the player). */
 export const MIDBOSS_UPTIME = 0.75;
+/** A human pilot lands about this share of what the autopilot lands (fights ~25 % longer). */
+export const HUMAN_AIM = 0.8;
 
 /** Energy drawn per second at power p relative to power 1 (gameplay: E(p) = 1 + 0.05 (p - 1)). */
 export function energyFactor(power: number): number {

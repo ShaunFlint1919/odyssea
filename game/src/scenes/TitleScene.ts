@@ -14,8 +14,8 @@ import { audio } from '../audio';
 import { getSave, hasSaveGame, newGame } from '../state/save';
 import { DIFFICULTY_SCALES } from '../state/progress';
 import { LEVELS, PLANETS } from '../data';
-import { MenuList, confirm, fadeIn, goto, onBackIf, panel, starfield, statusBar, text, type MenuItem, type StatusBarApi } from '../ui/kit';
-import { LAYOUT, cachedTexture, neonRule } from '../ui/widgets';
+import { MenuList, confirm, fadeIn, goto, inputBlocked, onBackIf, panel, starfield, statusBar, text, type MenuItem, type StatusBarApi } from '../ui/kit';
+import { LAYOUT, cachedTexture, listGeometry, neonRule } from '../ui/widgets';
 
 /** Atmosphere glow colour per biome (title planet halo). */
 const BIOME_GLOW: Record<Biome, number> = {
@@ -73,7 +73,7 @@ export class TitleScene extends Phaser.Scene {
     });
     if (firstView) this.showPressStart(width, height);
     else this.showMain(false);
-    markSceneReady(SCENES.Title, { mode: this.mode });
+    markSceneReady(SCENES.Title, { mode: this.mode, list: this.menu ? listGeometry(this.menu) : null });
   }
 
   // ---------------------------------------------------------------------------- backdrop
@@ -330,7 +330,7 @@ export class TitleScene extends Phaser.Scene {
     const blink = this.time.addEvent({ delay: 520, loop: true, callback: () => prompt.setVisible(!prompt.visible) });
     let started = false;
     const go = () => {
-      if (started) return;
+      if (started || inputBlocked(this)) return;
       started = true;
       this.input.off('pointerdown', go);
       this.input.keyboard?.off('keydown', onKey);
@@ -436,10 +436,13 @@ export class TitleScene extends Phaser.Scene {
     box.add(list.container);
     this.menu = list;
     this.menuBox = box;
+    const publish = () => setHookState({ list: listGeometry(list) });
     if (animated) {
       box.setAlpha(0);
       box.y = 8;
-      this.tweens.add({ targets: box, alpha: 1, y: 0, duration: 200, ease: 'Quad.easeOut' });
+      this.tweens.add({ targets: box, alpha: 1, y: 0, duration: 200, ease: 'Quad.easeOut', onComplete: publish });
+    } else {
+      publish();
     }
   }
 }

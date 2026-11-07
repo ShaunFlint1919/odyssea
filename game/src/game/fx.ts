@@ -2,13 +2,15 @@
 //  FX — pooled explosions, sparks, debris, smoke, shockwaves, glows, floating texts,
 //  damage vignette and screen flash. Everything is driven by the world clock (manual
 //  frame animation) so hit-stop / slow-motion / DEBUG.speed freeze or scale it too.
-//  Two depth bands: air FX (DEPTH.fx) and ground FX (DEPTH.groundFx, scroll with terrain).
+//  Depth bands: ground FX (DEPTH.groundFx, scroll with the terrain); air smoke, glows and
+//  fireballs just under the enemy bullets (bullets stay readable through any explosion);
+//  sparks / debris / texts / edge warnings / vignette / flash above everything but the HUD.
 // =====================================================================================
 import Phaser from 'phaser';
 import { DEPTH, H, PLAY_W } from '../config';
 import { ANIM, FONT } from '../art/keys';
 import { ensureFonts } from '../ui/kit';
-import { FrameAnim, TEX_CRATER, TEX_PX, TEX_VIGNETTE, fallbackTex, texOr } from './tex';
+import { FrameAnim, TEX_CHEVRON, TEX_CRATER, TEX_PX, TEX_VIGNETTE, fallbackTex, texOr } from './tex';
 import type { World } from './world';
 
 const FIRE_TINTS = [0xffffff, 0xfff2b0, 0xffd050, 0xff9a30, 0xff5a18, 0xe03010];
@@ -56,6 +58,16 @@ class FloatText {
 
 class Decal {
   active = false;
+  constructor(readonly img: Phaser.GameObjects.Image) {}
+}
+
+/** Blinking edge warning (units about to enter from the bottom edge). */
+class Marker {
+  active = false;
+  age = 0;
+  life = 0;
+  y0 = 0;
+  tint = 0xffffff;
   constructor(readonly img: Phaser.GameObjects.Image) {}
 }
 
@@ -130,6 +142,11 @@ class AnimPool {
 export class Fx {
   private readonly air: AnimPool;
   private readonly ground: AnimPool;
+  /** Air smoke drifts BELOW the enemy bullets so it never hides them. */
+  private readonly haze: AnimPool;
+  /** Fireballs that must cover the player ship (its own death): DEPTH.fx. */
+  private readonly over: AnimPool;
+  private overTop = false;
   private readonly bits: Bit[] = [];
   private bitCursor = 0;
   private readonly glows: Bit[] = [];
@@ -138,6 +155,8 @@ export class Fx {
   private textCursor = 0;
   private readonly decals: Decal[] = [];
   private decalCursor = 0;
+  private readonly markers: Marker[] = [];
+  private markerCursor = 0;
   private readonly vignette: Phaser.GameObjects.Image;
   private vignetteA = 0;
   private readonly flashImg: Phaser.GameObjects.Image;
@@ -172,14 +191,18 @@ export class Fx {
       const img = scene.add.image(-100, -100, TEX_CRATER).setDepth(DEPTH.doodads + 1).setVisible(false);
       this.decals.push(new Decal(img));
     }
+    // Readability: smoke, glows and fireballs draw just UNDER the enemy bullets (above the
+    // air units and the player shots); only sparks, debris, texts and overlays are above them.
     this.ground = new AnimPool(scene, 48, DEPTH.groundFx);
-    this.air = new AnimPool(scene, 110, DEPTH.fx);
+    this.air = new AnimPool(scene, 110, DEPTH.enemyBullets - 0.5);
+    this.haze = new AnimPool(scene, 56, DEPTH.enemyBullets - 1);
+    this.over = new AnimPool(scene, 16, DEPTH.fx);
     for (let i = 0; i < 240; i++) {
       const img = scene.add.image(-100, -100, this.pixelKey).setDepth(DEPTH.fx + 1).setVisible(false);
       this.bits.push(new Bit(img));
     }
     for (let i = 0; i < 40; i++) {
-      const img = scene.add.image(-100, -100, this.glowKey).setDepth(DEPTH.fx - 1).setVisible(false)
+      const img = scene.add.image(-100, -100, this.glowKey).setDepth(DEPTH.enemyBullets - 0.6).setVisible(false)
         .setBlendMode(Phaser.BlendModes.ADD);
       this.glows.push(new Bit(img));
     }
@@ -188,18 +211,42 @@ export class Fx {
       const t = scene.add.bitmapText(-100, -100, FONT.s, '').setDepth(DEPTH.fx + 3).setOrigin(0.5).setVisible(false);
       this.texts.push(new FloatText(t));
     }
-    this.vignette = scene.add.image(0, 0, TEX_VIGNETTE).setOrigin(0).setDepth(DEPTH.fx + 4).setAlpha(0).setVisible(false);
+    // screen-space overlays: they do not follow the camera shake (scroll)
+    for (let i = 0; i < 10; i++) {
+      const img = scene.add.image(-100, -100, TEX_CHEVRON).setDepth(DEPTH.fx + 2).setVisible(false);
+      this.markers.push(new Marker(img));
+    }
+    this.vignette = scene.add.image(0, 0, TEX_VIGNETTE).setOrigin(0).setDepth(DEPTH.fx + 4).setAlpha(0).setVisible(false)
+      .setScrollFactor(0);
     this.flashImg = scene.add.image(0, 0, TEX_PX).setOrigin(0).setDisplaySize(PLAY_W, H).setDepth(DEPTH.fx + 5)
-      .setAlpha(0).setVisible(false);
+      .setAlpha(0).setVisible(false).setScrollFactor(0);
   }
 
   private explosionAnim(size: 's' | 'm' | 'l'): FrameAnim {
     return size === 'l' ? this.animL : size === 'm' ? this.animM : this.animS;
   }
 
+  private band(ground: boolean): AnimPool {
+    return ground ? this.ground : this.overTop ? this.over : this.air;
+  }
+
+  /** Full explosion drawn ABOVE the player ship (its own destruction). */
+  explodeOver(x: number, y: number, size: 's' | 'm' | 'l'): void {
+    this.overTop = true;
+    this.explode(x, y, size);
+    this.overTop = false;
+  }
+
+  /** Single explosion sprite drawn ABOVE the player ship. */
+  blastOver(x: number, y: number, size: 's' | 'm' | 'l', scale = 1): void {
+    this.overTop = true;
+    this.blast(x, y, size, scale);
+    this.overTop = false;
+  }
+
   /** Single explosion sprite (no extras). delayMs postpones it (chains). */
   blast(x: number, y: number, size: 's' | 'm' | 'l', scale = 1, delayMs = 0, ground = false, vx = 0, vy = 0): void {
-    const f = (ground ? this.ground : this.air).take();
+    const f = this.band(ground).take();
     const anim = this.explosionAnim(size);
     const r = this.w.fxRng;
     f.active = true;
@@ -256,7 +303,7 @@ export class Fx {
 
   /** Expanding ring (additive). */
   shockwave(x: number, y: number, scale = 1, ground = false): void {
-    const f = (ground ? this.ground : this.air).take();
+    const f = this.band(ground).take();
     f.active = true;
     f.anim = this.animShock;
     f.age = 0;
@@ -273,9 +320,9 @@ export class Fx {
       .setBlendMode(Phaser.BlendModes.ADD).setVisible(true);
   }
 
-  /** Drifting smoke puff. */
+  /** Drifting smoke puff (air smoke stays below the enemy bullets). */
   smoke(x: number, y: number, ground = false, delayMs = 0): void {
-    const f = (ground ? this.ground : this.air).take();
+    const f = (ground ? this.ground : this.haze).take();
     const r = this.w.fxRng;
     f.active = true;
     f.anim = this.animSmoke;
@@ -453,6 +500,21 @@ export class Fx {
       .setAlpha(1).setVisible(true);
   }
 
+  /**
+   * Blinking up-chevron at the bottom edge above x: something is about to rise from below
+   * (ms = warning time). Two stacked chevrons, bobbing upward.
+   */
+  edgeWarning(x: number, ms: number, tint = 0xff5a3c): void {
+    const m = this.markers[this.markerCursor];
+    this.markerCursor = (this.markerCursor + 1) % this.markers.length;
+    m.active = true;
+    m.age = 0;
+    m.life = ms;
+    m.y0 = H - 14;
+    m.tint = tint;
+    m.img.setPosition(Math.round(Phaser.Math.Clamp(x, 12, PLAY_W - 12)), m.y0).setTint(tint).setAlpha(1).setScale(2).setVisible(true);
+  }
+
   /** Scorch decal on the ground (scrolls with the terrain). */
   crater(x: number, y: number, scale: number): void {
     const d = this.decals[this.decalCursor];
@@ -478,7 +540,9 @@ export class Fx {
     const dts = dtMs / 1000;
     const scroll = this.w.scrollSpeed;
     this.ground.update(dtMs, scroll);
+    this.haze.update(dtMs, scroll);
     this.air.update(dtMs, scroll);
+    this.over.update(dtMs, scroll);
     for (let k = 0; k < this.bits.length; k++) {
       const b = this.bits[k];
       if (!b.active) continue;
@@ -531,6 +595,20 @@ export class Fx {
       t.txt.y = Math.round(t.y0 - 22 * Math.sqrt(p));
       t.txt.setAlpha(p < 0.7 ? 1 : 1 - (p - 0.7) / 0.3);
     }
+    for (let k = 0; k < this.markers.length; k++) {
+      const m = this.markers[k];
+      if (!m.active) continue;
+      m.age += dtMs;
+      if (m.age >= m.life) {
+        m.active = false;
+        m.img.setVisible(false);
+        continue;
+      }
+      const ph = (m.age % 240) / 240;
+      const on = Math.floor(m.age / 120) % 2 === 0;
+      m.img.y = Math.round(m.y0 - ph * 6);
+      m.img.setAlpha(on ? 1 : 0.5).setTint(on ? m.tint : 0xffe070);
+    }
     for (let k = 0; k < this.decals.length; k++) {
       const d = this.decals[k];
       if (!d.active) continue;
@@ -556,6 +634,8 @@ export class Fx {
   clear(): void {
     this.air.clear();
     this.ground.clear();
+    this.haze.clear();
+    this.over.clear();
     for (const b of this.bits) { b.active = false; b.img.setVisible(false); }
     for (const b of this.glows) { b.active = false; b.img.setVisible(false); }
   }

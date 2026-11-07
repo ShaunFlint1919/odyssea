@@ -52,10 +52,10 @@ captures/
 # Comment next line if keeping position of elements in Navigation Editor is relevant for you
 .idea/navEditor.xml
 
-# Keystore files
-# Uncomment the following lines if you do not want to check your keystore files in.
-#*.jks
-#*.keystore
+# Keystore files: game/.gitignore ignores *.jks / *.keystore (release keys never enter git), except
+# the shared DEBUG key below (well-known "android" passwords, debug builds only): every CI debug APK
+# then carries the same signature and installs over the previous one, keeping the save data.
+!/app/debug.keystore
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild

@@ -9,7 +9,7 @@
 import Phaser from 'phaser';
 import { COLORS } from '../../config';
 import { audio } from '../../audio';
-import { MenuList, modalLevel, type FontSize, type MenuItem, type TapMode } from '../kit';
+import { MenuList, inputBlocked, modalLevel, type FontSize, type MenuItem, type TapMode } from '../kit';
 import { isShown } from './util';
 
 export interface ScrollMenuOpts {
@@ -91,14 +91,14 @@ export class ScrollMenu {
     this.thumb = scene.add.rectangle(bx, 0, BAR_W, 8, COLORS.teal, 1).setOrigin(0);
     this.trackZone = scene.add.zone(width - 9, 0, 14, trackH).setOrigin(0).setInteractive({ useHandCursor: true });
     this.trackZone.on('pointerdown', (_p: Phaser.Input.Pointer, _lx: number, ly: number) => {
-      if (!this.enabled) return;
+      if (!this.enabled || inputBlocked(scene)) return;
       audio.unlock();
       const mid = this.thumb.y + this.thumb.height / 2;
       this.scrollBy((ly < mid ? -1 : 1) * (this.rows - 1));
     });
     this.container.add([this.track, this.thumb, this.trackZone]);
 
-    this.onDown = (p) => { this.dragY = this.inside(p) ? p.y : null; };
+    this.onDown = (p) => { this.dragY = this.inside(p) && !inputBlocked(scene) ? p.y : null; };
     this.onMove = (p) => {
       if (this.dragY === null || !p.isDown || !this.enabled) return;
       const dy = p.y - this.dragY;
@@ -110,7 +110,7 @@ export class ScrollMenu {
     };
     this.onUp = () => { this.dragY = null; };
     this.onWheel = (p, _over, _dx, dy) => {
-      if (!this.enabled || !this.inside(p) || dy === 0) return;
+      if (!this.enabled || !this.inside(p) || dy === 0 || inputBlocked(scene)) return;
       this.scrollBy(dy > 0 ? 1 : -1);
     };
     scene.input.on('pointerdown', this.onDown);
@@ -233,7 +233,7 @@ export class ScrollMenu {
     const kb = this.scene.input.keyboard;
     if (!kb) return;
     this.keyHandler = (e: KeyboardEvent) => {
-      if (!this.enabled || !isShown(this.container) || modalLevel(this.scene) > this.level || this.items.length === 0) return;
+      if (!this.enabled || !isShown(this.container) || modalLevel(this.scene) > this.level || this.items.length === 0 || inputBlocked(this.scene)) return;
       audio.unlock();
       const n = this.items.length;
       switch (e.code) {

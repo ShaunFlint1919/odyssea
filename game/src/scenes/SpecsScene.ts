@@ -68,7 +68,7 @@ export class SpecsScene extends Phaser.Scene {
     }
     const kb = this.input.keyboard;
     const onKey = (e: KeyboardEvent) => {
-      if ((e.code === 'Enter' || e.code === 'Space' || e.code === 'NumpadEnter') && !e.repeat && !kit.isModalOpen(this)) { audio.sfx('ui_select'); leave(); }
+      if ((e.code === 'Enter' || e.code === 'Space' || e.code === 'NumpadEnter') && !e.repeat && !kit.isModalOpen(this) && !kit.inputBlocked(this)) { audio.sfx('ui_select'); leave(); }
     };
     kb?.on('keydown', onKey);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => kb?.off('keydown', onKey));

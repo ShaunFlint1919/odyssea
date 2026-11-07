@@ -20,8 +20,16 @@ import { angleDiff, clamp } from './world';
 const HALF_PI = Math.PI / 2;
 const MASK_CELL = 4;
 const FLASH_TIME = 0.032;
-/** Minimum gap between two white flashes (continuous fire makes the boss blink, not glow white). */
+/** Minimum gap between two white flashes of a part (continuous fire makes it blink, not glow white). */
 const FLASH_GAP = 0.06;
+/**
+ * Body hit flash: an additive copy of the body sprite (bright, keeps the detail) instead of a
+ * solid white tint-fill (a 100 px silhouette strobing at 12 Hz). Peak alpha, decay per second
+ * and minimum gap between two flashes (s).
+ */
+const BODY_FLASH_A = 0.7;
+const BODY_FLASH_DECAY = 8;
+const BODY_FLASH_GAP = 0.11;
 const CONTACT_DAMAGE = 12;
 const CORE_MULT = 1.5;
 const DEATH_TIME = 2.1;
@@ -113,7 +121,9 @@ export class Boss {
   private solidCells: Int32Array = new Int32Array(0);
   private mw = 0;
   private mh = 0;
-  private flash = 0;
+  /** Additive hit-flash overlay of the body and its current alpha. */
+  private flashImg: Phaser.GameObjects.Image | null = null;
+  private flashA = 0;
   private flashCd = 0;
   private dmgKey = '';
   private damaged = false;
@@ -175,6 +185,9 @@ export class Boss {
     const shadowDepth = surface ? DEPTH.ground + 1 : DEPTH.shadows;
     if (w.shadows && scene.textures.exists(sk)) this.shadow = scene.add.image(0, 0, sk).setDepth(shadowDepth);
     this.img = scene.add.image(0, 0, key).setDepth(depth);
+    this.flashImg = scene.add.image(0, 0, key).setDepth(depth + 0.5).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setVisible(false);
+    this.flashA = 0;
+    this.flashCd = 0;
     const dk = bossDamagedKey(def.sprite, def.palette);
     this.dmgKey = scene.textures.exists(dk) ? dk : '';
     this.damaged = false;
@@ -328,10 +341,9 @@ export class Boss {
 
   private damageBody(amount: number): void {
     this.hp -= amount;
-    if (this.flash <= 0 && this.flashCd <= 0) {
-      this.img?.setTintFill(0xffffff);
-      this.flash = FLASH_TIME;
-      this.flashCd = FLASH_TIME + FLASH_GAP;
+    if (this.flashCd <= 0) {
+      this.flashA = BODY_FLASH_A;
+      this.flashCd = BODY_FLASH_GAP;
     }
     if (this.hp <= 0) {
       this.hp = 0;
@@ -468,6 +480,8 @@ export class Boss {
       w.pickups.spawnDrop(this.x, this.y + 10, 'intel');
     }
     this.img?.setVisible(false);
+    this.flashImg?.setVisible(false);
+    this.flashA = 0;
     this.shadow?.setVisible(false);
     for (const p of this.parts) {
       p.img.setVisible(false);
@@ -504,6 +518,7 @@ export class Boss {
       if (!this.damaged && this.dmgKey && (phases.length > 1 ? this.phaseIdx === phases.length - 1 : frac < 0.34)) {
         this.damaged = true;
         this.img?.setTexture(this.dmgKey);
+        this.flashImg?.setTexture(this.dmgKey);
       }
       if (frac < 0.5) {
         this.smokeT -= dt;
@@ -534,10 +549,7 @@ export class Boss {
     }
     for (const p of this.parts) this.updatePart(p, dt);
     if (this.flashCd > 0) this.flashCd -= dt;
-    if (this.flash > 0) {
-      this.flash -= dt;
-      if (this.flash <= 0) this.img?.clearTint();
-    }
+    if (this.flashA > 0) this.flashA = Math.max(0, this.flashA - dt * BODY_FLASH_DECAY);
     if (this.active) this.sync(dt);
   }
 
@@ -725,6 +737,12 @@ export class Boss {
     void dt;
     const x = Math.round(this.x + this.jitter), y = Math.round(this.y);
     this.img?.setPosition(x, y);
+    const fl = this.flashImg;
+    if (fl) {
+      const on = this.flashA > 0.01 && this.state !== 'dead';
+      if (on) fl.setPosition(x, y).setAlpha(this.flashA);
+      if (fl.visible !== on) fl.setVisible(on);
+    }
     this.shadow?.setPosition(x + this.shadowDx, y + this.shadowDy);
     for (const p of this.parts) {
       const px = x + p.def.offset[0], py = y + p.def.offset[1];
@@ -751,6 +769,8 @@ export class Boss {
 
   destroy(): void {
     this.img?.destroy();
+    this.flashImg?.destroy();
+    this.flashImg = null;
     this.shadow?.destroy();
     for (const p of this.parts) {
       p.img.destroy();

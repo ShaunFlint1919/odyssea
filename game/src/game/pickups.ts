@@ -193,6 +193,7 @@ export class Pickups {
         continue;
       }
       if (p.y > H + 16) {
+        if (p.kind === K_CREDIT) this.w.metrics.creditsMissed += p.value;
         this.release(p, k);
         continue;
       }

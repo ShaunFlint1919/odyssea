@@ -3,7 +3,7 @@
 //  with a little lag, bob and tilt, cast a ground shadow (+6, +10) when shadows are on,
 //  play their 2-frame idle animation and fire for free (no generator energy) while the
 //  trigger is held. Each has its own silhouette of fire:
-//   pod      2-round bursts of plasma bolts straight ahead (damage split over the burst)
+//   pod      2-round bursts of round plasma pellets straight ahead (damage split over the burst)
 //   twin     two tracer needles angled ±9 deg outward
 //   shard    3-way piercing violet crystal shards (±14 deg)
 //   rocket   homing rocket with a smoke trail and a small splash blast, on cooldown
@@ -24,7 +24,7 @@ import { ANCHOR_LEFT, ANCHOR_RIGHT, addImage, addSprite } from './env';
 import { SLOT_SIDEKICK } from './effects';
 import { HIT_BLAST, HitRegistry, MOVE_COLUMN, MOVE_HOMING, TRAIL_SMOKE, makeSpec, type ShotSpec } from './projectiles';
 import {
-  COLUMN_WIDTHS, WARD_FRAMES, boltTex, columnTex, emberTex, flashTex, glowTex, missileTex, needleTex, shardTex, wardTex,
+  COLUMN_WIDTHS, WARD_FRAMES, columnTex, emberTex, flashTex, glowTex, missileTex, needleTex, pelletTex, shardTex, wardTex,
   zapTex,
 } from './art';
 import { impactFx, muzzleSet, softImpactFx } from './looks';
@@ -164,12 +164,10 @@ export class SidekickUnit {
       this.releaseFlash = flashTex(scene, 4);
       this.releaseCore = flashTex(scene, 1);
     } else if (def.pattern === 'orbiter') {
-      const ward = wardTex(scene);
+      const ward = wardTex(scene, color);
       const w = addImage(env, ward.key, ward.first);
       w.setDepth(env.depths.shots + 0.4);
-      w.setBlendMode(Phaser.BlendModes.ADD);
-      w.setTint(rgb.glow);
-      w.setAlpha(0.7);
+      w.setAlpha(0.9);
       this.wardImg = w;
       const halo = glowTex(scene, 19);
       const h = addImage(env, halo.key);
@@ -194,7 +192,7 @@ export class SidekickUnit {
     let s: ShotSpec;
     switch (def.pattern) {
       case 'twin':
-        s = makeSpec(needleTex(scene, color, 0), glow, core);
+        s = makeSpec(needleTex(scene, color, 1), glow, core);
         s.speed = 700;
         s.radius = 3;
         s.rotate = true;
@@ -221,11 +219,13 @@ export class SidekickUnit {
         s.launchMs = 160;
         s.life = 2800;
         s.radius = 4.5;
+        s.halo = glowTex(scene, 13);
+        s.haloAlpha = 0.3;
         s.splash = 14;
         s.hit = HIT_BLAST;
         s.fx = impactFx(scene, color, 3, 14);
         s.trail = TRAIL_SMOKE;
-        s.trailMs = 36;
+        s.trailMs = 46;
         s.popOnExpire = true;
         break;
       case 'charge':
@@ -238,10 +238,12 @@ export class SidekickUnit {
         s.fx = impactFx(scene, color, 2);
         break;
       default:
-        s = makeSpec(boltTex(scene, color, 0), glow, core);
-        s.speed = 640;
+        s = makeSpec(pelletTex(scene, color, 0), glow, core);
+        s.speed = 600;
         s.radius = 3.5;
         s.rotate = false;
+        s.halo = glowTex(scene, 11);
+        s.haloAlpha = 0.25;
         s.fx = impactFx(scene, color, 0);
     }
     s.damage = def.pattern === 'pod' ? def.damage / POD_BURST : def.damage;

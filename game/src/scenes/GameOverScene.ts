@@ -14,10 +14,10 @@ import type { GameStartData } from '../game/contracts';
 import { audio } from '../audio';
 import { getSave } from '../state/save';
 import { FAILED_CREDIT_RATIO } from '../state/progress';
-import { MenuList, fadeIn, fit, goto, onBack, panel, statusBar, text, wrapText, type MenuItem, type StatusBarApi } from '../ui/kit';
+import { MenuList, fadeIn, fit, goto, inputBlocked, onBack, panel, statusBar, text, wrapText, type MenuItem, type StatusBarApi } from '../ui/kit';
 import {
   Board, LAYOUT, MD, Sequence, applyOnce, badge, cachedTexture, contentRect, demoResult, fmtInt, isLevelResult, levelInfo,
-  normalizeResult, screenBackdrop, screenHeader, sectionLabel, vignette, type BoardRow, type SequenceStep,
+  listGeometry, normalizeResult, screenBackdrop, screenHeader, sectionLabel, vignette, type BoardRow, type SequenceStep,
 } from '../ui/widgets';
 
 const TIPS = [
@@ -128,9 +128,9 @@ export class GameOverScene extends Phaser.Scene {
     }));
     this.seq = new Sequence(this, steps, () => this.showMenu(menuY));
     this.seq.start();
-    this.input.on('pointerdown', () => { if (this.seq && !this.seq.done) this.seq.skip(); });
+    this.input.on('pointerdown', () => { if (this.seq && !this.seq.done && !inputBlocked(this)) this.seq.skip(); });
     this.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
-      if (!e.repeat && this.seq && !this.seq.done && (e.code === 'Enter' || e.code === 'Space')) this.seq.skip();
+      if (!e.repeat && !inputBlocked(this) && this.seq && !this.seq.done && (e.code === 'Enter' || e.code === 'Space')) this.seq.skip();
     });
     onBack(this, () => {
       if (this.seq && !this.seq.done) { this.seq.skip(); return; }
@@ -189,7 +189,10 @@ export class GameOverScene extends Phaser.Scene {
     box.add(this.menu.container);
     box.setAlpha(0);
     box.y = 6;
-    this.tweens.add({ targets: box, alpha: 1, y: 0, duration: 200, ease: 'Quad.easeOut' });
-    setHookState({ menuReady: true });
+    const menu = this.menu;
+    this.tweens.add({
+      targets: box, alpha: 1, y: 0, duration: 200, ease: 'Quad.easeOut',
+      onComplete: () => setHookState({ menuReady: true, list: listGeometry(menu) }),
+    });
   }
 }

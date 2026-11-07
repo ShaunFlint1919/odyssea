@@ -1,5 +1,10 @@
 name: Android APK
 
+# Debug APK on every push to main / ccr-** that touches the game (no secrets needed, always green when
+# the game builds). With the 4 ANDROID_* signing secrets (see game/README.md) it also builds a signed
+# release APK and a Play Store App Bundle (.aab); without them the release build still runs, unsigned,
+# as a non-blocking R8 check. A v* tag publishes everything as a GitHub Release.
+
 on:
   push:
     branches:
@@ -9,117 +14,364 @@ on:
       - 'v*'
     paths:
       - 'game/**'
+      - '!game/docs/**'
+      - '!game/**/*.md'
+      - '!game/tests/**'
+      - '!game/tools/**'
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
 
 concurrency:
   group: android-apk-${{ github.ref }}
-  cancel-in-progress: true
+  # Branch builds keep only the latest push; a release (tag) build is never cancelled half-way.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
-  contents: write # attach the APKs to the GitHub release on v* tags
+  contents: read
 
 defaults:
   run:
-    working-directory: game
+    shell: bash
 
 jobs:
   apk:
     name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: game
     env:
-      # Secrets cannot be tested in `if:` directly: expose a boolean instead.
-      HAS_RELEASE_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      # Secrets cannot be tested in `if:` directly: expose one boolean (all four must be set).
+      HAS_RELEASE_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && secrets.ANDROID_KEYSTORE_PASSWORD != '' && secrets.ANDROID_KEY_ALIAS != '' && secrets.ANDROID_KEY_PASSWORD != '' }}
+      IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
 
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: game/package-lock.json
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          # The action's default ('tools platform-tools') fails: the legacy 'tools' package no
-          # longer exists. Gradle downloads the platform / build-tools it needs (licenses accepted).
-          packages: 'platform-tools'
+      - name: Resolve version
+        id: version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          code="${GITHUB_RUN_NUMBER}"
+          if [ "$IS_TAG" = true ]; then
+            if [ "$GITHUB_REF_NAME" != "v${version}" ]; then
+              echo "::error title=Version mismatch::Tag ${GITHUB_REF_NAME} does not match game/package.json version ${version}: bump package.json (and src/config.ts VERSION) to the tag's version, or tag v${version}."
+              exit 1
+            fi
+            basename="nova-corsair-${GITHUB_REF_NAME}"
+          else
+            basename="nova-corsair-${version}-build${code}"
+          fi
+          ingame="$(sed -n "s/^export const VERSION = '\(.*\)';.*/\1/p" src/config.ts)"
+          if [ -n "$ingame" ] && [ "$ingame" != "$version" ]; then
+            echo "::warning title=In-game version::src/config.ts VERSION is ${ingame}, game/package.json says ${version} (the APK uses package.json)."
+          fi
+          {
+            echo "name=${version}"
+            echo "code=${code}"
+            echo "basename=${basename}"
+          } >> "$GITHUB_OUTPUT"
+          echo "versionName ${version}, versionCode ${code}, files ${basename}*"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build web bundle
+      # Branch builds leave the tests to Game CI (a failing balance test must not block a playable
+      # APK); a release must pass them.
+      - name: Unit + content tests (release gate)
+        if: env.IS_TAG == 'true'
+        run: npm test
+
+      - name: Build web bundle (typecheck + Vite)
         run: npm run build
 
       - name: Sync Capacitor Android project
         run: npx cap sync android
 
-      - name: Make Gradle wrapper executable
-        run: chmod +x android/gradlew
+      - name: Set up Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: |
+            game/android/*.gradle
+            game/android/app/*.gradle
+            game/android/gradle.properties
+            game/android/gradle/wrapper/gradle-wrapper.properties
+            game/package-lock.json
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          # Gradle downloads any missing platform / build-tools itself (licenses accepted here).
+          packages: 'platform-tools'
+          log-accepted-android-sdk-licenses: false
 
       - name: Assemble debug APK
-        run: (cd android && ./gradlew assembleDebug --no-daemon --stacktrace)
+        id: assemble-debug
+        working-directory: game/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+      - name: Stage debug APK
+        id: debug
+        env:
+          BASENAME: ${{ steps.version.outputs.basename }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/apk"
+          file="$RUNNER_TEMP/apk/${BASENAME}-debug.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "$file"
+          echo "path=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Upload debug APK (zip)
+        id: upload-debug
+        uses: actions/upload-artifact@v7
         with:
           name: nova-corsair-debug-apk
-          path: game/android/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.debug.outputs.path }}
           if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
 
-      - name: Decode release keystore
+      - name: Upload debug APK (direct .apk download)
+        id: upload-debug-direct
+        # Convenience copy for phones (no unzip); the zip above is the reference artifact.
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          # Uploaded as-is: the artifact is the .apk itself, named after the file.
+          path: ${{ steps.debug.outputs.path }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Decode and check the release keystore
         if: env.HAS_RELEASE_KEYSTORE == 'true'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/nova-corsair-release.jks"
-          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/nova-corsair-release.jks" >> "$GITHUB_ENV"
+          keystore="$RUNNER_TEMP/nova-corsair-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d ' \r\n' | base64 --decode > "$keystore"
+          # Fail here, with a clear message, rather than deep inside Gradle.
+          if ! keytool -list -keystore "$keystore" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" > /dev/null 2>&1; then
+            echo "::error title=Release keystore::Cannot open the keystore with ANDROID_KEYSTORE_PASSWORD, or it has no key named ANDROID_KEY_ALIAS. Check the 4 ANDROID_* secrets (game/README.md)."
+            exit 1
+          fi
+          echo "ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
 
-      - name: Assemble signed release APK
-        if: env.HAS_RELEASE_KEYSTORE == 'true'
+      # Without the secrets: unsigned, nothing uploaded, failure only flagged in the summary.
+      - name: Build release APK + App Bundle (R8)
+        id: release
+        continue-on-error: ${{ env.HAS_RELEASE_KEYSTORE != 'true' }}
+        working-directory: game/android
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: (cd android && ./gradlew assembleRelease --no-daemon --stacktrace)
+        run: ./gradlew assembleRelease bundleRelease --stacktrace
+
+      - name: Stage signed release files
+        id: stage-release
+        if: env.HAS_RELEASE_KEYSTORE == 'true'
+        env:
+          BASENAME: ${{ steps.version.outputs.basename }}
+        run: |
+          out="$RUNNER_TEMP/release"
+          mkdir -p "$out"
+          cp android/app/build/outputs/apk/release/app-release.apk "$out/${BASENAME}.apk"
+          cp android/app/build/outputs/bundle/release/app-release.aab "$out/${BASENAME}.aab"
+          cp android/app/build/outputs/mapping/release/mapping.txt "$out/${BASENAME}-mapping.txt"
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
+          "$apksigner" verify "$out/${BASENAME}.apk"
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
 
       - name: Upload release APK
+        id: upload-release-apk
         if: env.HAS_RELEASE_KEYSTORE == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nova-corsair-release-apk
-          path: game/android/app/build/outputs/apk/release/app-release.apk
+          path: ${{ steps.stage-release.outputs.dir }}/*.apk
           if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
 
-      - name: Name APKs for the release
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          mkdir -p "$RUNNER_TEMP/release-apks"
-          cp android/app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/release-apks/nova-corsair-${GITHUB_REF_NAME}-debug.apk"
-          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
-            cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/release-apks/nova-corsair-${GITHUB_REF_NAME}.apk"
-          fi
-          ls -la "$RUNNER_TEMP/release-apks"
-
-      - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+      - name: Upload release App Bundle (Play Store)
+        id: upload-release-aab
+        if: env.HAS_RELEASE_KEYSTORE == 'true'
+        uses: actions/upload-artifact@v7
         with:
-          files: ${{ runner.temp }}/release-apks/*.apk
-          fail_on_unmatched_files: true
-          generate_release_notes: true
+          name: nova-corsair-release-aab
+          path: ${{ steps.stage-release.outputs.dir }}/*.aab
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
 
-      - name: Remove keystore
-        if: always() && env.HAS_RELEASE_KEYSTORE == 'true'
-        run: rm -f "$RUNNER_TEMP/nova-corsair-release.jks"
+      - name: Upload R8 mapping
+        if: env.HAS_RELEASE_KEYSTORE == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: nova-corsair-r8-mapping
+          path: ${{ steps.stage-release.outputs.dir }}/*-mapping.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Collect GitHub release assets
+        if: env.IS_TAG == 'true'
+        env:
+          DEBUG_APK: ${{ steps.debug.outputs.path }}
+          RELEASE_DIR: ${{ steps.stage-release.outputs.dir }}
+        run: |
+          assets="$RUNNER_TEMP/github-release"
+          mkdir -p "$assets"
+          cp "$DEBUG_APK" "$assets/"
+          if [ -n "$RELEASE_DIR" ]; then cp "$RELEASE_DIR"/* "$assets/"; fi
+          (cd "$assets" && sha256sum -- * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+
+      - name: Upload GitHub release assets
+        if: env.IS_TAG == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: nova-corsair-github-release
+          path: ${{ runner.temp }}/github-release/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+
+      - name: Job summary
+        if: always()
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
+          DEBUG_APK: ${{ steps.debug.outputs.path }}
+          DEBUG_URL: ${{ steps.upload-debug.outputs.artifact-url }}
+          DEBUG_DIRECT_URL: ${{ steps.upload-debug-direct.outputs.artifact-url }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+          RELEASE_DIR: ${{ steps.stage-release.outputs.dir }}
+          RELEASE_APK_URL: ${{ steps.upload-release-apk.outputs.artifact-url }}
+          RELEASE_AAB_URL: ${{ steps.upload-release-aab.outputs.artifact-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          size() { numfmt --to=iec --suffix=B --format='%.1f' "$(stat -c %s "$1")"; }
+          sha() { sha256sum "$1" | cut -c1-16; }
+          link() { if [ -n "$2" ]; then echo "[\`$1\`]($2)"; else echo "\`$1\`"; fi; }
+          tools="$( (ls -d "${ANDROID_HOME:-/nonexistent}"/build-tools/*/ 2>/dev/null || true) | sort -V | tail -n 1)"
+          {
+            echo "## Nova Corsair Android build ${VERSION_CODE:-?}"
+            echo
+            echo "versionName **${VERSION_NAME:-?}**, versionCode **${VERSION_CODE:-?}**, commit \`${GITHUB_SHA::7}\` on \`${GITHUB_REF_NAME}\`"
+            echo
+            if [ -n "$DEBUG_APK" ] && [ -f "$DEBUG_APK" ]; then
+              apk="$(basename "$DEBUG_APK")"
+              echo "| Artifact | Contents | Size | SHA-256 (start) |"
+              echo "|---|---|---|---|"
+              echo "| $(link "$apk" "$DEBUG_DIRECT_URL") | the APK itself (direct download) | $(size "$DEBUG_APK") | \`$(sha "$DEBUG_APK")\` |"
+              echo "| $(link nova-corsair-debug-apk "$DEBUG_URL") | zip with the same APK | $(size "$DEBUG_APK") | |"
+              if [ -n "$RELEASE_DIR" ] && [ -d "$RELEASE_DIR" ]; then
+                for f in "$RELEASE_DIR"/*.apk; do echo "| $(link nova-corsair-release-apk "$RELEASE_APK_URL") | signed release APK \`$(basename "$f")\` | $(size "$f") | \`$(sha "$f")\` |"; done
+                for f in "$RELEASE_DIR"/*.aab; do echo "| $(link nova-corsair-release-aab "$RELEASE_AAB_URL") | Play Store App Bundle \`$(basename "$f")\` | $(size "$f") | \`$(sha "$f")\` |"; done
+                echo "| \`nova-corsair-r8-mapping\` | R8 mapping.txt (crash stack traces) | | |"
+              fi
+              echo
+              if [ -n "$tools" ] && [ -x "${tools}aapt2" ]; then
+                echo "Debug APK: \`$("${tools}aapt2" dump badging "$DEBUG_APK" 2>/dev/null | head -n 1)\`"
+                echo
+                echo "Debug signer: \`$("${tools}apksigner" verify --print-certs "$DEBUG_APK" 2>/dev/null | grep -m 1 'SHA-256 digest' | sed 's/.*digest: //')\` (shared key android/app/debug.keystore: each new build installs over the previous one)"
+                echo
+              fi
+            else
+              echo "**No APK was produced**: see the failed step above."
+              echo
+            fi
+            if [ "$HAS_RELEASE_KEYSTORE" = true ]; then
+              echo "Signed release build (APK + AAB, R8): **${RELEASE_OUTCOME:-not run}**."
+            else
+              echo "Release build check (R8, unsigned, not uploaded): **${RELEASE_OUTCOME:-not run}**. Add the 4 \`ANDROID_*\` secrets (game/README.md) to get a signed APK and a Play Store \`.aab\`."
+            fi
+            echo
+            echo "### Install on an Android phone"
+            echo "1. On the phone, signed in to GitHub, open [this run](${RUN_URL}), scroll to **Artifacts** and tap the \`.apk\` one (or download the \`nova-corsair-debug-apk\` zip and extract it)."
+            echo "2. Open the downloaded APK; allow **Install unknown apps** for the browser / Files app when Android asks, then **Install**."
+            echo "3. From a computer instead: \`adb install -r <file>.apk\` (USB debugging on)."
+            echo
+            echo "The debug build is **Nova Corsair Dev** (\`com.shaunflint.novacorsair.debug\`): it updates in place from build to build and coexists with the release build."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stop Gradle and remove the keystore
+        if: always()
+        run: |
+          if [ -x android/gradlew ]; then (cd android && ./gradlew --stop) || true; fi
+          rm -f "$RUNNER_TEMP/nova-corsair-release.jks"
+
+  release:
+    name: Publish GitHub release
+    needs: apk
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: nova-corsair-github-release
+          path: release-assets
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cd release-assets
+          ls -la
+          notes="$RUNNER_TEMP/release-notes.md"
+          {
+            echo "## Install on Android"
+            echo "Download an \`.apk\` below on the phone, open it and allow **Install unknown apps** when Android asks."
+            if [ -f "nova-corsair-${TAG}.apk" ]; then
+              echo "- \`nova-corsair-${TAG}.apk\`: signed release (the one to keep)."
+              echo "- \`nova-corsair-${TAG}.aab\`: App Bundle to upload to Google Play."
+            else
+              echo "- No signed release APK: the signing secrets were not configured for this tag (see game/README.md)."
+            fi
+            echo "- \`nova-corsair-${TAG}-debug.apk\`: dev build, installs separately as \"Nova Corsair Dev\"."
+            echo
+            echo "Checksums: \`SHA256SUMS.txt\`."
+            echo
+          } > "$notes"
+          files=()
+          for f in *; do
+            case "$f" in
+              *-debug.apk) files+=("$f#Android APK - dev build (debug key)") ;;
+              *.apk) files+=("$f#Android APK - signed release") ;;
+              *.aab) files+=("$f#Android App Bundle - Google Play upload") ;;
+              *-mapping.txt) files+=("$f#R8 mapping - crash stack traces") ;;
+              *) files+=("$f") ;;
+            esac
+          done
+          flags=()
+          case "$TAG" in *-*) flags+=(--prerelease) ;; esac
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Nova Corsair ${TAG}" --notes-file "$notes" --generate-notes "${flags[@]}"
+          fi
+          url="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)"
+          echo "### GitHub release: [${TAG}](${url})" >> "$GITHUB_STEP_SUMMARY"

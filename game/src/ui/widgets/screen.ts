@@ -310,3 +310,16 @@ export function bottomButton(
 export function bottomButtonY(scene: Phaser.Scene): number {
   return scene.scale.gameSize.height - LAYOUT.statusH - LAYOUT.gap - LAYOUT.buttonH;
 }
+
+/**
+ * Screen-space geometry of a MenuList ({ x, y, w, rowH, n }) for the automated UI tests
+ * (published through setHookState by the scenes). Parent containers are included as they
+ * stand now — call it once entrance tweens have settled.
+ */
+export function listGeometry(list: kit.MenuList): { x: number; y: number; w: number; rowH: number; n: number } {
+  let x = list.container.x;
+  let y = list.container.y;
+  let p = list.container.parentContainer;
+  while (p) { x += p.x; y += p.y; p = p.parentContainer; }
+  return { x: Math.round(x), y: Math.round(y), w: list.width, rowH: list.rowHeight, n: list.length };
+}

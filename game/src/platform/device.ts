@@ -116,7 +116,9 @@ export function initPlatform(): void {
   App.addListener('backButton', () => {
     if (!dispatchBackButton()) {
       flushSave();
-      App.exitApp().catch(() => undefined);
+      // Android 12+ guidance: send the task to the background instead of finishing it, so the
+      // next launch resumes instantly instead of reloading the WebView.
+      App.minimizeApp().catch(() => App.exitApp().catch(() => undefined));
     }
   }).catch((e: unknown) => {
     console.warn('[platform] backButton listener unavailable', e);

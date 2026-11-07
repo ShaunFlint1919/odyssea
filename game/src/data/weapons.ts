@@ -7,12 +7,12 @@ import type { FrontPattern, RearPattern, WeaponDef } from '../types';
 export const FRONT_WEAPONS: WeaponDef[] = [
   {
     id: 'pulse_blaster', name: 'Kestrel Coilgun', slot: 'front', pattern: 'pulse', cost: 500, upgradeBase: 300,
-    damage: 5, fireRate: 5, energyPerShot: 2, projectile: 'pj_bolt', color: 'cyan', sfx: 'shot_pulse',
+    damage: 3, fireRate: 10, energyPerShot: 1, projectile: 'pj_bolt', color: 'cyan', sfx: 'shot_pulse',
     desc: 'Reliable coil bolts. Upgrades add parallel streams and a faster cadence.',
   },
   {
     id: 'scatter_fan', name: 'Fanfire Scatter', slot: 'front', pattern: 'scatter', cost: 1500, upgradeBase: 750,
-    damage: 4, fireRate: 3, energyPerShot: 4, projectile: 'pj_orb', color: 'orange', sfx: 'shot_scatter',
+    damage: 2.6, fireRate: 5, energyPerShot: 2.4, projectile: 'pj_orb', color: 'orange', sfx: 'shot_scatter',
     desc: 'Fans out plasma pellets. Shreds swarms; widens to an eleven-shot wall.',
   },
   {
@@ -29,25 +29,25 @@ export const FRONT_WEAPONS: WeaponDef[] = [
   },
   {
     id: 'seeker_kite', name: 'Kitehawk Seekers', slot: 'front', pattern: 'seeker', cost: 9500, upgradeBase: 3600,
-    damage: 16, fireRate: 2.5, energyPerShot: 7, projectile: 'pj_missile', color: 'pink', sfx: 'shot_missile',
+    damage: 11.4, fireRate: 3.5, energyPerShot: 5, projectile: 'pj_missile', color: 'pink', sfx: 'shot_missile',
     desc: 'Micro-missiles that pick their own targets. Never waste a shot.',
     unlockLevel: 'kessra-3',
   },
   {
     id: 'lance_star', name: 'Starpiercer Lance', slot: 'front', pattern: 'lance', cost: 14000, upgradeBase: 4900,
-    damage: 40, fireRate: 2.5, energyPerShot: 8, projectile: 'pj_beam', color: 'blue', sfx: 'shot_laser',
+    damage: 20, fireRate: 5, energyPerShot: 4, projectile: 'pj_beam', color: 'blue', sfx: 'shot_laser',
     desc: 'Piercing beam bursts that punch through whole formations and armor.',
     unlockLevel: 'verdance-2',
   },
   {
     id: 'prism_shatter', name: 'Shatterprism', slot: 'front', pattern: 'prism', cost: 20000, upgradeBase: 6400,
-    damage: 32, fireRate: 3.6, energyPerShot: 6, projectile: 'pj_shard', color: 'white', sfx: 'shot_laser',
+    damage: 23, fireRate: 5, energyPerShot: 4.32, projectile: 'pj_shard', color: 'white', sfx: 'shot_laser',
     desc: 'Crystal bolts that burst into a shower of shards a moment after firing.',
     unlockLevel: 'thalassa-1',
   },
   {
     id: 'mortar_thunder', name: 'Thunderhead Mortar', slot: 'front', pattern: 'mortar', cost: 30000, upgradeBase: 9000,
-    damage: 88, fireRate: 1.6, energyPerShot: 15, projectile: 'pj_bigorb', color: 'red', sfx: 'shot_heavy',
+    damage: 58.5, fireRate: 2.4, energyPerShot: 10, projectile: 'pj_bigorb', color: 'red', sfx: 'shot_heavy',
     desc: 'Slow plasma shells with a blast radius. Flatten bunkers and crowds alike.',
     unlockLevel: 'thalassa-3',
   },

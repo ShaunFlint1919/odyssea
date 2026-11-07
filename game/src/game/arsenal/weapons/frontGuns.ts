@@ -1,23 +1,25 @@
 // =====================================================================================
 //  FRONT GUNS — one class per FrontPattern. Dense at power 1, visibly escalating to 10:
-//   pulse    plasma bolt rows (~20 rows/s at p1): 1 -> 7 streams, bolts 6x14 -> 10x22 px,
-//            glowing cores, outer streams fanning out 2-6 deg (wing guns)
-//   scatter  two interleaved pellet fans per volley (3+2 -> 11+10), half-angle 10 -> 40.6 deg,
-//            fireball pellets 6 -> 10 px with comet tails, glow from p4
-//   gatling  tracer stream (3 sub-volleys with one barrel), 1 -> 4 barrels, tracers
-//            2x12 -> 4x19 px, jitter 2 -> 4 deg, ejected casings
-//   lance    piercing beam bursts (3 per paid volley at p1): 42 -> 96 px long, 6 -> 12 px
-//            core, crackle frames + electric zaps, spark on every pierced enemy
-//   seeker   3 -> 8 homing micro-missiles per volley (ripple-fired, alternating wings),
-//            smoke trails
+//   pulse    plasma bolt rows (~20 rows/s at p1 whatever the fire rate): 1 -> 7
+//            streams, bolts 6x14 -> 10x22 px with glowing cores, outer streams fanning
+//            2-6 deg (wing guns)
+//   scatter  interleaved fireball fans (n, n - 1 in the gaps, ~10-12 fans/s): 3 -> 11
+//            pellets, half-angle 10 -> 40.6 deg, pellets 8 -> 10 px, comet tails, glow from p4
+//   gatling  rotary barrels: every sub-volley fires the next barrel (36 -> 100 tracers/s),
+//            1 -> 4 barrels, tracers 3x15 -> 4x19 px, jitter 2 -> 4 deg, ejected casings
+//   lance    piercing beam bursts (~9 bursts/s: a near-continuous laser at p10):
+//            42 -> 96 px long, 6 -> 12 px core, crackle frames + electric zaps, a spark on
+//            every pierced enemy
+//   seeker   homing micro-missiles, 8 -> 22 per second (2..8 per volley, ripple-fired from
+//            alternating wings), smoke trails, heavy 7x15 kite missiles from p6
 //   helix    two interleaved sine streams of crescents (amplitude 13 -> 26 px), four from
-//            p6 (26 -> 40 px), crescents 10 -> 16 px, glow from p3
+//            p6 (26 -> 40 px), crescents 12 -> 16 px, glow from p3
 //   mortar   swirling plasma orbs 16 -> 22 px, 1 -> 3 per volley, ember trails, splash ring
-//            of the exact splash radius (22 -> 54 px)
-//   prism    faceted crystal bolts (2 per paid volley) splitting after 80 px into 3/5/7
+//            drawn at the splash radius (22 -> 54 px)
+//   prism    faceted crystal bolts (~6-8 rows/s) splitting after 80 px into 3/5/7
 //            spectrum shards, twin bolts from p6, shards re-split at p10
 //  Damage follows the balance model (scaling.ts): total DPS = damage * fireRate * N1 * M(p);
-//  more sub-volleys / projectiles only split that damage (dmg()).
+//  sub-volleys / extra projectiles only split that damage (dmg()), energy is paid per volley.
 // =====================================================================================
 import type { FrontPattern } from '../../../types';
 import { SLOT_FRONT } from '../effects';
@@ -103,12 +105,10 @@ class PulseGun extends WeaponGun {
 
 const SCATTER_N = [3, 4, 5, 6, 7, 7, 8, 9, 10, 11];
 const SCATTER_TIER = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2];
-const SCATTER_SUBS = [3, 3, 3, 3, 2, 2, 2, 2, 2, 2];
+/** Target fans per second per level (sub-volleys derived from the fire rate, 1..3). */
+const SCATTER_ROWS = [10, 10, 10, 10, 10, 11, 11, 12, 12, 12];
 
-/**
- * Fans per paid volley alternate n pellets and n - 1 pellets in the gaps (interleaved):
- * 3 fans (n, n - 1, n) at low power, 2 from p5 where the fans are already wide.
- */
+/** Fans of a paid volley alternate n pellets and n - 1 pellets in the gaps (n, n - 1, n). */
 class ScatterGun extends WeaponGun {
   private n = 3;
   private half = 0;
@@ -120,9 +120,9 @@ class ScatterGun extends WeaponGun {
     const scene = this.core.env.scene;
     this.n = table(p, SCATTER_N);
     this.half = ramp(p, 10, 40.6) * DEG;
-    this.subs = table(p, SCATTER_SUBS);
+    this.subs = this.subsFor(table(p, SCATTER_ROWS), 3);
     const tier = table(p, SCATTER_TIER);
-    const per = this.subs === 3 ? 3 * this.n - 1 : 2 * this.n - 1;
+    const per = this.subs * this.n - (this.subs > 1 ? 1 : 0);
     const s = this.spec(pelletTex(scene, this.color, tier));
     s.speed = 520;
     s.life = 950;
@@ -161,11 +161,11 @@ class ScatterGun extends WeaponGun {
 
 const GATLING_BARRELS: readonly (readonly number[])[] = [[0], [-3, 3], [-6, 0, 6], [-9, -3, 3, 9]];
 const GATLING_N = [1, 1, 2, 2, 2, 3, 3, 3, 4, 4];
-const GATLING_TIER = [0, 0, 1, 1, 1, 1, 2, 2, 2, 2];
-/** Sub-volleys (= needles) per paid volley by barrel count. */
-const GATLING_SUBS = [3, 4, 5, 6];
+const GATLING_TIER = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2];
+/** Target tracers per second per level (sub-volleys = tracers per paid volley, 1..8). */
+const GATLING_RATE = [36, 38, 48, 52, 56, 66, 72, 78, 90, 100];
 
-/** Rotary barrels: every sub-volley fires the next barrel in turn (3 -> 6 needles per volley). */
+/** Rotary barrels: every sub-volley fires the next barrel in turn. */
 class GatlingGun extends WeaponGun {
   private barrels: readonly number[] = GATLING_BARRELS[0];
   private jitter = 0;
@@ -181,7 +181,7 @@ class GatlingGun extends WeaponGun {
     const nb = table(p, GATLING_N);
     const tier = table(p, GATLING_TIER);
     this.barrels = GATLING_BARRELS[nb - 1];
-    this.subs = GATLING_SUBS[nb - 1];
+    this.subs = this.subsFor(table(p, GATLING_RATE), 8);
     this.jitter = ramp(p, 2, 4) * DEG;
     this.muzzleTier = tier >= 2 ? 1 : 0;
     this.casing = emberTex(scene);
@@ -248,7 +248,7 @@ class LanceGun extends WeaponGun {
     const tier = table(p, LANCE_TIER);
     this.segments = 2 + Math.floor((p - 1) / 3);
     this.length = this.segments * BEAM_STEP + 6;
-    this.subs = this.subsFor(7, 3);
+    this.subs = this.subsFor(9, 4);
     this.muzzleTier = tier >= 2 ? 3 : 2;
     this.noseFlash = flashTex(scene, tier >= 2 ? 2 : 1);
     const dmg = this.dmg(1, this.subs, r); // one burst = one projectile
@@ -304,7 +304,8 @@ class LanceGun extends WeaponGun {
 
 // ------------------------------------------------------------------------------ seeker
 
-const SEEKER_N = [3, 3, 4, 4, 5, 5, 6, 6, 7, 8];
+/** Target missiles per second per level (2..8 per volley, ripple-fired). */
+const SEEKER_RATE = [8, 9, 10, 12, 13, 15, 16, 18, 20, 22];
 
 /** Missiles of a volley are ripple-fired (alternating wings) over 45 % of the interval. */
 class SeekerGun extends WeaponGun {
@@ -314,10 +315,11 @@ class SeekerGun extends WeaponGun {
     const p = this.p;
     const r = this.rate();
     const scene = this.core.env.scene;
-    const n = table(p, SEEKER_N);
+    const n = Math.max(2, Math.min(8, Math.round(table(p, SEEKER_RATE) / this.volleysPerSec())));
     this.subs = n;
     this.subSpread = 0.45;
-    const s = this.spec(missileTex(scene, this.color, 0));
+    const heavy = p >= 6;
+    const s = this.spec(missileTex(scene, this.color, heavy ? 3 : 0));
     s.frameMs = 60;
     s.move = MOVE_HOMING;
     s.speed = 150;
@@ -328,11 +330,13 @@ class SeekerGun extends WeaponGun {
     s.launchMs = 100;
     s.life = 2600;
     s.damage = this.dmg(2, n, r);
-    s.radius = 4;
+    s.radius = heavy ? 5 : 4;
+    s.halo = glowTex(scene, heavy ? 13 : 11);
+    s.haloAlpha = 0.3;
     s.trail = TRAIL_SMOKE;
-    s.trailMs = 32;
+    s.trailMs = 42;
     s.popOnExpire = true;
-    s.fx = impactFx(scene, this.color, p >= 6 ? 2 : 1);
+    s.fx = impactFx(scene, this.color, heavy ? 2 : 1);
     this.missile = s;
     return r;
   }
@@ -368,7 +372,7 @@ class SeekerGun extends WeaponGun {
 
 const HELIX_TIER = [1, 1, 1, 1, 2, 2, 2, 3, 3, 3];
 
-/** Three sub-volleys per paid volley so each stream shows ~6 crescents per wavelength. */
+/** ~15 crescent rows per second (sub-volleys from the fire rate): ~6 per wavelength. */
 class HelixGun extends WeaponGun {
   private four = false;
   private inner!: ShotSpec;
@@ -378,7 +382,7 @@ class HelixGun extends WeaponGun {
     const p = this.p;
     const r = this.rate();
     const scene = this.core.env.scene;
-    this.subs = 3;
+    this.subs = this.subsFor(15, 4);
     this.four = p >= 6;
     const tier = table(p, HELIX_TIER);
     const n = (this.four ? 4 : 2) * this.subs;
@@ -478,10 +482,11 @@ class MortarGun extends WeaponGun {
 const PRISM_BOLTS = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2];
 const PRISM_SHARDS = [3, 3, 5, 5, 7, 3, 5, 5, 7, 7];
 const PRISM_TIER = [0, 0, 1, 1, 1, 1, 2, 2, 2, 2];
-const SHARD_TIER = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+/** Target bolt rows per second per level (1..2 sub-volleys). */
+const PRISM_ROWS = [8, 8, 8, 8, 6, 6, 6, 6, 6, 6];
 
 /**
- * White crystal bolts (2 sub-volleys per paid volley) split after 80 px into an odd fan
+ * White crystal bolts (~8 rows/s at low power) split after 80 px into an odd fan
  * of spectrum shards (always a centre shard). A bolt that hits before splitting shatters
  * through the target. Damage: bolt = full projectile damage; the k shards share 2 x bolt
  * damage.
@@ -494,10 +499,10 @@ class PrismGun extends WeaponGun {
     const p = this.p;
     const r = this.rate();
     const scene = this.core.env.scene;
-    this.subs = 2;
+    this.subs = this.subsFor(table(p, PRISM_ROWS), 2);
     this.bolts = table(p, PRISM_BOLTS);
     const k = table(p, PRISM_SHARDS);
-    const st = table(p, SHARD_TIER);
+    const st = 1;
     const boltDmg = this.dmg(1, this.bolts * this.subs, r);
     const shardDmg = (boltDmg * 2) / k;
     const hues = (t: number): TexInfo[] => SPECTRUM.map((h) => shardTex(scene, h, t));

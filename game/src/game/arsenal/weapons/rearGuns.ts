@@ -1,7 +1,7 @@
 // =====================================================================================
 //  REAR GUNS — one class per RearPattern, two modes each (0 = A, 1 = B):
 //   tail     A: 1 -> 5 bolt streams straight back      B: 1 -> 4 parallel pairs at 45 deg forward
-//            (2 sub-volleys: dense rows; bolts 4x11 -> 8x18 px)
+//            (~8 rows/s whatever the fire rate; bolts 4x11 -> 8x18 px)
 //   flame    A: rear flame cone (1 -> 4 puffs/burst)    B: flames out of both flanks
 //            (puffs grow 5 -> 21 px and cool white -> fire -> smoke over their life)
 //   mines    A: 1 -> 3 proximity mines dropped behind   B: 1 -> 2 pairs lobbed sideways
@@ -39,7 +39,7 @@ class TailGun extends WeaponGun {
     const p = this.p;
     const r = this.rate();
     const scene = this.core.env.scene;
-    this.subs = 2;
+    this.subs = this.subsFor(8, 3);
     this.tier = table(p, TAIL_TIER);
     this.gap = BOLT_SIZES[this.tier][0] + 2;
     this.n = this.mode === 0 ? table(p, [1, 2, 2, 3, 3, 3, 4, 4, 5, 5]) : table(p, [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]);
@@ -85,7 +85,7 @@ class TailGun extends WeaponGun {
 
 // ------------------------------------------------------------------------------ flame
 
-/** Two sub-volleys per paid volley: a continuous jet even at power 1. */
+/** ~20 puff bursts per second (sub-volleys from the fire rate): a continuous jet even at power 1. */
 class FlameGun extends WeaponGun {
   private perSide = 1;
   private half = 0;
@@ -95,7 +95,7 @@ class FlameGun extends WeaponGun {
     const p = this.p;
     const r = this.rate();
     const scene = this.core.env.scene;
-    this.subs = 2;
+    this.subs = this.subsFor(20, 3);
     let count: number;
     if (this.mode === 0) {
       this.perSide = table(p, [1, 1, 1, 2, 2, 2, 3, 3, 3, 4]);
@@ -178,8 +178,8 @@ class MinesGun extends WeaponGun {
     s.armMs = 220;
     s.rotate = false;
     s.quarter = true;
-    s.halo = glowTex(scene, 19);
-    s.haloAlpha = 0.55;
+    s.halo = glowTex(scene, 15);
+    s.haloAlpha = 0.45;
     s.blink = true;
     s.hit = HIT_BLAST;
     s.fx = impactFx(scene, this.color, 3, blastRadius(s.splash));
@@ -313,8 +313,10 @@ class SeekersGun extends WeaponGun {
     s.life = 2600;
     s.damage = this.dmg(2, count, r);
     s.radius = 4.5;
+    s.halo = glowTex(scene, 13);
+    s.haloAlpha = 0.3;
     s.trail = TRAIL_SMOKE;
-    s.trailMs = 42;
+    s.trailMs = 48;
     s.popOnExpire = true;
     s.fx = impactFx(scene, this.color, 2);
     this.missile = s;

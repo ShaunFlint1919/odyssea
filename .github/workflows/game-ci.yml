@@ -1,11 +1,22 @@
 name: Game CI
 
+# Web side of the game: typecheck, unit/content tests, production build, Playwright smoke tests (dev
+# server and built bundle) and screenshots. Independent from the Android APK workflow; the cheap
+# checks run first so a broken commit fails in about a minute.
+
 on:
   push:
     paths:
       - 'game/**'
+      - '!game/docs/**'
+      - '!game/**/*.md'
       - '.github/workflows/game-ci.yml'
   pull_request:
+    paths:
+      - 'game/**'
+      - '!game/docs/**'
+      - '!game/**/*.md'
+      - '.github/workflows/game-ci.yml'
   workflow_dispatch:
 
 concurrency:
@@ -17,19 +28,23 @@ permissions:
 
 defaults:
   run:
+    shell: bash
     working-directory: game
 
 jobs:
   build-test:
     name: Typecheck, tests, build, smoke, screenshots
+    # Branches of this repository are already tested by their push event: pull requests only add a
+    # run for forks.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -39,31 +54,74 @@ jobs:
         run: npm ci
 
       - name: Typecheck
+        id: typecheck
         run: npm run typecheck
 
       - name: Unit + content tests
+        id: tests
         run: npm test
 
       - name: Production build
+        id: build
         run: npm run build
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright Chromium (headless shell)
+        run: npx playwright install --with-deps --only-shell --no-progress chromium
 
       - name: Smoke test (every scene + one level per planet)
+        id: smoke
+        timeout-minutes: 10
         run: npm run smoke
 
       - name: Smoke test on the production bundle (dist/)
+        id: smoke-dist
+        timeout-minutes: 10
         run: npm run smoke -- --dist
 
       - name: Screenshots
+        id: screens
+        timeout-minutes: 10
         run: npm run screens
 
+      # Also after a failure: screens.mjs keeps whatever was on screen for diagnosis.
       - name: Upload screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
+        id: upload-screens
+        if: always() && hashFiles('game/screens/*.png') != ''
+        uses: actions/upload-artifact@v7
         with:
           name: nova-corsair-screens
-          path: game/screens/
+          path: game/screens/*.png
           if-no-files-found: ignore
+          compression-level: 0
           retention-days: 14
+
+      - name: Job summary
+        if: always()
+        env:
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          TESTS: ${{ steps.tests.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+          SMOKE_DIST: ${{ steps.smoke-dist.outcome }}
+          SCREENS: ${{ steps.screens.outcome }}
+          SCREENS_URL: ${{ steps.upload-screens.outputs.artifact-url }}
+        run: |
+          shots=$(find screens -maxdepth 1 -name '*.png' 2>/dev/null | wc -l)
+          {
+            echo "## Nova Corsair Game CI"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Typecheck | ${TYPECHECK:-not run} |"
+            echo "| Unit + content tests | ${TESTS:-not run} |"
+            echo "| Production build | ${BUILD:-not run} |"
+            echo "| Smoke test (dev server) | ${SMOKE:-not run} |"
+            echo "| Smoke test (dist/) | ${SMOKE_DIST:-not run} |"
+            echo "| Screenshots | ${SCREENS:-not run} |"
+            echo
+            if [ -n "$SCREENS_URL" ]; then
+              echo "Screenshots: [\`nova-corsair-screens\`](${SCREENS_URL}) (${shots} PNG, 720x1280)."
+            else
+              echo "No screenshots were produced."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

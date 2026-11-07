@@ -4,13 +4,17 @@
 //  (front gun, rear gun A/B, two sidekick drones, pooled player shots and FX).
 // =====================================================================================
 import type { Loadout } from '../../types';
-import type { Arsenal, ArsenalDepths, ArsenalHost, CreateArsenal } from './api';
+import type { ArsenalDepths, ArsenalHost, CreateArsenal } from './api';
 import { ArsenalImpl, type ArsenalOptions } from './core';
 
+export { ArsenalImpl } from './core';
 export type { ArsenalCounts, ArsenalOptions } from './core';
 
-/** Creates the arsenal with extra options (shop preview: layer + smaller pool). */
-export function createArsenalWith(host: ArsenalHost, loadout: Loadout, depths: ArsenalDepths, opts: ArsenalOptions): Arsenal {
+/**
+ * Creates the arsenal with extra options (shop preview: layer + smaller pool). Returns the
+ * implementation so the preview can also draw through its FX pools and read debugCounts().
+ */
+export function createArsenalWith(host: ArsenalHost, loadout: Loadout, depths: ArsenalDepths, opts: ArsenalOptions): ArsenalImpl {
   return new ArsenalImpl(host, loadout, depths, opts);
 }
 

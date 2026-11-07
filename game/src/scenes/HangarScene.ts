@@ -9,7 +9,7 @@ import { isCompleted } from '../state/progress';
 import * as kit from '../ui/kit';
 import { META, ensureMetaArt, iconOr } from '../ui/meta/art';
 import { HEADER_H, MD, countBadge, sectionLabel } from '../ui/meta/chrome';
-import { scanlines, screenBackdrop, screenHeader } from '../ui/widgets';
+import { listGeometry, scanlines, screenBackdrop, screenHeader } from '../ui/widgets';
 import {
   campaignProgress, dec, findGenerator, findLevel, findShield, findWeapon, fmt, hangarFocusIndex, nextMissionId, planetOfLevel, setHangarFocus, signed,
   unreadIntelCount, upper, wrapLines,
@@ -129,7 +129,7 @@ export class HangarScene extends Phaser.Scene {
 
     kit.onBack(this, () => this.askQuit());
     markSceneReady(SCENES.Hangar, {
-      credits: save.credits, level: missionId, menu: start, value: loadoutValue(), unread, items: items.map((i) => i.label),
+      credits: save.credits, level: missionId, menu: start, value: loadoutValue(), unread, items: items.map((i) => i.label), list: listGeometry(this.list),
     });
   }
 

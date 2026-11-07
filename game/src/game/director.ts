@@ -15,6 +15,8 @@ import { clamp } from './world';
 const DEFAULT_SPACING = 24;
 const DEFAULT_INTERVAL = 0.35;
 const MAX_JOBS = 320;
+/** Units entering from the BOTTOM edge ('rise') are announced by a blinking chevron this long (s). */
+const RISE_WARN = 0.75;
 
 class Job {
   at = 0;
@@ -26,6 +28,8 @@ class Job {
   oy = 0;
   dir = 1;
   midboss = false;
+  /** The bottom-edge warning of a 'rise' unit was shown (the spawn then follows RISE_WARN later). */
+  warned = false;
 }
 
 const MIRROR_MOVE: Partial<Record<MovePattern, MovePattern>> = { swoopL: 'swoopR', swoopR: 'swoopL' };
@@ -74,6 +78,13 @@ export class Director {
     for (let i = this.jobCount - 1; i >= 0; i--) {
       const j = this.jobs[i];
       if (j.at > t) continue;
+      if (j.move === 'rise' && !j.warned) {
+        // telegraph: blinking chevron at the bottom edge, the unit rises RISE_WARN later
+        j.warned = true;
+        j.at = t + RISE_WARN;
+        this.w.fx.edgeWarning(j.x, RISE_WARN * 1000);
+        continue;
+      }
       this.spawnJob(j);
       // swap-remove (keep the Job objects pooled)
       const last = this.jobs[this.jobCount - 1];
@@ -94,6 +105,7 @@ export class Director {
     j.oy = oy;
     j.dir = dir;
     j.midboss = midboss;
+    j.warned = false;
   }
 
   private spawnMidboss(id: string): void {

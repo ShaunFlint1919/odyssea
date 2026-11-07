@@ -11,7 +11,7 @@ import type { IntelDef } from '../types';
 import { audio } from '../audio';
 import { getSave, saveNow } from '../state/save';
 import { INTEL } from '../data';
-import { button, fadeIn, fit, goto, onBack, panel, statusBar, text, wrapText, type ButtonApi, type MenuItem, type StatusBarApi } from '../ui/kit';
+import { button, fadeIn, fit, goto, inputBlocked, onBack, panel, statusBar, text, wrapText, type ButtonApi, type MenuItem, type StatusBarApi } from '../ui/kit';
 import {
   LAYOUT, MD, ScrollMenu, Typewriter, bottomButton, bottomButtonY, contentRect, neonRule, scanlines, screenBackdrop, screenHeader,
   sectionLabel, type ScreenHeaderApi,
@@ -169,7 +169,7 @@ export class IntelScene extends Phaser.Scene {
       const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
       const cols = Math.floor((w - 24) / 6);
       lines = [];
-      for (let l = 0; l < Math.min(maxLines, 4); l++) {
+      for (let l = 0; l < Math.min(maxLines, 8); l++) {
         let ln = '';
         for (let c = 0; c < cols - Math.floor(rnd() * 8); c++) ln += rnd() < 0.18 ? ' ' : glyphs[Math.floor(rnd() * glyphs.length)];
         lines.push(ln);
@@ -315,7 +315,7 @@ export class IntelScene extends Phaser.Scene {
   }
 
   private readerKeys(e: KeyboardEvent): void {
-    if (!this.reader || e.repeat || this.game.getFrame() === this.openedFrame) return;
+    if (!this.reader || e.repeat || this.game.getFrame() === this.openedFrame || inputBlocked(this)) return;
     switch (e.code) {
       case 'ArrowLeft': case 'KeyA': this.step(-1); break;
       case 'ArrowRight': case 'KeyD': this.step(1); break;

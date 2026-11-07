@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds (package com.shaunflint.novacorsair.debug) install next to the release build:
+     give them their own launcher label. -->
+<resources>
+    <string name="app_name">Nova Corsair Dev</string>
+    <string name="title_activity_main">Nova Corsair Dev</string>
+</resources>

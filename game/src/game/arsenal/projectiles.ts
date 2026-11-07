@@ -389,7 +389,7 @@ export class ShotPool {
       case TRAIL_SMOKE: {
         const inv = 1 / Math.max(1, Math.sqrt(s.vx * s.vx + s.vy * s.vy));
         const bx = s.x - s.vx * inv * 6, by = s.y - s.vy * inv * 6;
-        this.smoke.play(this.smokeTex, bx + (Math.random() - 0.5) * 2, by + (Math.random() - 0.5) * 2, 330);
+        this.smoke.play(this.smokeTex, bx + (Math.random() - 0.5) * 2, by + (Math.random() - 0.5) * 2, 300);
         if ((s.trailN & 1) === 0) this.fx.particle(this.emberTex, bx, by, -s.vx * 0.12, -s.vy * 0.12, 3, 150, sp.glow);
         break;
       }

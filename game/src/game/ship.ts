@@ -18,6 +18,14 @@ import { clamp } from './world';
 
 /** Touch drag may move the ship at most this multiple of the hull speed. */
 const DRAG_SPEED_CAP = 1.6;
+/**
+ * Finger travel beyond the cap (fast flicks, drags during hit-stop) is owed to the ship and
+ * caught up over the next frames, so the ship ends where the finger says; bounded (px).
+ */
+const DRAG_BACKLOG_MAX = 40;
+/** Keyboard / gamepad: seconds to reach full speed from rest, and to stop from full speed. */
+const AXIS_ACCEL_T = 0.06;
+const AXIS_DECEL_T = 0.035;
 const INVULN_AFTER_HIT = 1.0;
 const BANK_THRESHOLD = 26; // px/s of horizontal motion before the hull banks
 const INTRO_TIME = 1.1;
@@ -61,6 +69,11 @@ export class Ship {
   private deathT = -1;
   private deathStep = 0;
   private smokeT = 0;
+  /** Keyboard / gamepad velocity (px/s, ramped) and the owed finger travel (px). */
+  private axisVx = 0;
+  private axisVy = 0;
+  private dragBX = 0;
+  private dragBY = 0;
   /** God mode: shadow shield/armor model fed by the hits (RunMetrics) + its invulnerability timer. */
   private readonly godModel: EnergyModel | null;
   private godInvuln = 0;
@@ -185,6 +198,16 @@ export class Ship {
     }
   }
 
+  /** Finger travel made while the simulation is frozen (hit-stop): applied on the next update. */
+  queueDrag(dx: number, dy: number): void {
+    if (!this.controllable || (dx === 0 && dy === 0)) return;
+    const bx = this.dragBX + dx, by = this.dragBY + dy;
+    const len = Math.hypot(bx, by);
+    const k = len > DRAG_BACKLOG_MAX ? DRAG_BACKLOG_MAX / len : 1;
+    this.dragBX = bx * k;
+    this.dragBY = by * k;
+  }
+
   /** Generator output + shield regeneration for one simulation step (and the god-mode shadow model). */
   updateEnergy(dt: number): void {
     this.energy.update(dt);
@@ -210,7 +233,7 @@ export class Ship {
     w.services.haptic('heavy');
     w.services.shake(0.01, 500);
     w.services.hitStop(90);
-    w.fx.explode(this.x, this.y, 'm');
+    w.fx.explodeOver(this.x, this.y, 'm');
     w.fx.flashScreen(0xffffff, 0.5, 2.5);
   }
 
@@ -233,19 +256,38 @@ export class Ship {
       this.y -= this.flyV * dt;
     } else if (this.controllable && c) {
       const speed = this.hull.speed;
-      let mx = c.moveX * speed * dt;
-      let my = c.moveY * speed * dt;
-      const dx = c.dragDX, dy = c.dragDY;
-      if (dx !== 0 || dy !== 0) {
+      // keyboard / gamepad: short acceleration ramp, quicker stop
+      this.axisVx = rampAxis(this.axisVx, c.moveX * speed, speed, dt);
+      this.axisVy = rampAxis(this.axisVy, c.moveY * speed, speed, dt);
+      let mx = this.axisVx * dt;
+      let my = this.axisVy * dt;
+      // touch: relative drag capped at DRAG_SPEED_CAP x speed, the excess is caught up later
+      let bx = this.dragBX + c.dragDX, by = this.dragBY + c.dragDY;
+      if (bx !== 0 || by !== 0) {
         const cap = DRAG_SPEED_CAP * speed * Math.max(dt, 1 / 120);
-        const len = Math.hypot(dx, dy);
+        const len = Math.hypot(bx, by);
         const k = len > cap ? cap / len : 1;
-        mx += dx * k;
-        my += dy * k;
+        mx += bx * k;
+        my += by * k;
+        bx -= bx * k;
+        by -= by * k;
+        const rest = Math.hypot(bx, by);
+        if (rest > DRAG_BACKLOG_MAX) {
+          bx *= DRAG_BACKLOG_MAX / rest;
+          by *= DRAG_BACKLOG_MAX / rest;
+        }
       }
-      this.x = clamp(this.x + mx, this.halfW, PLAY_W - this.halfW);
-      this.y = clamp(this.y + my, this.halfH + 4, H - this.halfH - 2);
+      const nx = clamp(this.x + mx, this.halfW, PLAY_W - this.halfW);
+      const ny = clamp(this.y + my, this.halfH + 4, H - this.halfH - 2);
+      // an edge absorbs the travel owed toward it (no sticky edges)
+      if (nx !== this.x + mx) bx = 0;
+      if (ny !== this.y + my) by = 0;
+      this.dragBX = bx;
+      this.dragBY = by;
+      this.x = nx;
+      this.y = ny;
     }
+    if (!this.controllable) this.axisVx = this.axisVy = this.dragBX = this.dragBY = 0;
     // banking from the effective horizontal velocity
     const vx = dt > 0 ? (this.x - prevX) / dt : 0;
     const want = vx < -BANK_THRESHOLD ? 1 : vx > BANK_THRESHOLD ? 2 : 0;
@@ -297,7 +339,7 @@ export class Ship {
     const steps = DEATH_STEPS;
     while (this.deathStep < steps.length && this.deathT >= steps[this.deathStep]) {
       const a = w.fxRng() * Math.PI * 2, d = 4 + w.fxRng() * 12;
-      w.fx.blast(this.x + Math.cos(a) * d, this.y + Math.sin(a) * d, this.deathStep % 2 === 0 ? 'm' : 's');
+      w.fx.blastOver(this.x + Math.cos(a) * d, this.y + Math.sin(a) * d, this.deathStep % 2 === 0 ? 'm' : 's');
       w.fx.sparks(this.x, this.y, 6, 120);
       w.services.sfx('explode_m');
       this.deathStep++;
@@ -310,7 +352,7 @@ export class Ship {
     }
     if (this.deathStep === steps.length && this.deathT >= 0.85) {
       this.deathStep++;
-      w.fx.explode(this.x, this.y, 'l');
+      w.fx.explodeOver(this.x, this.y, 'l');
       w.fx.shockwave(this.x, this.y, 2.2);
       w.fx.flashScreen(0xffd8a0, 0.7, 2);
       w.services.sfx('explode_boss');
@@ -335,4 +377,12 @@ export class Ship {
     for (const f of this.flames) f.destroy();
     this.bubble.destroy();
   }
+}
+
+/** Move an axis velocity toward `target` (px/s): accelerate over AXIS_ACCEL_T, brake / reverse over AXIS_DECEL_T. */
+function rampAxis(v: number, target: number, speed: number, dt: number): number {
+  const speeding = target * v >= 0 && Math.abs(target) >= Math.abs(v);
+  const step = (speed / (speeding ? AXIS_ACCEL_T : AXIS_DECEL_T)) * dt;
+  const d = target - v;
+  return Math.abs(d) <= step ? target : v + Math.sign(d) * step;
 }

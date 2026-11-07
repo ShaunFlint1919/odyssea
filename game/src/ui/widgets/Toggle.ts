@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { COLORS } from '../../config';
 import { audio } from '../../audio';
-import { text } from '../kit';
+import { inputBlocked, text } from '../kit';
 
 export interface ToggleOpts {
   depth?: number;
@@ -43,6 +43,7 @@ export class Toggle {
     this.width = Toggle.TW + 5 + capW;
     const zone = scene.add.zone(-4, 0, this.width + 8, 22).setOrigin(0).setInteractive({ useHandCursor: true });
     zone.on('pointerdown', () => {
+      if (inputBlocked(scene)) return;
       audio.unlock();
       opts.onTouch?.();
       this.toggle();

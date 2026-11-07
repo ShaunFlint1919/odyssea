@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 9+: lay the (immersive, portrait) window out under the display cutout on the short
+         edges instead of letterboxing it whenever the bars are hidden, so the window size never
+         changes with the bar state. The game box in index.html stays inside the safe area.
+         (Android 15+ with targetSdk 35+ already treats every mode as "always".) -->
+    <style name="Base.NovaCorsair" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+    <style name="Base.NovaCorsair.Launch" parent="Theme.SplashScreen">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

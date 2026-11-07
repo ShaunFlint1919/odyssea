@@ -18,7 +18,7 @@ import { LEVELS as LEVEL_LIST } from './levels';
 import { INTEL as INTEL_LIST } from './intel';
 import { validateBundle } from './validate';
 import { REPLAY_BONUS_FACTOR, clearBonus, levelStats, type LevelStats } from './balance';
-import { POWER_COLLECT, REAR_ON_TARGET, dpsAtPower, sidekickDps, simulateProgression, type ProgressionStep } from './progression';
+import { POWER_COLLECT, REAR_ON_TARGET, dpsAtPower, sidekickDps, simulateProgression, targetDps, type ProgressionStep } from './progression';
 
 export const HULLS: HullDef[] = HULL_LIST;
 export const SHIELDS: ShieldDef[] = SHIELD_LIST;
@@ -151,14 +151,15 @@ export function expectedPowerDrops(levelId: string, t: number = Infinity): numbe
 
 /**
  * Nominal DPS a loadout brings to the planet boss ('boss') or the mid-boss ('midboss') fight
- * of a level: front gun at its power + POWER_COLLECT x the power drops before the fight, the
- * sidekicks, and REAR_ON_TARGET x the rear gun. Fight length = hp / (this x uptime).
+ * of a level: front gun at its power + POWER_COLLECT x the power drops before the fight (x its
+ * single-target share), the sidekicks, and REAR_ON_TARGET x the rear gun. Fight length =
+ * hp / (this x uptime).
  */
 export function fightDps(loadout: Loadout, levelId: string, fight: 'boss' | 'midboss' = 'boss'): number {
   const l = getLevel(levelId);
   const until = fight === 'midboss' && l.midboss ? l.midboss.t : l.duration;
   const power = loadout.frontPower + POWER_COLLECT * expectedPowerDrops(levelId, until);
-  const front = dpsAtPower(getWeapon(loadout.front), power);
+  const front = targetDps(getWeapon(loadout.front), power);
   const side = [loadout.sidekickL, loadout.sidekickR].reduce((sum, id) => sum + (id ? sidekickDps(getSidekick(id)) : 0), 0);
   const rear = loadout.rear ? REAR_ON_TARGET * dpsAtPower(getWeapon(loadout.rear), loadout.rearPower) : 0;
   return front + side + rear;
@@ -193,9 +194,10 @@ export const REFERENCE_DPS: number[] = PLANETS.map((p) => {
 export type { LevelStats } from './balance';
 export type { ProgressionStep } from './progression';
 export {
-  CLEAR_BONUS, CREDIT_CURVE, DPS_UPTIME, KILL_RATE, MIDBOSS_UPTIME, REPLAY_BONUS_FACTOR, energyFactor, targetLevelCredits,
+  BOSS_UPTIME, CLEAR_BONUS, CREDIT_CURVE, DPS_UPTIME, HUMAN_AIM, KILL_RATE, MIDBOSS_UPTIME, REPLAY_BONUS_FACTOR, energyFactor,
+  targetLevelCredits,
 } from './balance';
-export { POWER_COLLECT, REAR_ON_TARGET, dpsAtPower, sidekickDps, weaponValue } from './progression';
+export { POWER_COLLECT, REAR_ON_TARGET, dpsAtPower, sidekickDps, singleTargetShare, targetDps, weaponValue } from './progression';
 export { BIOME_PALETTES, BIOME_BULLET_COLORS, LAND_BIOMES, PLANET_PALETTES, SEA_BIOMES } from './helpers';
 export { ENEMY_MUZZLES, type SpriteMuzzles } from './muzzles';
 export { nominalDps, powerFactor, PROJECTILES_AT_P1 } from './weapons';

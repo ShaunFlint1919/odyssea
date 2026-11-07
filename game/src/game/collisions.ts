@@ -15,6 +15,8 @@ const PAD = 32;          // grid covers [-PAD, PLAY_W + PAD] x [-PAD, H + PAD]
 const SHOT_MARGIN = 10;  // enemies are inserted with this extra radius (max shot radius)
 const MAX_ENEMIES = 160;
 const MAX_ENTRIES = 4096;
+/** registerHit() key of the boss for piercing shots (enemy serials are >= 1). */
+const BOSS_HIT_KEY = -1;
 
 export class Collisions {
   private readonly cols = Math.ceil((PLAY_W + PAD * 2) / CELL);
@@ -118,15 +120,18 @@ export class Collisions {
     if (boss.active) {
       const tgt = boss.hitTest(x, y, r);
       if (tgt >= 0) {
+        const dealt = boss.fighting ? s.damage : 0;
         if (s.pierce) {
-          if (!s.registerHit(-1 - tgt)) {
+          // a piercing shot hurts the boss ONCE (one hit key for the whole boss): the first
+          // element it touches takes the damage (destroyable part, else core x1.5, else body)
+          if (!s.registerHit(BOSS_HIT_KEY)) {
             boss.damageAt(tgt, s.damage, x, y);
-            this.hitFeedback(x, y, s.damage);
+            this.hitFeedback(x, y, dealt);
           }
         } else {
           boss.damageAt(tgt, s.damage, x, y);
           if (s.splash > 0) this.splash(x, y, s.splash, s.damage);
-          this.hitFeedback(x, y, s.damage);
+          this.hitFeedback(x, y, dealt);
           s.impact(x, y);
           return;
         }

@@ -23,7 +23,7 @@
 //      candidate (danger + distance to the goal + a little smoothing) wins.
 //
 //  Metrics published by GameScene in window.__NC__.state (every 250 ms; times in seconds):
-//    bot              true when the autopilot drives
+//    bot              true when the autopilot drives;  botMode  "<boss|mid|target|gem|idle> <goal x>"
 //    damageTaken      raw damage of every hit that reached the ship (shield + armor), ALSO in
 //                     god mode (a shadow shield/armor model replays the hits, incl. the 1 s
 //                     post-hit invulnerability, so god runs report what a mortal run would take)
@@ -36,7 +36,7 @@
 //    creditsEarned    credits collected this level (= state.credits)
 //    volleys, starved weapon volleys fired / skipped for lack of energy
 //    shotHits, damageDealt       projectile hits on enemies / boss / missiles and their damage
-//    pickups          gems + drops collected
+//    pickups          gems + drops collected;  creditsMissed  credits of gems that fell off screen
 //    done / completed / aborted   set when the mission ends
 //  The same object is mirrored in window.__NC_RUN__, which survives the switch to the
 //  LevelEnd / GameOver scene (their markSceneReady() replaces window.__NC__.state).
@@ -118,8 +118,10 @@ export class Bot {
   private pvy = 0;
   private targetSerial = -1;
   private readonly aim = { x: 0, y: 0 };
-  private goalX = PLAY_W / 2;
-  private goalY = H * HOME_Y;
+  /** Current goal (px) and what it is: boss | mid | target | gem | idle (debug / hook state). */
+  goalX = PLAY_W / 2;
+  goalY = H * HOME_Y;
+  mode = 'idle';
 
   constructor(private readonly w: World) {
     this.speed = w.ship.hull.speed * BOT_FLAGS.speed;
@@ -155,14 +157,17 @@ export class Bot {
     let gx = this.goalX;
     const gy = H * HOME_Y;
     let found = false;
+    this.mode = 'idle';
     if (w.boss.active && w.boss.aimPoint(this.aim)) {
       gx = this.aim.x;
       found = true;
+      this.mode = 'boss';
     } else {
       const mid = w.enemies.midboss;
       if (mid && mid.active && mid.entered) {
         gx = mid.x + mid.vx * Math.max(0, (sy - mid.y) / BOLT_SPEED);
         found = true;
+        this.mode = 'mid';
       } else {
         // most threatening enemy above the ship (lower cost = better), with hysteresis
         const list = w.enemies.list;
@@ -171,8 +176,11 @@ export class Bot {
           const e = list[k];
           if (!w.enemies.hittable(e) || e.y > sy - 26 || e.y < 4) continue;
           const lead = (sy - e.y) / BOLT_SPEED;
-          const ex = Math.min(PLAY_W - 8, Math.max(8, e.x + e.vx * lead));
-          let cost = Math.abs(ex - sx) + (sy - e.y) * 0.3;
+          const ex = e.x + e.vx * lead;
+          // units hugging the side edges cannot be lined up (and pull the ship into a corner)
+          const edge = Math.min(ex, PLAY_W - ex);
+          if (edge < 14) continue;
+          let cost = Math.abs(ex - sx) + (sy - e.y) * 0.3 + Math.max(0, 40 - edge) * 1.2;
           if (e.fire !== 'none') cost -= 45;
           if (e.move === 'dive' || e.move === 'chase') cost -= 30;
           if (e.layer !== 'air') cost += 15;
@@ -195,6 +203,7 @@ export class Bot {
             this.targetSerial = bestSerial;
           }
           found = true;
+          this.mode = 'target';
         }
       }
     }
@@ -217,6 +226,7 @@ export class Bot {
     if (gemD < GEM_R && gemD > MAGNET_EASY && !this.dangerClose(sx, sy, 56)) {
       this.goalX = gemX;
       this.goalY = Math.min(H - BOTTOM_PAD, Math.max(H * MIN_Y, gemY + 24));
+      this.mode = 'gem';
     }
   }
 

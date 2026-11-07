@@ -14,7 +14,7 @@ import { GENERATORS, SHIELDS } from '../data';
 import * as kit from '../ui/kit';
 import { META, ensureMetaArt, frameIcon, generatorChip, iconOr, shieldChip, weaponChip } from '../ui/meta/art';
 import { HEADER_H, MD, cornerBrackets, sectionLabel, toast } from '../ui/meta/chrome';
-import { scanlines, screenBackdrop, screenHeader, type ScreenHeaderApi } from '../ui/widgets';
+import { listGeometry, scanlines, screenBackdrop, screenHeader, type ScreenHeaderApi } from '../ui/widgets';
 import {
   dec, equippedId, equippedName, findGenerator, findHull, findShield, findSidekick, findWeapon, fmt, loadoutWith, shotGlow, unlockHint, upper, wrapLines,
 } from '../ui/meta/common';
@@ -137,6 +137,7 @@ export class ShopScene extends Phaser.Scene {
     return {
       page: this.cat ? 'items' : 'categories', category: this.cat, credits: s.credits, focus,
       focusId: this.cat ? this.items[focus]?.id ?? null : null, loadout: { ...s.loadout },
+      list: this.list ? listGeometry(this.list) : null, power: this.power ? this.power.arrows() : null,
     };
   }
 

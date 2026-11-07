@@ -6,7 +6,7 @@ export { Tally, type TallyOpts } from './Tally';
 export { ScrollMenu, type ScrollMenuOpts } from './ScrollMenu';
 export { neonRule, sectionLabel, cornerBrackets, badge, scanlines, burst, ringPulse, vignette } from './decor';
 export {
-  LAYOUT, MD, CreditsReadout, backdropTexture, bottomButton, bottomButtonY, contentRect, screenBackdrop, screenHeader,
+  LAYOUT, MD, CreditsReadout, backdropTexture, bottomButton, bottomButtonY, contentRect, listGeometry, screenBackdrop, screenHeader,
   type Rect, type ScreenHeaderApi, type ScreenHeaderOpts,
 } from './screen';
 export { cachedTexture, fmtInt, fmtTime, isShown, cssColor } from './util';

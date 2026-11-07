@@ -50,6 +50,10 @@ const HELP = `node tools/playtest.mjs [options]
   --timeout <s>       real seconds per run before giving up (default 900)
   --port <n>          dev server port (default 5211)
   --json <file>       also write the raw results as JSON
+  --skip              jump straight to the fight: &t=<duration> on boss levels, &t=<mid-boss time - 1> on
+                      mid-boss levels (no waves, so no in-level pickups: combine with --bonus)
+  --bonus <n|auto>    extra front power added to the loadout (emulates in-level 'power' pickups; auto =
+                      round(POWER_COLLECT x expected power drops before the fight))
   --model             print the reference progression table (src/data/progression.ts) and exit
   --verbose           print progress while a run is going`;
 
@@ -57,6 +61,7 @@ function parseArgs(argv) {
   const o = {
     port: 5211, levels: 'kessra-1,kessra-2,kessra-3', loadout: 'ref', set: '', speed: 3, god: false, driver: false,
     max: false, difficulty: 'normal', seed: null, runs: 1, timeout: 900, json: '', model: false, verbose: false,
+    skip: false, bonus: '0',
   };
   for (let i = 0; i < argv.length; i++) {
     let a = argv[i];
@@ -79,6 +84,8 @@ function parseArgs(argv) {
       case '--timeout': o.timeout = Number(val()); break;
       case '--json': o.json = String(val()); break;
       case '--model': o.model = true; break;
+      case '--skip': o.skip = true; break;
+      case '--bonus': o.bonus = String(val()); break;
       case '--verbose': o.verbose = true; break;
       case '--help': case '-h': console.log(HELP); process.exit(0); break;
       default: throw new Error(`unknown option ${a} (see --help)`);
@@ -121,7 +128,7 @@ function initScript({ saveKey, saveJson }) {
     if (saveJson) localStorage.setItem(saveKey, saveJson);
   } catch { /* storage blocked: the game falls back to a fresh save */ }
   const rec = {
-    lastGame: null, bossEnterT: null, bossFightT: null, bossDeadT: null, bossMaxHp: null,
+    lastGame: null, bossEnterT: null, bossFightT: null, bossDeadT: null, bossMaxHp: null, bossPower: null, midPower: null,
     midSpawnT: null, midEndT: null, midKilled: null, midHp: null, midMaxHp: null, midName: null,
     damage: 0, hits: 0, lastHull: null, levelTime: 0, phase: '', frontPower: null, deathT: null, driver: false, err: '',
   };
@@ -159,7 +166,7 @@ function initScript({ saveKey, saveJson }) {
       const b = w.boss;
       if (b) {
         if (b.state === 'enter' && rec.bossEnterT === null) rec.bossEnterT = t;
-        if (b.state === 'fight' && rec.bossFightT === null) { rec.bossFightT = t; rec.bossMaxHp = b.maxHp; }
+        if (b.state === 'fight' && rec.bossFightT === null) { rec.bossFightT = t; rec.bossMaxHp = b.maxHp; rec.bossPower = rec.frontPower; }
         if ((b.state === 'dying' || b.state === 'dead') && rec.bossDeadT === null) rec.bossDeadT = t;
       }
       const m = w.enemies ? w.enemies.midboss : null;
@@ -168,6 +175,7 @@ function initScript({ saveKey, saveJson }) {
         midSerial = m.serial;
         rec.midSpawnT = t;
         rec.midMaxHp = m.maxHp;
+        rec.midPower = rec.frontPower;
         rec.midName = m.def ? m.def.name : '';
       }
       if (midRef !== null && rec.midEndT === null) {
@@ -250,6 +258,17 @@ function readRun() {
   return { scene: h ? h.scene : '', ready: h ? h.ready : false, live, run, rec: { ...rec }, errors: h ? h.errors.slice(0, 5) : [] };
 }
 
+// ------------------------------------------------------------------------------ nominal DPS
+
+/** Nominal single-target DPS of a loadout with its front gun at `power` (src/data/progression.ts). */
+function nominalAt(data, lo, power) {
+  if (typeof data.targetDps !== 'function') return 0;
+  const front = data.targetDps(data.getWeapon(lo.front), power);
+  const side = [lo.sidekickL, lo.sidekickR].reduce((a, id) => a + (id ? data.sidekickDps(data.getSidekick(id)) : 0), 0);
+  const rear = lo.rear ? (data.REAR_ON_TARGET ?? 0.3) * data.dpsAtPower(data.getWeapon(lo.rear), lo.rearPower) : 0;
+  return front + side + rear;
+}
+
 // ------------------------------------------------------------------------------ runs
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -268,6 +287,7 @@ async function runOne(browser, baseUrl, levelId, save, o, useBot, seed) {
     if (god) q.set('god', '1');
     if (o.max) q.set('max', '1');
     if (seed !== null) q.set('seed', String(seed));
+    if (o.startT !== undefined && o.startT !== null) q.set('t', String(o.startT));
     const url = `${baseUrl}?${q.toString()}`;
     await page.goto(url, { waitUntil: 'load' });
     await page.waitForFunction(() => window.__NC__ && window.__NC__.ready && window.__NC__.scene === 'Game', null, { timeout: 120000 });
@@ -349,13 +369,15 @@ function summarize(levelId, snap, useBot, god, seed, pageErrors) {
     volleys: pick('volleys'),
     pickups: pick('pickups'),
     frontPower: rec.frontPower,
+    bossPower: rec.bossPower,
+    midPower: rec.midPower,
     errors: [...(snap.errors || []), ...pageErrors, ...(rec.err ? [`recorder: ${rec.err}`] : [])],
   };
 }
 
 function printTable(rows) {
-  const head = ['level', 'mode', 'result', 'time', 'boss@', 'bossKill', 'fight', 'landed', 'midKill', 'kills/spawned', 'credits',
-    'dmg', 'armor', 'hits', 'wouldDie', 'starved', 'pow'];
+  const head = ['level', 'mode', 'result', 'time', 'boss@', 'bossKill', 'fight', 'landed', 'pow@boss', 'eff', 'midKill', 'pow@mid', 'midEff',
+    'kills/spawned', 'credits', 'dmg', 'armor', 'hits', 'wouldDie', 'starved', 'pow'];
   const lines = rows.map((r) => [
     r.level,
     r.mode,
@@ -365,7 +387,11 @@ function printTable(rows) {
     r.bossKill !== null ? `${fmt(r.bossKill)} s` : '-',
     r.fight !== null ? `${fmt(r.fight)} s` : '-',
     r.landed !== null ? `${fmt(r.landed, 0)}/s` : '-',
+    fmt(r.bossPower, 0),
+    r.eff !== undefined && r.eff !== null ? fmt(r.eff, 2) : '-',
     r.midKill !== null ? `${fmt(r.midKill)} s` : r.midEscaped ? 'escaped' : '-',
+    fmt(r.midPower, 0),
+    r.midEff !== undefined && r.midEff !== null ? fmt(r.midEff, 2) : '-',
     r.kills !== null && r.spawned !== null ? `${r.kills}/${r.spawned} (${Math.round((100 * r.kills) / Math.max(1, r.spawned))}%)` : '-',
     fmt(r.credits, 0),
     fmt(r.damage, 0),
@@ -381,6 +407,7 @@ function printTable(rows) {
   console.log(widths.map((w) => '-'.repeat(w)).join('  '));
   for (const l of lines) console.log(line(l));
   console.log('bossKill = bot metric (boss entrance -> kill); fight = end of the entrance -> death; landed = boss hp / fight;');
+  console.log('pow@boss / pow@mid = front power when the fight starts; eff / midEff = landed DPS / nominal single-target DPS of the kit');
   console.log('dmg / armor / hits = raw damage taken / part that reached the armor / hit count (god: would-be); starved = volleys skipped for energy');
   for (const r of rows) for (const e of r.errors) console.log(`  ! ${r.level}: ${e}`);
 }
@@ -474,12 +501,33 @@ async function main() {
         currentLevel: levelId, stats: { kills: 0, deaths: 0, playSeconds: 0, creditsEarned: 0 },
         settings: { sfx: 0, music: 0, shake: false, vibrate: false, autofire: true, touchSensitivity: 1.2, showFps: false },
       };
+      const lvl = data.getLevel(levelId);
+      const fightT = lvl.boss ? lvl.duration : lvl.midboss ? lvl.midboss.t : lvl.duration;
+      if (o.bonus !== '0') {
+        const extra = o.bonus === 'auto'
+          ? Math.round((data.POWER_COLLECT ?? 0.6) * (typeof data.expectedPowerDrops === 'function' ? data.expectedPowerDrops(levelId, fightT) : 0))
+          : Number(o.bonus);
+        loadout.frontPower = Math.max(1, Math.min(10, loadout.frontPower + extra));
+        save.loadout = loadout;
+      }
+      const runOpts = { ...o, startT: o.skip && (lvl.boss || lvl.midboss) ? (lvl.boss ? lvl.duration : Math.max(0, lvl.midboss.t - 1)) : null };
       for (let k = 0; k < o.runs; k++) {
         const seed = o.seed !== null ? o.seed + k : k > 0 ? k : null;
         const lo = loadout;
         console.log(`> ${levelId}${seed !== null ? ` seed ${seed}` : ''}: ${lo.hull} | ${lo.front} p${lo.frontPower} | rear ${lo.rear ?? '-'}${lo.rear ? ` p${lo.rearPower}` : ''} | ${lo.sidekickL ?? '-'} / ${lo.sidekickR ?? '-'} | ${lo.shield} | ${lo.generator}`);
-        const row = await runOne(browser, baseUrl, levelId, save, o, useBot, seed);
+        const row = await runOne(browser, baseUrl, levelId, save, runOpts, useBot, seed);
         row.loadout = lo;
+        // efficiency: landed boss DPS / nominal single-target DPS of the kit at the fight's power
+        if (row.landed !== null && row.bossPower !== null) {
+          const base = nominalAt(data, lo, row.bossPower);
+          row.nominal = base;
+          row.eff = base > 0 ? row.landed / base : null;
+        }
+        if (row.midKill !== null && row.midHp && row.midPower !== null) {
+          row.midLanded = row.midHp / Math.max(1, row.midKill);
+          const base = nominalAt(data, lo, row.midPower);
+          row.midEff = base > 0 ? row.midLanded / base : null;
+        }
         rows.push(row);
       }
     }

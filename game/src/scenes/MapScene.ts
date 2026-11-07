@@ -10,7 +10,7 @@ import { isCompleted, isUnlocked } from '../state/progress';
 import * as kit from '../ui/kit';
 import { META, ensureMetaArt, frameIcon, iconOr, nebulaBackdrop } from '../ui/meta/art';
 import { HEADER_H, MD, cornerBrackets, sectionLabel, toast } from '../ui/meta/chrome';
-import { scanlines, screenHeader } from '../ui/widgets';
+import { listGeometry, scanlines, screenHeader } from '../ui/widgets';
 import { findLevel, fmt, nextMissionId, planetOfLevel, setHangarFocus, upper, wrapLines } from '../ui/meta/common';
 import { RouteRenderer, type RouteState } from '../ui/meta/galaxy';
 import { BIOME_TINT, planetScale, planetTexture } from '../ui/meta/planets';
@@ -115,7 +115,7 @@ export class MapScene extends Phaser.Scene {
     // ------------------------------------------------------------ input
     const kb = this.input.keyboard;
     const onKey = (e: KeyboardEvent) => {
-      if (this.panelOpen || kit.isModalOpen(this) || this.nodes.length === 0) return;
+      if (this.panelOpen || kit.isModalOpen(this) || this.nodes.length === 0 || kit.inputBlocked(this)) return;
       switch (e.code) {
         case 'ArrowUp': case 'ArrowRight': case 'KeyW': case 'KeyD': this.setFocus(Math.min(this.nodes.length - 1, this.focus + 1)); break;
         case 'ArrowDown': case 'ArrowLeft': case 'KeyS': case 'KeyA': this.setFocus(Math.max(0, this.focus - 1)); break;
@@ -174,9 +174,9 @@ export class MapScene extends Phaser.Scene {
     const z = this.add.zone(n.x, n.y + 8, hit, hit + 16).setInteractive({ useHandCursor: true }).setDepth(MD.content + 4);
     let pressed = false;
     z.on('pointerover', (p: Phaser.Input.Pointer) => { if (!p.wasTouch && !this.panelOpen) this.setFocus(i); });
-    z.on('pointerdown', () => { if (this.panelOpen) return; audio.unlock(); pressed = true; this.setFocus(i); });
+    z.on('pointerdown', () => { if (this.panelOpen || kit.inputBlocked(this)) return; audio.unlock(); pressed = true; this.setFocus(i); });
     z.on('pointerout', () => { pressed = false; });
-    z.on('pointerup', () => { if (pressed && !this.panelOpen) this.openPanel(i); pressed = false; });
+    z.on('pointerup', () => { if (pressed && !this.panelOpen && !kit.inputBlocked(this)) this.openPanel(i); pressed = false; });
   }
 
   /**
@@ -292,7 +292,7 @@ export class MapScene extends Phaser.Scene {
     const d = MD.float;
 
     const shade = add(this.add.rectangle(0, HEADER_H, W, H - HEADER_H, 0x05040a, 0.62).setOrigin(0).setDepth(d).setInteractive());
-    shade.on('pointerup', (p: Phaser.Input.Pointer) => { if (p.y < py) this.closePanel(); });
+    shade.on('pointerup', (p: Phaser.Input.Pointer) => { if (p.y < py && !kit.inputBlocked(this)) this.closePanel(); });
     add(kit.panel(this, px, py, pw, ph, 'raised').setDepth(d));
     const tint = BIOME_TINT[n.def.biome] ?? COLORS.teal;
     add(this.add.rectangle(px + 3, py + 3, pw - 6, 2, tint, 0.8).setOrigin(0).setDepth(d));
@@ -329,15 +329,15 @@ export class MapScene extends Phaser.Scene {
         valueColor: done ? COLORS.gold : COLORS.teal,
         disabled: !open,
         arrows: false,
-        help: !open ? 'CLEAR THE PREVIOUS MISSION FIRST' : done ? 'REPLAY FOR CREDITS - BEST SCORE SHOWN' : 'SET AS NEXT MISSION AND RETURN TO HANGAR',
+        help: !open ? 'CLEAR THE PREVIOUS MISSION FIRST' : done ? 'TAP AGAIN TO REPLAY IT FOR CREDITS' : 'TAP AGAIN TO SET IT AS THE NEXT MISSION',
       };
     });
-    items.push({ label: 'CLOSE', icon: META.icDone, color: COLORS.textDim, arrows: false, help: 'BACK TO THE STAR CHART' });
+    items.push({ label: 'CLOSE', icon: META.icDone, color: COLORS.textDim, arrows: false, help: 'BACK TO THE STAR CHART', instant: true });
     const start = Math.max(0, n.def.levels.indexOf(save.currentLevel));
     const firstOpen = n.def.levels.findIndex((id) => isUnlocked(id) && !isCompleted(id));
     const by = ly + 12 + items.length * rowH + 6;
     this.panelList = new kit.MenuList(this, {
-      x: px + 22, y: ly + 12, width: pw - 30, items, rowHeight: rowH, size: 'm', depth: d + 1,
+      x: px + 22, y: ly + 12, width: pw - 30, items, rowHeight: rowH, size: 'm', depth: d + 1, tapMode: 'focusThenSelect',
       startIndex: save.currentLevel && n.def.levels.includes(save.currentLevel) ? start : Math.max(0, firstOpen),
       onFocus: (k, it) => { this.status.setText(it.help ?? ''); this.drawBriefing(n, k, px, by, pw, py + ph - by - 6); },
       onSelect: (k) => this.chooseLevel(n, k),
@@ -356,7 +356,7 @@ export class MapScene extends Phaser.Scene {
     shade.setAlpha(0);
     this.tweens.add({ targets: shade, alpha: 1, duration: 140 });
     this.tweens.add({ targets: objs.filter((o) => o !== shade), alpha: 1, duration: 160, ease: 'Quad.Out' });
-    setHookState({ panel: true, focus: n.def.id });
+    setHookState({ panel: true, focus: n.def.id, list: listGeometry(this.panelList) });
   }
 
   private drawBriefing(n: PlanetNode, k: number, x: number, y: number, w: number, h: number): void {

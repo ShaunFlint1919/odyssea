@@ -16,7 +16,7 @@ import { haptic } from '../platform/haptics';
 import { getSave } from '../state/save';
 import { isCampaignComplete, itemsUnlockedBy } from '../state/progress';
 import { LEVELS, PLANETS } from '../data';
-import { fadeIn, fit, goto, onBack, panel, statusBar, text, wrapText, type StatusBarApi } from '../ui/kit';
+import { fadeIn, fit, goto, inputBlocked, onBack, panel, statusBar, text, wrapText, type StatusBarApi } from '../ui/kit';
 import {
   Board, LAYOUT, MD, Sequence, applyOnce, badge, bottomButton, bottomButtonY, burst, cachedTexture, contentRect, demoResult, fmtInt,
   fmtTime, isLevelResult, isPlanetFinale, levelInfo, neonRule, normalizeResult, ringPulse, screenBackdrop, screenHeader, sectionLabel,
@@ -165,9 +165,9 @@ export class LevelEndScene extends Phaser.Scene {
     this.seq = new Sequence(this, steps, () => this.showContinue());
     this.seq.start();
 
-    this.input.on('pointerdown', () => { if (this.seq && !this.seq.done) this.seq.skip(); });
+    this.input.on('pointerdown', () => { if (this.seq && !this.seq.done && !inputBlocked(this)) this.seq.skip(); });
     this.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
-      if (e.repeat) return;
+      if (e.repeat || inputBlocked(this)) return;
       if (e.code === 'Enter' || e.code === 'Space' || e.code === 'NumpadEnter') this.advance();
     });
     onBack(this, () => this.advance());

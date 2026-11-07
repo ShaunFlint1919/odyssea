@@ -10,7 +10,7 @@
 //
 //  Colours come from SHOT_RGB (the same ramps as the art module's shots): white-hot core
 //  -> core -> light -> glow -> dark, with translucent outer pixels and never a dark rim,
-//  so player fire can never be mistaken for enemy bullets. Glows / flashes / ward rings are
+//  so player fire can never be mistaken for enemy bullets. Glows, flashes and embers are
 //  white and meant to be tinted (additive).
 //  Odd sizes are used for star shapes (a true centre pixel); even widths for bolts that
 //  are centred on the gun axis.
@@ -57,11 +57,6 @@ class Pix {
     this.d[i + 3] = Math.round(Math.max(0, Math.min(1, a)) * 255);
   }
 
-  alpha(x: number, y: number): number {
-    if (x < 0 || y < 0 || x >= this.w || y >= this.h) return 0;
-    return this.d[(y * this.w + x) * 4 + 3] / 255;
-  }
-
   canvas(): HTMLCanvasElement {
     const { canvas, ctx } = makeCanvas(this.w, this.h);
     const img = ctx.createImageData(this.w, this.h);
@@ -87,7 +82,7 @@ const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 const bayer = (x: number, y: number): number => (BAYER4[(y & 3) * 4 + (x & 3)] + 0.5) / 16;
 
 /** Colour ramp of a projectile colour: white-hot -> core -> light -> glow -> dark -> deep. */
-export interface Ramp {
+interface Ramp {
   readonly w: number;
   readonly c: number;
   readonly l: number;
@@ -97,12 +92,12 @@ export interface Ramp {
 }
 
 /** Ramp built from a core and a glow colour. */
-export function rampFrom(core: number, glow: number): Ramp {
+function rampFrom(core: number, glow: number): Ramp {
   return { w: 0xffffff, c: core, l: mix(core, glow, 0.5), g: glow, d: shadeRgb(glow, 0.7), e: shadeRgb(glow, 0.48) };
 }
 
 /** Ramp of a ShotColor (SHOT_RGB). */
-export function rampOf(color: ShotColor): Ramp {
+function rampOf(color: ShotColor): Ramp {
   const rgb = SHOT_RGB[color] ?? SHOT_RGB.white;
   return rampFrom(rgb.core, rgb.glow);
 }
@@ -133,7 +128,7 @@ function build(scene: Phaser.Scene, key: string, make: () => Pix[]): TexInfo {
 
 // ------------------------------------------------------------------ projectiles (nose UP)
 
-/** Plasma bolt sizes (pulse, tail gun, pod): tiers 0..3. */
+/** Plasma bolt sizes (pulse, tail gun): tiers 0..3. */
 export const BOLT_SIZES: readonly (readonly [number, number])[] = [[4, 11], [6, 14], [8, 18], [10, 22]];
 
 /** Elongated plasma bolt: rounded white-hot head, tapering translucent tail. */
@@ -175,7 +170,7 @@ export function boltTex(scene: Phaser.Scene, color: ShotColor, tier: number): Te
 }
 
 /** Tracer needle sizes (gatling, twin drone): tiers 0..2. */
-export const NEEDLE_SIZES: readonly (readonly [number, number])[] = [[2, 12], [3, 15], [4, 19]];
+const NEEDLE_SIZES: readonly (readonly [number, number])[] = [[2, 12], [3, 15], [4, 19]];
 
 /** Fast tracer: white head, coloured body, long fading tail. */
 export function needleTex(scene: Phaser.Scene, color: ShotColor, tier: number): TexInfo {
@@ -199,8 +194,8 @@ export function needleTex(scene: Phaser.Scene, color: ShotColor, tier: number): 
   });
 }
 
-/** Fireball pellet sizes (scatter): tiers 0..2. */
-export const PELLET_SIZES: readonly (readonly [number, number])[] = [[6, 9], [8, 11], [10, 14]];
+/** Fireball pellet sizes (scatter, pod drone): tiers 0..2. */
+const PELLET_SIZES: readonly (readonly [number, number])[] = [[6, 9], [8, 11], [10, 14]];
 
 /** Round plasma pellet with a short comet tail (rotate along velocity). */
 export function pelletTex(scene: Phaser.Scene, color: ShotColor, tier: number): TexInfo {
@@ -233,7 +228,7 @@ export function pelletTex(scene: Phaser.Scene, color: ShotColor, tier: number): 
 }
 
 /** Crescent wave sizes (helix): tiers 0..3. */
-export const WAVE_SIZES: readonly (readonly [number, number])[] = [[10, 6], [12, 7], [14, 8], [16, 9]];
+const WAVE_SIZES: readonly (readonly [number, number])[] = [[10, 6], [12, 7], [14, 8], [16, 9]];
 
 /** Crescent pointing UP (convex top), brightest along the middle of the band. */
 export function waveTex(scene: Phaser.Scene, color: ShotColor, tier: number): TexInfo {
@@ -262,9 +257,9 @@ export function waveTex(scene: Phaser.Scene, color: ShotColor, tier: number): Te
 }
 
 /** Lance beam widths per tier (the length is exact per power level). */
-export const BEAM_WIDTHS = [6, 8, 10, 12] as const;
+const BEAM_WIDTHS = [6, 8, 10, 12] as const;
 /** Crackle frames of a lance beam. */
-export const BEAM_FRAMES = 3;
+const BEAM_FRAMES = 3;
 
 /**
  * Piercing beam of exact length `len` (px) and core width BEAM_WIDTHS[tier]: white core,
@@ -289,7 +284,7 @@ export function beamTex(scene: Phaser.Scene, color: ShotColor, tier: number, len
         for (let x = 0; x < TW; x++) {
           const dx = Math.abs(x + 0.5 - cx);
           if (dx <= hw + 0.01) {
-            heat(r, (1 - dx / (hw + 0.5)) * 1.18 + (tip < 3 ? 0.15 : 0));
+            heat(r, (1 - dx / (hw + 0.5)) * 1.02 + (tip < 3 ? 0.15 : 0));
             p.set(x, y, SC, SA);
           } else if (dx <= hw + 1.6 && tip > 2) {
             p.set(x, y, r.g, 0.28);
@@ -316,9 +311,9 @@ export function beamTex(scene: Phaser.Scene, color: ShotColor, tier: number, len
 }
 
 /** Plasma orb sizes (mortar): tiers 0..3. */
-export const ORB_SIZES = [16, 18, 20, 22] as const;
+const ORB_SIZES = [16, 18, 20, 22] as const;
 /** Swirl frames of an orb. */
-export const ORB_FRAMES = 4;
+const ORB_FRAMES = 4;
 
 /** Heavy plasma orb with a rotating 3-arm swirl (4 frames, seamless loop). */
 export function orbTex(scene: Phaser.Scene, color: ShotColor, tier: number): TexInfo {
@@ -351,7 +346,7 @@ export function orbTex(scene: Phaser.Scene, color: ShotColor, tier: number): Tex
 }
 
 /** Crystal bolt sizes (prism): tiers 0..2. */
-export const CRYSTAL_SIZES: readonly (readonly [number, number])[] = [[7, 13], [9, 15], [11, 17]];
+const CRYSTAL_SIZES: readonly (readonly [number, number])[] = [[7, 13], [9, 15], [11, 17]];
 
 /** The 7 spectrum hues of the prism shards (red .. violet). */
 export const SPECTRUM = [0xff5a5a, 0xffa040, 0xfff060, 0x6cff7c, 0x60e0ff, 0x7c8cff, 0xd27cff] as const;
@@ -392,13 +387,13 @@ export function crystalTex(scene: Phaser.Scene, tier: number): TexInfo {
 }
 
 /** Shard sizes (prism shards, shard drone): tiers 0..1. */
-export const SHARD_SIZES: readonly (readonly [number, number])[] = [[5, 8], [6, 10]];
+const SHARD_SIZES: readonly (readonly [number, number])[] = [[5, 8], [6, 10]];
 
 /** Small crystal shard in one hue: white core ridge, hue facets (nose up). */
 export function shardTex(scene: Phaser.Scene, hue: number, tier: number): TexInfo {
   const [W, H] = SHARD_SIZES[Math.max(0, Math.min(1, tier))];
   return build(scene, `ars_shard_${hexKey(hue)}_${W}`, () => {
-    const r = rampFrom(mix(hue, 0xffffff, 0.65), hue);
+    const r = rampFrom(mix(hue, 0xffffff, 0.4), hue);
     const p = new Pix(W, H);
     const cx = W / 2, mid = Math.round(H * 0.35);
     for (let y = 0; y < H; y++) {
@@ -407,10 +402,10 @@ export function shardTex(scene: Phaser.Scene, hue: number, tier: number): TexInf
       for (let x = 0; x < W; x++) {
         const px = x + 0.5 - cx;
         if (Math.abs(px) > hw) continue;
-        let h = 1 - Math.abs(px) / (hw + 0.4);
-        if (px > 0) h -= 0.12;
-        if (py > H * 0.7) h -= 0.2;
-        heat(r, h * 1.12);
+        let h = 0.95 - Math.abs(px) / (hw + 0.3);
+        if (px > 0) h -= 0.1;
+        if (py > H * 0.62) h -= 0.25;
+        heat(r, h);
         p.set(x, y, SC, SA);
       }
     }
@@ -421,8 +416,8 @@ export function shardTex(scene: Phaser.Scene, hue: number, tier: number): TexInf
 const METAL = { hi: 0xe4e0f0, lt: 0xb4b0c8, md: 0x7c7890, dk: 0x48445a, kk: 0x26232f };
 const FLAME = { w: 0xffffff, y: 0xfff2a0, o: 0xffb040, r: 0xff6020 };
 
-/** Missile kinds: 0 micro-missile (front seekers), 1 hunter (rear seekers), 2 rocket (drone). */
-export type MissileKind = 0 | 1 | 2;
+/** Missile kinds: 0 micro-missile, 3 heavy kite missile (front seekers), 1 hunter (rear seekers), 2 rocket (drone). */
+export type MissileKind = 0 | 1 | 2 | 3;
 const MISSILE_MAPS: readonly (readonly string[])[] = [
   // 5 x 13 micro-missile
   ['..w..', '.wcw.', '.lHl.', '.hgh.', '.hmh.', '.hgh.', 'GhmhG', 'GmmmG', '.kkk.', '.yWy.', '.oyo.', '..o..', '..r..'],
@@ -430,6 +425,8 @@ const MISSILE_MAPS: readonly (readonly string[])[] = [
   ['...w...', '..wcw..', '..lHl..', '.lhmhl.', '.Ghggh.', '..hmh..', '..hgh..', 'G.hmh.G', 'GGhmhGG', 'GGmmmGG', '..kkk..', '..yWy..', '..oyo..', '..ooo..', '...r...'],
   // 7 x 15 rocket (stubby, striped)
   ['...w...', '..wcw..', '..cGc..', '.hHHHh.', '.hgggh.', '.hGGGh.', '.hmmmh.', '.hgggh.', 'GhGGGhG', 'GhmmmhG', 'G.kkk.G', '..yWy..', '..oyo..', '..ooo..', '...r...'],
+  // 7 x 15 heavy kite missile (canards + swept tail fins)
+  ['...w...', '..wcw..', '..lcl..', '..hGh..', '.GhHhG.', 'G.hmh.G', '..hgh..', '..hmh..', '..hgh..', '.GhmhG.', 'GG.k.GG', '..yWy..', '..oyo..', '..ooo..', '...r...'],
 ];
 
 /** Missile with a 2-frame exhaust flicker (frame 1 has a shorter, cooler flame). */
@@ -466,7 +463,7 @@ export function missileTex(scene: Phaser.Scene, color: ShotColor, kind: MissileK
 }
 
 /** Mine sizes (caltrop dropper): tiers 0..2. */
-export const MINE_SIZES = [11, 13, 15] as const;
+const MINE_SIZES = [11, 13, 15] as const;
 
 /** Spiked proximity mine, 2 frames (beacon light on / dim). */
 export function mineTex(scene: Phaser.Scene, color: ShotColor, tier: number): TexInfo {
@@ -483,8 +480,7 @@ export function mineTex(scene: Phaser.Scene, color: ShotColor, tier: number): Te
         [-0.7071, -0.7071, R0 + 1.6], [0.7071, -0.7071, R0 + 1.6], [-0.7071, 0.7071, R0 + 1.6], [0.7071, 0.7071, R0 + 1.6]];
       for (const [ux, uy, len] of spikes) {
         for (let t = R0 - 0.5; t <= len; t += 0.5) {
-          const tipCol = t > len - 1 ? (f === 0 ? r.c : METAL.lt) : METAL.md;
-          p.set(c + ux * t, c + uy * t, tipCol, 1);
+          p.set(c + ux * t, c + uy * t, t > len - 1 ? METAL.lt : METAL.dk, 1);
         }
       }
       for (let y = 0; y < S; y++) {
@@ -493,11 +489,11 @@ export function mineTex(scene: Phaser.Scene, color: ShotColor, tier: number): Te
           const d = Math.hypot(dx, dy);
           if (d > R0 + 0.5) continue;
           const lit = (-dx - dy) / (R0 * 1.6);
-          const col = d > R0 - 0.5 ? METAL.kk : lit > 0.35 ? METAL.lt : lit > -0.1 ? METAL.md : METAL.dk;
+          const col = d > R0 - 0.5 ? METAL.kk : lit > 0.4 ? METAL.md : lit > -0.1 ? METAL.dk : METAL.kk;
           p.put(x, y, col, 1);
-          if (d < R0 * 0.55) {
-            if (f === 0) p.put(x, y, d < R0 * 0.3 ? r.w : r.c, 1);
-            else p.put(x, y, d < R0 * 0.3 ? r.l : r.d, 1);
+          if (d < R0 * 0.5) {
+            if (f === 0) p.put(x, y, d < R0 * 0.25 ? r.w : r.g, 1);
+            else p.put(x, y, d < R0 * 0.25 ? r.d : r.e, 1);
           }
         }
       }
@@ -508,7 +504,7 @@ export function mineTex(scene: Phaser.Scene, color: ShotColor, tier: number): Te
 }
 
 /** Frames of the expanding ring shot (backlash arc). */
-export const RING_FRAMES = 6;
+const RING_FRAMES = 6;
 
 /** Expanding energy ring (rear arc), 6 frames over the shot's life: 9 -> 21 px across. */
 export function ringShotTex(scene: Phaser.Scene, color: ShotColor): TexInfo {
@@ -538,7 +534,7 @@ export function ringShotTex(scene: Phaser.Scene, color: ShotColor): TexInfo {
 }
 
 /** Frames of the flame puff (rear torch). */
-export const FLAME_FRAMES = 8;
+const FLAME_FRAMES = 8;
 
 /** Flame puff growing 5 -> 21 px and cooling white -> core -> glow -> embers -> smoke. */
 export function flameTex(scene: Phaser.Scene, color: ShotColor): TexInfo {
@@ -585,9 +581,9 @@ export function flameTex(scene: Phaser.Scene, color: ShotColor): TexInfo {
 // ------------------------------------------------------------------ FX sheets
 
 /** Muzzle flash sizes (odd: true centre pixel), tiers 0..3. */
-export const MUZZLE_SIZES = [9, 13, 17, 21] as const;
+const MUZZLE_SIZES = [9, 13, 17, 21] as const;
 /** Frames of a muzzle flash. */
-export const MUZZLE_FRAMES = 3;
+const MUZZLE_FRAMES = 3;
 
 function ray(p: Pix, r: Ramp, c: number, ux: number, uy: number, from: number, to: number, h0: number, h1: number, wide: boolean): void {
   for (let t = from; t <= to; t += 0.5) {
@@ -648,9 +644,9 @@ export function muzzleTex(scene: Phaser.Scene, color: ShotColor, tier: number): 
 }
 
 /** Impact spark sizes, tiers 0..2. */
-export const SPARK_SIZES = [9, 13, 17] as const;
+const SPARK_SIZES = [9, 13, 17] as const;
 /** Frames of an impact spark. */
-export const SPARK_FRAMES = 4;
+const SPARK_FRAMES = 4;
 
 /** Impact star: white-hot core, 8 rays flying out and cooling (4 frames). */
 export function sparkTex(scene: Phaser.Scene, color: ShotColor, tier: number): TexInfo {
@@ -684,9 +680,9 @@ export function sparkTex(scene: Phaser.Scene, color: ShotColor, tier: number): T
 }
 
 /** Additive flash sizes (white, tinted), tiers 0..5. */
-export const FLASH_SIZES = [11, 15, 23, 31, 47, 63] as const;
+const FLASH_SIZES = [11, 15, 23, 31, 47, 63] as const;
 /** Frames of a flash. */
-export const FLASH_FRAMES = 4;
+const FLASH_FRAMES = 4;
 
 /** Soft stepped flash disc (white, meant to be tinted): pops, swells and fades (4 frames). */
 export function flashTex(scene: Phaser.Scene, tier: number): TexInfo {
@@ -732,7 +728,7 @@ export function glowTex(scene: Phaser.Scene, size: number): TexInfo {
 }
 
 /** Frames of a splash ring. */
-export const BLAST_FRAMES = 7;
+const BLAST_FRAMES = 7;
 
 /**
  * Splash shockwave of exact radius `radius` (px): a filled flash that turns into a ring
@@ -775,7 +771,7 @@ export function blastTex(scene: Phaser.Scene, color: ShotColor, radius: number):
 }
 
 /** Frames of a smoke puff. */
-export const SMOKE_FRAMES = 5;
+const SMOKE_FRAMES = 5;
 
 /** Small grey smoke puff (NORMAL blend): grows 3 -> 9 px, lightens and thins out. */
 export function smokeTex(scene: Phaser.Scene): TexInfo {
@@ -794,7 +790,7 @@ export function smokeTex(scene: Phaser.Scene): TexInfo {
           if (d > 1) continue;
           if (d > 0.7 && bayer(x + f, y) > 0.6 - t * 0.3) continue;
           const lit = -dx - dy > 0;
-          const col = lit ? mix(0xd8d0d4, 0x8c8490, t) : mix(0x9c9498, 0x5c5460, t);
+          const col = lit ? mix(0xccc4c8, 0x7c7480, t) : mix(0x8c8490, 0x4e4656, t);
           p.set(x, y, col, (0.72 - 0.5 * t) * (d > 0.7 ? 0.7 : 1));
         }
       }
@@ -805,7 +801,7 @@ export function smokeTex(scene: Phaser.Scene): TexInfo {
 }
 
 /** Frames of a crackle zap. */
-export const ZAP_FRAMES = 3;
+const ZAP_FRAMES = 3;
 
 /** Tiny electric zig-zag (lance crackle, charge beam), 3 frames. */
 export function zapTex(scene: Phaser.Scene, color: ShotColor): TexInfo {
@@ -835,10 +831,11 @@ export function zapTex(scene: Phaser.Scene, color: ShotColor): TexInfo {
 /** Frames of the orbiter ward ring. */
 export const WARD_FRAMES = 4;
 
-/** Dashed ward ring (orbiter blocker radius ~8 px) that turns over its 4 frames (white, tinted). */
-export function wardTex(scene: Phaser.Scene): TexInfo {
+/** Dashed ward ring (orbiter blocker radius ~8 px) in `color`, turning over its 4 frames. */
+export function wardTex(scene: Phaser.Scene, color: ShotColor): TexInfo {
   const S = 21;
-  return build(scene, 'ars_ward', () => {
+  return build(scene, `ars_ward_${color}`, () => {
+    const r = rampOf(color);
     const frames: Pix[] = [];
     const c = S / 2;
     for (let f = 0; f < WARD_FRAMES; f++) {
@@ -850,8 +847,8 @@ export function wardTex(scene: Phaser.Scene): TexInfo {
           const d = Math.hypot(dx, dy);
           if (d > 9.6 || d < 7.4) continue;
           const seg = Math.floor(((Math.atan2(dy, dx) + Math.PI + off) / (Math.PI * 2)) * 16) % 2;
-          if (d > 8.6) p.set(x, y, 0xffffff, seg === 0 ? 0.95 : 0.22);
-          else p.set(x, y, 0xffffff, seg === 0 ? 0.4 : 0.1);
+          if (d > 8.6) p.set(x, y, seg === 0 ? r.c : r.g, seg === 0 ? 1 : 0.45);
+          else p.set(x, y, r.g, seg === 0 ? 0.55 : 0.18);
         }
       }
       frames.push(p);
@@ -861,7 +858,7 @@ export function wardTex(scene: Phaser.Scene): TexInfo {
 }
 
 /** Frames of an ember. */
-export const EMBER_FRAMES = 3;
+const EMBER_FRAMES = 3;
 
 /** 2x2 ember (white, tinted) that dims and shrinks to a single pixel over 3 frames. */
 export function emberTex(scene: Phaser.Scene): TexInfo {
@@ -875,15 +872,6 @@ export function emberTex(scene: Phaser.Scene): TexInfo {
     }
     f2.put(0, 0, 0xffffff, 0.6);
     return [f0, f1, f2];
-  });
-}
-
-/** 1x1 and 2x2 white pixels (embers, tinted). */
-export function pixelTex(scene: Phaser.Scene, size: 1 | 2): TexInfo {
-  return build(scene, `ars_px${size}`, () => {
-    const p = new Pix(size, size);
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) p.put(x, y, 0xffffff, 1);
-    return [p];
   });
 }
 

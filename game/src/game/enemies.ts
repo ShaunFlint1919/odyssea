@@ -24,6 +24,9 @@ const HALF_PI = Math.PI / 2;
  *  enemy under continuous fire blinks instead of turning solid white. */
 const FLASH_TIME = 0.032;
 const FLASH_GAP = 0.05;
+/** Big units (capital ships, mid-bosses) strobe less under continuous fire. */
+const FLASH_GAP_BIG = 0.14;
+const BIG_RADIUS = 16;
 /** Barrel tip distance from the centre of rotatable heads (art facts, px). */
 const HEAD_TIP: Record<string, number> = { gr_turret: 9, gr_twin: 12, gr_tank: 11 };
 /** Lateral barrel offsets of multi-barrel heads (volleys alternate between them). */
@@ -333,7 +336,7 @@ export class Enemies {
       e.img.setTintFill(0xffffff);
       if (e.hasHead) e.head.setTintFill(0xffffff);
       e.flash = FLASH_TIME;
-      e.flashCd = FLASH_TIME + FLASH_GAP;
+      e.flashCd = FLASH_TIME + (e.isMidboss || e.radius >= BIG_RADIUS ? FLASH_GAP_BIG : FLASH_GAP);
     }
     if (e.hp <= 0) {
       this.kill(e, true);

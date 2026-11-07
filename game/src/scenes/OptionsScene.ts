@@ -1,7 +1,8 @@
 // =====================================================================================
 //  OPTIONS — sound volumes, feel (shake / vibration), controls (autofire, touch speed),
 //  FPS counter and campaign reset (double confirmation). Every change is applied and saved
-//  immediately (updateSettings + audio.setVolumes). Back returns to data.from (Title/Hangar).
+//  immediately (updateSettings + audio.setVolumes). Back returns to data.from (Title/Hangar,
+//  or Pause: then Options draws above the frozen game and the campaign reset is locked).
 //  Below the settings, when the screen has room: a flight-controls guide (touch + keys) and
 //  the pilot record (save.stats).
 // =====================================================================================
@@ -14,7 +15,7 @@ import { haptic } from '../platform/haptics';
 import { eraseSave, getSave, hasSaveGame, updateSettings } from '../state/save';
 import { levelOrder } from '../data';
 import { MenuList, confirm, fadeIn, goto, onBack, panel, statusBar, text, type MenuItem, type StatusBarApi } from '../ui/kit';
-import { LAYOUT, MD, Slider, Toggle, contentRect, fmtInt, fmtTime, screenBackdrop, screenHeader, sectionLabel, type Rect } from '../ui/widgets';
+import { LAYOUT, MD, Slider, Toggle, contentRect, fmtInt, fmtTime, listGeometry, screenBackdrop, screenHeader, sectionLabel, type Rect } from '../ui/widgets';
 
 type RowKind = 'sfx' | 'music' | 'shake' | 'vibrate' | 'autofire' | 'touch' | 'fps' | 'reset' | 'back';
 type BoolKey = 'shake' | 'vibrate' | 'autofire' | 'showFps';
@@ -40,7 +41,7 @@ const BOOL_OF: Partial<Record<RowKind, BoolKey>> = { shake: 'shake', vibrate: 'v
 /** Flight controls guide: action, icon, touch, keyboard. */
 const CONTROLS: [string, string, string, string][] = [
   ['STEER', 'ui_icon_hull', 'DRAG ANYWHERE', 'ARROWS / WASD'],
-  ['FIRE', 'ui_icon_front', 'AUTO / WHILE DRAGGING', 'SPACE / Z'],
+  ['FIRE', 'ui_icon_front', 'AUTO / WHILE DRAG', 'SPACE / Z'],
   ['TAIL MODE', 'ui_icon_rear_mode', 'HUD MODE BUTTON', 'X / SHIFT'],
   ['PAUSE', 'ui_icon_pause', 'HUD PAUSE BUTTON', 'ESC / P'],
 ];
@@ -48,10 +49,12 @@ const CONTROLS_H = 22 + CONTROLS.length * 18 + 4;
 const RECORD_H = 22 + 3 * 12 + 6;
 
 /** Scenes Options may return to. */
-const RETURN_TO: readonly string[] = [SCENES.Title, SCENES.Hangar, SCENES.Map];
+const RETURN_TO: readonly string[] = [SCENES.Title, SCENES.Hangar, SCENES.Map, SCENES.Pause];
 
 export class OptionsScene extends Phaser.Scene {
   private from: SceneKey = SCENES.Title;
+  /** Level of the paused mission (from Pause only), handed back to the Pause scene. */
+  private levelId: string | undefined;
   private list!: MenuList;
   private status!: StatusBarApi;
   private sliders = new Map<number, Slider>();
@@ -65,8 +68,11 @@ export class OptionsScene extends Phaser.Scene {
     super(SCENES.Options);
   }
 
-  create(data?: { from?: SceneKey }): void {
+  create(data?: { from?: SceneKey; levelId?: string }): void {
     this.from = data?.from && RETURN_TO.includes(data.from) ? data.from : SCENES.Title;
+    this.levelId = data?.levelId;
+    // over a paused mission: draw above the (frozen) Game scene
+    if (this.from === SCENES.Pause) this.scene.bringToTop();
     this.sliders = new Map();
     this.toggles = new Map();
     fadeIn(this);
@@ -110,7 +116,7 @@ export class OptionsScene extends Phaser.Scene {
       x: lx, y: top + 8, width: lw, items: rows, rowHeight: ROW_H, size: 'm', depth: MD.content,
       onSelect: (i) => this.activate(i),
       onFocus: (i, it) => this.focus(i, it),
-      onDisabled: (i) => { if (ROWS[i].kind === 'reset') this.status.setText('No campaign in progress.'); },
+      onDisabled: (i) => { if (ROWS[i].kind === 'reset') this.status.setText(this.resetBlocked()); },
       onLeft: (i) => this.adjust(i, -1),
       onRight: (i) => this.adjust(i, 1),
     });
@@ -123,15 +129,15 @@ export class OptionsScene extends Phaser.Scene {
     this.attachWidgets(lw);
     this.focus(0, rows[0]);
     onBack(this, () => this.leave());
-    markSceneReady(SCENES.Options, { from: this.from });
+    markSceneReady(SCENES.Options, { from: this.from, list: listGeometry(this.list) });
   }
 
   /** Static guide of the flight controls (touch column + keyboard column). */
   private controlsCard(r: Rect): void {
     const d = MD.content;
     panel(this, r.x, r.y, r.w, r.h, 'raised').setDepth(MD.panel);
-    sectionLabel(this, r.x + LAYOUT.pad, r.y + 8, 'FLIGHT CONTROLS', 100, d);
-    const touchX = r.x + 104;
+    sectionLabel(this, r.x + LAYOUT.pad, r.y + 8, 'FLIGHT CONTROLS', 0, d);
+    const touchX = r.x + 120;
     const keysX = r.x + r.w - 10;
     text(this, touchX, r.y + 8, 'TOUCH', { size: 's', color: COLORS.accentLight, depth: d });
     text(this, keysX, r.y + 8, 'KEYBOARD', { size: 's', color: COLORS.accentLight, originX: 1, depth: d });
@@ -181,7 +187,10 @@ export class OptionsScene extends Phaser.Scene {
   }
 
   private itemFor(r: RowDef): MenuItem {
-    if (r.kind === 'reset') return { label: r.label, help: r.help, color: COLORS.bad, disabled: !hasSaveGame() };
+    if (r.kind === 'reset') {
+      const locked = this.from === SCENES.Pause;
+      return { label: r.label, help: locked ? 'Not available during a mission.' : r.help, color: COLORS.bad, disabled: locked || !hasSaveGame() };
+    }
     if (r.kind === 'back') return { label: r.label, help: r.help, color: COLORS.teal };
     return { label: r.label, help: r.help, arrows: false };
   }
@@ -223,7 +232,7 @@ export class OptionsScene extends Phaser.Scene {
   }
 
   private focus(i: number, it: MenuItem): void {
-    this.status.setText(it.disabled && ROWS[i].kind === 'reset' ? 'No campaign in progress.' : it.help ?? '');
+    this.status.setText(it.disabled && ROWS[i].kind === 'reset' ? this.resetBlocked() : it.help ?? '');
     this.sliders.forEach((sl, k) => sl.setFocused(k === i));
     this.toggles.forEach((tg, k) => tg.setFocused(k === i));
   }
@@ -281,8 +290,13 @@ export class OptionsScene extends Phaser.Scene {
     });
   }
 
+  /** Why the campaign reset row is disabled. */
+  private resetBlocked(): string {
+    return this.from === SCENES.Pause ? 'Not available during a mission.' : 'No campaign in progress.';
+  }
+
   private leave(): void {
     audio.sfx('ui_back');
-    goto(this, this.from);
+    goto(this, this.from, this.from === SCENES.Pause ? { levelId: this.levelId } : undefined);
   }
 }

@@ -1,21 +1,24 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# R8 rules for the release build (minifyEnabled + shrinkResources in build.gradle), on top of
+# proguard-android-optimize.txt (which already keeps @JavascriptInterface methods) and the consumer
+# rules shipped by Capacitor and AndroidX.
 #
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# The game itself is JavaScript running in the WebView. The Java side is the Capacitor / Cordova
+# runtime plus MainActivity, and that runtime works by reflection: plugins are instantiated by class
+# name from assets/capacitor.plugins.json, their methods are found through @CapacitorPlugin /
+# @PluginMethod annotations, and Cordova creates plugins by name from res/xml/config.xml. The runtime
+# is small, so keep it whole rather than risk a release-only crash; R8 still shrinks and optimises
+# AndroidX and Kotlin, which is where the size goes.
+-keep class com.getcapacitor.** { *; }
+-keep class com.capacitorjs.plugins.** { *; }
+-keep class org.apache.cordova.** { *; }
+-keep class com.shaunflint.novacorsair.** { *; }
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Readable stack traces. CI uploads mapping.txt (and the App Bundle embeds it for Play Console).
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Compile-time-only annotations that some libraries reference without shipping them.
+-dontwarn javax.annotation.**
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn org.checkerframework.**

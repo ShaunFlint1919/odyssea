@@ -15,6 +15,20 @@ export const TEX_PX = 'world_px';
 export const TEX_VIGNETTE = 'world_vignette';
 /** Dark scorch decal left on the ground by destroyed ground units. */
 export const TEX_CRATER = 'world_crater';
+/** Up-pointing chevron (white, dark outline, 11x8) for edge warnings; tinted at runtime. */
+export const TEX_CHEVRON = 'world_chevron';
+
+/** Pixel map of TEX_CHEVRON: '#' white, 'o' dark outline. */
+const CHEVRON_MAP = [
+  '....ooo....',
+  '...o###o...',
+  '..o##o##o..',
+  '.o##o.o##o.',
+  'o##o...o##o',
+  'o#o.....o#o',
+  '.o.......o.',
+  '...........',
+];
 
 type FallbackKind = 'enemy' | 'bullet' | 'blast' | 'gem' | 'pickup' | 'ship' | 'boss' | 'part' | 'glow' | 'puff' | 'chip' | 'ring';
 
@@ -192,6 +206,21 @@ export function ensureWorldTextures(scene: Phaser.Scene): void {
     ctx.fillStyle = g;
     ctx.fillRect(-w / 2, -w / 2, w, w);
     scene.textures.addCanvas(TEX_VIGNETTE, c);
+  }
+  if (!scene.textures.exists(TEX_CHEVRON)) {
+    const c = document.createElement('canvas');
+    c.width = CHEVRON_MAP[0].length;
+    c.height = CHEVRON_MAP.length;
+    const ctx = c.getContext('2d')!;
+    for (let y = 0; y < CHEVRON_MAP.length; y++) {
+      for (let x = 0; x < CHEVRON_MAP[y].length; x++) {
+        const ch = CHEVRON_MAP[y][x];
+        if (ch === '.') continue;
+        ctx.fillStyle = ch === '#' ? '#ffffff' : '#140608';
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+    scene.textures.addCanvas(TEX_CHEVRON, c);
   }
   if (!scene.textures.exists(TEX_CRATER)) {
     const s = 24;

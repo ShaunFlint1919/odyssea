@@ -1,8 +1,11 @@
 // Global, immutable game constants. Computed once at module load (before Phaser boots).
+import pkg from '../package.json';
 
 export const GAME_TITLE = 'NOVA CORSAIR';
 export const GAME_SUBTITLE = 'Raid on the Outer Marches';
-export const VERSION = '0.1.0';
+
+/** App version, single source of truth: game/package.json (also used by the Android build). */
+export const VERSION: string = pkg.version;
 
 /** Logical width in game pixels (pixel-art resolution, scaled up to the screen). */
 export const W = 320;

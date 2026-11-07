@@ -1,16 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- appCategory="game": listed with games (battery / data usage, Game Dashboard) and, on Android 16+,
+         exempt from the large-screen override that would otherwise ignore the portrait lock.
+         hardwareAccelerated is the default; it is spelled out because WebGL needs it. -->
     <application
         android:allowBackup="true"
+        android:appCategory="game"
+        android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- configChanges: the WebView (and the mission in progress) survives rotation, folding,
+             multi-window, dark mode, font size, locale, keyboard and SIM changes instead of reloading. -->
         <activity
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density|fontScale|layoutDirection|colorMode|touchscreen|mcc|mnc"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
@@ -38,6 +45,8 @@
 
     <!-- Permissions -->
 
+    <!-- Required by the WebView even though every asset is served locally by Capacitor. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Haptics (@capacitor/haptics). -->
     <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

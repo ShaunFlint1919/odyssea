@@ -2,7 +2,8 @@
 //  PAUSE — overlay launched over the paused Game scene (see PAUSE_EVENTS in
 //  src/game/contracts.ts): the shared screen frame (header strip whose back arrow resumes,
 //  status bar with the focused row's help) over the dimmed game, and a centred panel with
-//  RESUME, quick toggles (sound FX, music, shake, vibration) and ABORT MISSION (confirmed).
+//  RESUME, quick toggles (sound FX, music, shake, vibration), OPTIONS (the full Options scene,
+//  drawn over the frozen game, returns here) and ABORT MISSION (confirmed).
 //  Back / Escape = resume.
 //   resume: this.scene.resume(SCENES.Game) then this.scene.stop()
 //   abort:  emit PAUSE_EVENTS.abort on the Game scene's events, then this.scene.stop()
@@ -17,16 +18,17 @@ import { haptic } from '../platform/haptics';
 import { DEFAULT_SETTINGS, getSave, updateSettings } from '../state/save';
 import { FAILED_CREDIT_RATIO } from '../state/progress';
 import { LEVELS, PLANETS } from '../data';
-import { MenuList, confirm, onBack, panel, statusBar, type MenuItem, type StatusBarApi } from '../ui/kit';
-import { LAYOUT, Toggle, contentRect, scanlines, screenHeader, sectionLabel } from '../ui/widgets';
+import { MenuList, confirm, goto, holdInput, onBack, panel, statusBar, type MenuItem, type StatusBarApi } from '../ui/kit';
+import { LAYOUT, Toggle, contentRect, listGeometry, scanlines, screenHeader, sectionLabel } from '../ui/widgets';
 
-type RowKind = 'resume' | 'sfx' | 'music' | 'shake' | 'vibrate' | 'abort';
+type RowKind = 'resume' | 'sfx' | 'music' | 'shake' | 'vibrate' | 'options' | 'abort';
 const ROWS: { kind: RowKind; label: string; help: string }[] = [
   { kind: 'resume', label: 'RESUME', help: 'Back to the mission. Back / Esc also resumes.' },
   { kind: 'sfx', label: 'SOUND FX', help: 'Sound effects on / off.' },
   { kind: 'music', label: 'MUSIC', help: 'Soundtrack on / off.' },
   { kind: 'shake', label: 'SCREEN SHAKE', help: 'Camera shake on hits and explosions.' },
   { kind: 'vibrate', label: 'VIBRATION', help: 'Haptic feedback on hits (phones only).' },
+  { kind: 'options', label: 'OPTIONS', help: 'Volumes, autofire, touch speed and more.' },
   { kind: 'abort', label: 'ABORT MISSION', help: '' },
 ];
 const ROW_H = 26;
@@ -37,6 +39,7 @@ const lastVolume = { sfx: DEFAULT_SETTINGS.sfx, music: DEFAULT_SETTINGS.music };
 
 export class PauseScene extends Phaser.Scene {
   private leaving = false;
+  private levelId = '';
   private list!: MenuList;
   private status!: StatusBarApi;
   private toggles = new Map<number, Toggle>();
@@ -48,6 +51,8 @@ export class PauseScene extends Phaser.Scene {
   create(data?: { levelId?: string }): void {
     this.leaving = false;
     this.toggles = new Map();
+    this.levelId = data?.levelId ?? getSave().currentLevel;
+    holdInput(this, 150); // a double tap on the HUD pause button must not hit a pause row
     const { width, height } = this.scale.gameSize;
     const base = DEPTH.overlay;
     // Overlay fade (no camera fade: the frozen game must stay visible underneath).
@@ -55,7 +60,7 @@ export class PauseScene extends Phaser.Scene {
     this.tweens.add({ targets: shade, fillAlpha: 0.74, duration: 150 });
     scanlines(this, 0, 0, width, height, 0.5, base);
 
-    const lv = this.level(data?.levelId);
+    const lv = this.level(this.levelId);
     const head = screenHeader(this, 'PAUSED', { back: () => this.resume(), right: lv.tag, rightColor: COLORS.teal, depth: base + 3 });
     const pct = Math.round(FAILED_CREDIT_RATIO * 100);
     const help = (i: number) => (ROWS[i].kind === 'abort' ? `Leave the mission. You keep ${pct}% of its credits.` : ROWS[i].help);
@@ -75,7 +80,7 @@ export class PauseScene extends Phaser.Scene {
     if (s.music > 0) lastVolume.music = s.music;
     const items: MenuItem[] = ROWS.map((r) => ({
       label: r.label,
-      color: r.kind === 'abort' ? COLORS.bad : r.kind === 'resume' ? COLORS.teal : undefined,
+      color: r.kind === 'abort' ? COLORS.bad : r.kind === 'resume' ? COLORS.teal : r.kind === 'options' ? COLORS.accentLight : undefined,
       arrows: false,
     }));
     const lx = px + LAYOUT.listInset;
@@ -116,7 +121,7 @@ export class PauseScene extends Phaser.Scene {
 
     audio.sfx('ui_select');
     onBack(this, () => this.resume());
-    markSceneReady(SCENES.Pause, { levelId: data?.levelId ?? getSave().currentLevel });
+    markSceneReady(SCENES.Pause, { levelId: this.levelId, items: ROWS.map((r) => r.kind), list: listGeometry(this.list) });
   }
 
   /** Long label ("KESSRA 1 - DUSTFALL APPROACH") and short tag ("KESSRA 1") of the level. */
@@ -134,6 +139,7 @@ export class PauseScene extends Phaser.Scene {
     const tg = this.toggles.get(i);
     if (tg) { tg.setValue(!tg.value, true); return; }
     if (kind === 'resume') this.resume();
+    else if (kind === 'options') this.openOptions();
     else if (kind === 'abort') this.askAbort();
   }
 
@@ -169,6 +175,13 @@ export class PauseScene extends Phaser.Scene {
       this.scene.get(SCENES.Game).events.emit(PAUSE_EVENTS.abort);
       this.scene.stop();
     });
+  }
+
+  /** Full Options over the frozen game; its back action returns here. */
+  private openOptions(): void {
+    if (this.leaving) return;
+    this.leaving = true;
+    goto(this, SCENES.Options, { from: SCENES.Pause, levelId: this.levelId });
   }
 
   private resume(): void {

@@ -57,8 +57,9 @@ export class RunMetrics {
   /** Player projectile hits on enemies / boss / missiles, and the damage they dealt. */
   shotHits = 0;
   damageDealt = 0;
-  /** Pickups collected (gems + drops). */
+  /** Pickups collected (gems + drops), and credits of the gems that fell off the screen. */
   pickups = 0;
+  creditsMissed = 0;
   bossStartT = -1;
   bossKillT = -1;
   midbossStartT = -1;

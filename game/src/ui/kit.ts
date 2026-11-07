@@ -19,7 +19,9 @@
 //    modalLevel, MenuItem.arrows, MenuList.length/setValue/setLabel/rowContainer/rowY/cancelPress,
 //    MenuListOpts.tapMode ('focusThenSelect': first tap focuses, second tap selects — for
 //    purchases and other costly picks), IconButtonOpts (larger hit area, hover ring),
-//    StatusBarOpts (right-hand text; help is upper-cased for a uniform look), isLeaving.
+//    StatusBarOpts (right-hand text; help is upper-cased for a uniform look), isLeaving,
+//    inputBlocked / holdInput (entrance input lock against taps carried over between screens),
+//    MenuItem.armed, MenuList.rowHeight/width, STATUS_H.
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, DEPTH } from '../config';
@@ -35,9 +37,24 @@ export type FontSize = 's' | 'm' | 'l';
 const FONT_KEY: Record<FontSize, string> = { s: FONT.s, m: FONT.m, l: FONT.l };
 const FONT_CELL: Record<FontSize, [number, number]> = { s: [6, 8], m: [8, 10], l: [12, 16] };
 
-type LeavingScene = Phaser.Scene & { __leaving?: boolean };
+type LeavingScene = Phaser.Scene & { __leaving?: boolean; __inputAt?: number };
 /** True while goto() fades the scene out (input is ignored until the next scene starts). */
 export const isLeaving = (scene: Phaser.Scene): boolean => !!(scene as LeavingScene).__leaving;
+
+/**
+ * (added) True while a scene must ignore taps / keys / back: during goto()'s fade-out, and for
+ * the entrance lock set by fadeIn() / holdInput() — so a double tap or a mashed key on one
+ * screen never lands on the next one (e.g. CONTINUE, then LAUNCH MISSION by accident).
+ */
+export function inputBlocked(scene: Phaser.Scene): boolean {
+  const s = scene as LeavingScene;
+  return !!s.__leaving || (s.__inputAt !== undefined && performance.now() < s.__inputAt);
+}
+
+/** (added) Ignore the scene's input for `ms` from now (fadeIn() does it for its duration, max 220 ms). */
+export function holdInput(scene: Phaser.Scene, ms: number): void {
+  (scene as LeavingScene).__inputAt = performance.now() + Math.max(0, ms);
+}
 
 // ------------------------------------------------------------------------------ fonts
 
@@ -507,6 +524,8 @@ export interface MenuItem {
    * (e.g. the item already equipped).
    */
   armed?: boolean;
+  /** (added) tapMode 'focusThenSelect' only: this row selects on the first tap (CLOSE / BACK rows). */
+  instant?: boolean;
 }
 
 /**
@@ -654,6 +673,10 @@ export class MenuList {
   get height(): number { return this.items.length * this.rowH; }
   /** (added) Number of rows. */
   get length(): number { return this.items.length; }
+  /** (added) Row height in px. */
+  get rowHeight(): number { return this.rowH; }
+  /** (added) Row width in px. */
+  get width(): number { return Math.round(this.opts.width); }
 
   /** Replace the rows (keeps the current index when possible). */
   setItems(items: MenuItem[], keepIndex = true): void {
@@ -705,7 +728,7 @@ export class MenuList {
       const pressed = this.pressedRow === i;
       this.pressedRow = -1;
       if (!pressed || !this.acceptsPointer() || this.idx !== i) return;
-      if (this.tapMode === 'focusThenSelect' && !this.pressArmed) return; // first tap only focuses
+      if (this.tapMode === 'focusThenSelect' && !this.pressArmed && !this.items[i]?.instant) return; // first tap only focuses
       this.select();
     });
     row.add(zone);
@@ -891,11 +914,11 @@ export class MenuList {
   }
 
   private acceptsPointer(): boolean {
-    return this.enabled && !isLeaving(this.scene);
+    return this.enabled && !inputBlocked(this.scene);
   }
 
   private acceptsKeys(): boolean {
-    return this.enabled && shown(this.container) && modalDepth(this.scene) <= this.modalLevel && !isLeaving(this.scene);
+    return this.enabled && shown(this.container) && modalDepth(this.scene) <= this.modalLevel && !inputBlocked(this.scene);
   }
 
   private bindKeys(): void {
@@ -1084,14 +1107,14 @@ export function button(
     if ((opts.size ?? 'm') !== 'l') lbl.setTint(color);
   });
   zone.on('pointerdown', () => {
-    if (!enabled || isLeaving(scene)) return;
+    if (!enabled || inputBlocked(scene)) return;
     audio.unlock();
     setDown(true);
   });
   zone.on('pointerup', () => {
     const wasDown = down;
     setDown(false);
-    if (!enabled || !wasDown || isLeaving(scene)) return;
+    if (!enabled || !wasDown || inputBlocked(scene)) return;
     audio.sfx('ui_select');
     onClick();
   });
@@ -1150,7 +1173,7 @@ export function iconButton(
   const zone = scene.add.zone(-Math.round(hw / 2), -Math.round(hh / 2), hw, hh).setOrigin(0).setInteractive({ useHandCursor: true });
   zone.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
     ev.stopPropagation();
-    if (isLeaving(scene)) return;
+    if (inputBlocked(scene)) return;
     audio.unlock();
     setDown(true);
   });
@@ -1159,7 +1182,7 @@ export function iconButton(
   zone.on('pointerup', () => {
     const wasDown = down;
     setDown(false);
-    if (wasDown && !isLeaving(scene)) onClick();
+    if (wasDown && !inputBlocked(scene)) onClick();
   });
   c.add(zone);
   c.setSize(size, size);
@@ -1390,7 +1413,7 @@ function dispatchBack(only?: Phaser.Scene): boolean {
     if (only && e.scene !== only) continue;
     if (!e.scene.sys.isActive()) continue;
     if (modalDepth(e.scene) > e.modal) continue;
-    if (isLeaving(e.scene)) return true; // swallow during a transition
+    if (inputBlocked(e.scene)) return true; // swallow during a transition / the entrance lock
     if (e.cb()) return true;
   }
   return false;
@@ -1451,9 +1474,10 @@ export function onBackIf(scene: Phaser.Scene, cb: () => boolean): void {
   registerBack(scene, cb);
 }
 
-/** Fade the scene in (call at the start of create()). */
+/** Fade the scene in (call at the start of create()); input is locked while it is still dark. */
 export function fadeIn(scene: Phaser.Scene, ms = 180): void {
   (scene as LeavingScene).__leaving = false;
+  holdInput(scene, Math.min(ms, 220));
   scene.cameras.main.fadeIn(ms, 5, 4, 10);
 }
 
