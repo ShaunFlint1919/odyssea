@@ -85,9 +85,10 @@ export class ArsenalImpl implements Arsenal, ArsenalCore {
     this.env = { scene: host.scene, host, depths, layer: opts.layer ?? null };
     const pool = Math.max(32, opts.poolSize ?? 400);
     this.prewarmArt = opts.prewarm ?? true;
-    this.fx = new FxPool(this.env, depths.shots + 0.5, Phaser.BlendModes.ADD, this, Math.ceil(pool * 0.3));
-    this.smoke = new FxPool(this.env, depths.shots - 0.4, Phaser.BlendModes.NORMAL, this, Math.ceil(pool * 0.1));
-    this.muzzles = new FxPool(this.env, depths.shots + 0.6, Phaser.BlendModes.ADD, this, 24);
+    // FX pools grow on demand: create only a typical load up front (idle images cost per frame)
+    this.fx = new FxPool(this.env, depths.shots + 0.5, Phaser.BlendModes.ADD, this, Math.ceil(pool * 0.12));
+    this.smoke = new FxPool(this.env, depths.shots - 0.4, Phaser.BlendModes.NORMAL, this, Math.ceil(pool * 0.04));
+    this.muzzles = new FxPool(this.env, depths.shots + 0.6, Phaser.BlendModes.ADD, this, 16);
     this.shots = new ShotPool(this.env, this.fx, this.smoke, this, pool);
     this.left = new SidekickUnit(this, -1);
     this.right = new SidekickUnit(this, 1);

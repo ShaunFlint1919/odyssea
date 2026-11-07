@@ -9,8 +9,9 @@
 //     covering the first screen;
 //   - afterwards chunks are built INCREMENTALLY (ChunkJob.step, ~2 ms per calm frame,
 //     1 ms per slow frame, real time: it keeps working during hit-stop) up to
-//     LOOKAHEAD_PX above the screen; a painted chunk is copied into its slot canvas on the
-//     next frame and uploaded to the GPU (CanvasTexture.refresh) on the one after;
+//     LOOKAHEAD_PX above the screen; a painted chunk's pixels are written straight into its
+//     (hidden) slot canvas, COPY_ROWS rows per frame (ChunkJob.writeRows: putImageData, no
+//     temporary canvas), then uploaded to the GPU (CanvasTexture.refresh) on the next frame;
 //   - only if a chunk is still unfinished when it is about to scroll into view (extreme
 //     scroll speed) is its job completed synchronously (counted in stats.sync).
 //  Chunk i (0 = bottom-most at level start, i+1 directly above i) has its top edge at
@@ -19,7 +20,7 @@
 import Phaser from 'phaser';
 import { CHUNK_H, DEPTH, H, PLAY_W } from '../config';
 import { CLOUD_SPRITES } from '../art/keys';
-import { TerrainGenerator, type ChunkJob, type TerrainChunk } from '../art/terrain';
+import { TerrainGenerator, type ChunkJob, type DoodadPlacement } from '../art/terrain';
 import type { Biome } from '../types';
 import { mulberry32 } from '../art/noise';
 import { TEX_PX } from './tex';
@@ -42,6 +43,8 @@ const BUDGET_CALM = 2;
 const BUDGET_BUSY = 1;
 /** A frame longer than this (ms) counts as busy. */
 const BUSY_FRAME_MS = 21;
+/** Rows of a finished chunk written into its slot canvas per frame (CHUNK_H / 4: 4 frames). */
+const COPY_ROWS = 64;
 /** Doodads that carry a light: they blink (alpha) with a per-instance phase. */
 const BLINKERS: Record<string, number> = { dd_light: 1.6, dd_beacon: 1.1 };
 
@@ -85,8 +88,10 @@ export class Background {
   /** Highest chunk index visible on its slot (uploaded), -1 = none yet. */
   private topReady = -1;
   private job: ChunkJob | null = null;
-  /** The running job finished its painting steps: copy it into its slot next frame. */
+  /** The running job finished its painting steps: copy it into its slot over the next frames. */
   private jobDone = false;
+  /** Next row of the finished job to write into its slot canvas. */
+  private copyRow = 0;
   /** Slot waiting for its GPU upload (one frame after the copy). */
   private uploadSlot: Slot | null = null;
   private readonly doodadPool: Phaser.GameObjects.Image[] = [];
@@ -120,7 +125,10 @@ export class Background {
       const slot = this.freeSlot();
       if (!slot) break;
       slot.index = this.nextIndex;
-      this.place(slot, this.gen.chunk(this.nextIndex++));
+      const job = this.gen.beginChunk(this.nextIndex++);
+      job.writeRows(slot.tex.getContext(), 0, 0, 0, CHUNK_H);
+      this.place(slot, job.doodads);
+      job.dispose();
       this.upload(slot);
     }
     // clouds / haze
@@ -164,13 +172,10 @@ export class Background {
     return null;
   }
 
-  /** Copy a finished chunk into its slot canvas (slot.index already set) and lay out its doodads, still hidden. */
-  private place(slot: Slot, chunk: TerrainChunk): void {
-    const ctx = slot.tex.getContext();
-    ctx.clearRect(0, 0, PLAY_W, CHUNK_H);
-    ctx.drawImage(chunk.canvas, 0, 0);
+  /** A slot whose canvas holds its chunk's pixels (slot.index set): lay out its doodads, still hidden. */
+  private place(slot: Slot, doodads: readonly DoodadPlacement[]): void {
     slot.pending = true;
-    for (const d of chunk.doodads) {
+    for (const d of doodads) {
       if (!this.scene.textures.exists(d.key)) continue;
       const img = this.doodadPool.pop() ?? this.scene.add.image(0, 0, d.key).setDepth(DEPTH.doodads);
       img.setTexture(d.key).setPosition(Math.round(d.x), 0).setFlipX(!!d.flipX).setScale(d.scale ?? 1).setAlpha(1).setVisible(false);
@@ -238,7 +243,7 @@ export class Background {
       this.uploadSlot = null;
       st.maxUploadMs = Math.max(st.maxUploadMs, performance.now() - t0);
     } else if (this.job && this.jobDone) {
-      this.finishJob(false);
+      this.copySlice();
       st.maxCopyMs = Math.max(st.maxCopyMs, performance.now() - t0);
     } else if (this.job) {
       const urgent = this.aheadPx() < EMERGENCY_PX + CHUNK_H * 0.25;
@@ -249,6 +254,7 @@ export class Background {
       if (slot) {
         slot.index = this.nextIndex;
         this.job = this.gen.beginChunk(this.nextIndex++);
+        this.copyRow = 0;
         this.jobDone = this.job.step(BUDGET_BUSY);
       }
     }
@@ -264,23 +270,51 @@ export class Background {
     if (ms > this.stats.maxFrameMs) this.stats.maxFrameMs = Math.round(ms * 100) / 100;
   }
 
-  /** Complete the running job (synchronously if needed) and copy it into its slot. */
+  private slotFor(index: number): Slot | null {
+    for (const s of this.slots) if (s.index === index) return s;
+    return null;
+  }
+
+  /** Writes the next COPY_ROWS rows of the finished job into its slot; the last slice completes it. */
+  private copySlice(): void {
+    const job = this.job!;
+    const slot = this.slotFor(job.index);
+    if (!slot) {
+      this.dropJob();
+      return;
+    }
+    job.writeRows(slot.tex.getContext(), 0, 0, this.copyRow, COPY_ROWS);
+    this.copyRow += COPY_ROWS;
+    if (this.copyRow >= CHUNK_H) this.completeJob(slot, false);
+  }
+
+  /** Emergency: complete the running job now (painting and the rows not copied yet). */
   private finishJob(sync: boolean): void {
     const job = this.job!;
-    this.job = null;
-    this.jobDone = false;
-    let slot: Slot | null = null;
-    for (const s of this.slots) {
-      if (s.index === job.index) {
-        slot = s;
-        break;
-      }
+    const slot = this.slotFor(job.index);
+    if (!slot) {
+      this.dropJob();
+      return;
     }
-    if (!slot) return;
-    this.place(slot, job.result());
+    job.writeRows(slot.tex.getContext(), 0, 0, this.copyRow, CHUNK_H - this.copyRow);
+    this.completeJob(slot, sync);
+  }
+
+  /** Every row is in the slot canvas: lay out the doodads and queue the GPU upload. */
+  private completeJob(slot: Slot, sync: boolean): void {
+    const job = this.job!;
+    this.place(slot, job.doodads);
+    this.dropJob();
     this.uploadSlot = slot;
     this.stats.chunks++;
     if (sync) this.stats.sync++;
+  }
+
+  private dropJob(): void {
+    this.job?.dispose();
+    this.job = null;
+    this.jobDone = false;
+    this.copyRow = 0;
   }
 
   /** Scroll by speed * dt (px/s, s): moves chunks, doodads, clouds and stars. */
@@ -314,8 +348,7 @@ export class Background {
   }
 
   destroy(): void {
-    this.job = null;
-    this.jobDone = false;
+    this.dropJob();
     this.uploadSlot = null;
     for (const s of this.slots) {
       s.img.destroy();

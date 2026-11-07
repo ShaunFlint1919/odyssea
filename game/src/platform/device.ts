@@ -234,9 +234,11 @@ function syncWatchdog(): void {
   }
 }
 
-/** Uncaught error / rejection: if no frame follows, the loop is declared dead sooner. */
+/** Uncaught error / rejection: if no frame completes after it, the loop is declared dead sooner. */
 function onUncaught(): void {
-  if (errorAt < 0) errorAt = nowMs();
+  // Sample first: frames completed before the error must not count as progress after it.
+  sampleLoop();
+  errorAt = nowMs();
 }
 
 /** Claims the session's recovery reload; false while the guard forbids it or cannot be stored. */

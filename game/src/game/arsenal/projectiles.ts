@@ -234,9 +234,10 @@ export class ShotPool {
     this.emberTex = emberTex(env.scene);
     this.dummy = makeSpec(init, WHITE, WHITE);
     const d = env.depths.shots;
-    // Images are pre-created for a typical peak (the groups grow on demand); Shot objects for `initial`.
-    this.halos = new ImageGroup(env, d - 0.2, Phaser.BlendModes.ADD, Math.ceil(initial * 0.2), init.key);
-    this.bodies = new ImageGroup(env, d, Phaser.BlendModes.NORMAL, Math.ceil(initial * 0.5), init.key);
+    // Shot objects for `initial`; images only for a typical load (the groups grow on demand, and
+    // hidden pooled images still cost Phaser a willRender() per frame: keep the idle ones few).
+    this.halos = new ImageGroup(env, d - 0.2, Phaser.BlendModes.ADD, Math.ceil(initial * 0.06), init.key);
+    this.bodies = new ImageGroup(env, d, Phaser.BlendModes.NORMAL, Math.ceil(initial * 0.16), init.key);
     for (let i = 0; i < initial; i++) this.free.push(new Shot(this, this.dummy));
   }
 

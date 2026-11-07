@@ -25,7 +25,9 @@ export interface TerrainChunk {
 
 /**
  * Incremental generation of one chunk (see TerrainGenerator.beginChunk). Call step() once per
- * frame with a small budget (e.g. 2-3 ms) until it returns true, then take result().
+ * frame with a small budget (e.g. 2-3 ms) until it returns true, then either take result()
+ * (a new canvas), or copy the pixels straight into your own canvas with writeRows() (in
+ * slices over several frames if you like), read `doodads` and call dispose().
  */
 export interface ChunkJob {
   /** Index of the chunk being generated. */
@@ -41,6 +43,17 @@ export interface ChunkJob {
   step(budgetMs: number): boolean;
   /** Finishes any remaining work synchronously and returns the chunk (same object on later calls). */
   result(): TerrainChunk;
+  /**
+   * Copies rows [row0, row0 + rows) of the chunk straight into `ctx` at (dx, dy) — one
+   * putImageData with a dirty rectangle: no intermediate canvas, no drawImage. The chunk is
+   * opaque, so the target needs no clearing. Finishes the painting synchronously first if
+   * needed. Not available after dispose() / result().
+   */
+  writeRows(ctx: CanvasRenderingContext2D, dx: number, dy: number, row0: number, rows: number): void;
+  /** Doodad placements of the chunk (complete once `done`). */
+  readonly doodads: readonly DoodadPlacement[];
+  /** Gives the chunk's scratch memory back to the generator once the rows are copied (idempotent). */
+  dispose(): void;
 }
 
 type Plan = (c: Chunk) => Step[];
@@ -88,6 +101,8 @@ class Job implements ChunkJob {
   private finished = 0;
   private readonly total: number;
   private out: TerrainChunk | null = null;
+  /** The scratch memory went back to the generator (result() or dispose()). */
+  private released = false;
 
   constructor(readonly index: number, private readonly phases: Phase[], private readonly recycle: (pool: Pool) => void) {
     let n = 0;
@@ -124,6 +139,7 @@ class Job implements ChunkJob {
 
   result(): TerrainChunk {
     if (this.out) return this.out;
+    if (this.released) throw new Error('ChunkJob.result() after dispose()');
     if (!this.done) this.step(Infinity);
     const c = this.phases[this.phases.length - 1].chunk;
     const canvas = document.createElement('canvas');
@@ -131,8 +147,27 @@ class Job implements ChunkJob {
     canvas.height = CH;
     canvas.getContext('2d')!.putImageData(c.img, 0, 0);
     this.out = { canvas, doodads: c.doodads };
-    this.recycle(c.pool);
+    this.dispose();
     return this.out;
+  }
+
+  get doodads(): readonly DoodadPlacement[] {
+    return this.phases[this.phases.length - 1].chunk.doodads;
+  }
+
+  writeRows(ctx: CanvasRenderingContext2D, dx: number, dy: number, row0: number, rows: number): void {
+    if (this.released) throw new Error('ChunkJob.writeRows() after dispose() / result()');
+    if (!this.done) this.step(Infinity);
+    const c = this.phases[this.phases.length - 1].chunk;
+    const r0 = Math.max(0, Math.floor(row0));
+    const r1 = Math.min(CH, Math.floor(row0 + rows));
+    if (r1 > r0) ctx.putImageData(c.img, dx, dy, 0, r0, c.w, r1 - r0);
+  }
+
+  dispose(): void {
+    if (this.released) return;
+    this.released = true;
+    this.recycle(this.phases[this.phases.length - 1].chunk.pool);
   }
 }
 

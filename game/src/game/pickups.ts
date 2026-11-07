@@ -14,6 +14,11 @@ import { FrameAnim, texOr } from './tex';
 import type { World } from './world';
 
 const MAX = 360;
+/**
+ * Pickups created with the pool; it grows on demand up to MAX (hidden pooled images still cost
+ * a willRender() per frame, so only the peak actually reached stays in the display list).
+ */
+const PREWARM = 64;
 /** Magnet radius around the ship (px). */
 export const MAGNET_R = 60;
 /** Armor restored by a repair pickup, as a fraction of the hull armor (min ARMOR_MIN). */
@@ -70,11 +75,14 @@ export class Pickups {
     this.dropAnims = {
       [K_ARMOR]: idle('pk_armor'), [K_SHIELD]: idle('pk_shield'), [K_POWER]: idle('pk_power'), [K_INTEL]: idle('pk_intel'),
     };
-    for (let i = 0; i < MAX; i++) {
-      const p = new Pickup(scene.add.image(-50, -50, texOr(scene, 'pk_credit_s', 'gem')).setDepth(DEPTH.pickups).setVisible(false));
-      this.items.push(p);
-      this.freeList.push(p);
-    }
+    for (let i = 0; i < PREWARM; i++) this.freeList.push(this.create());
+  }
+
+  private create(): Pickup {
+    const scene = this.w.scene;
+    const p = new Pickup(scene.add.image(-50, -50, texOr(scene, 'pk_credit_s', 'gem')).setDepth(DEPTH.pickups).setVisible(false));
+    this.items.push(p);
+    return p;
   }
 
   get count(): number {
@@ -87,7 +95,7 @@ export class Pickups {
   }
 
   private take(): Pickup | null {
-    const p = this.freeList.pop();
+    const p = this.freeList.pop() ?? (this.items.length < MAX ? this.create() : null);
     if (!p) return null;
     p.active = true;
     p.age = 0;

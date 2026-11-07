@@ -1,6 +1,8 @@
 // =====================================================================================
 //  ENEMY BULLETS — one pool of 640 bullets stored in typed arrays (no per-frame
-//  allocation) + a small pool of telegraphed lasers.
+//  allocation) + a small pool of telegraphed lasers. Bullet images are created on a slot's
+//  first use (BULLET_PREWARM up front): hidden pooled objects still cost Phaser a
+//  willRender() per frame, so the display list only holds the peak actually reached.
 //   kinds: plain bullets, flak (bursts into 6 fragments after a fuse), homing missiles
 //   (slow, can be shot down), fragments.
 //  Bullet -> ship collision is resolved here (circle vs circle with the ship hit radius).
@@ -28,6 +30,8 @@ export const KIND_FLAK = 1;
 export const KIND_MISSILE = 2;
 
 const MAX = 640;
+/** Bullet images created with the pool (a busy fight peaks at ~75-120 live bullets). */
+const BULLET_PREWARM = 128;
 const MAX_MISSILES = 48;
 const MARGIN = 18;
 const MISSILE_LIFE = 5.5;
@@ -95,7 +99,9 @@ export class EnemyBullets {
   /** Index of the bullet sprite in SPRITE_NAMES (flak fragments reuse the shell's sprite). */
   private readonly sprite = new Uint8Array(MAX);
   private readonly rotates = new Uint8Array(MAX);
-  private readonly imgs: Phaser.GameObjects.Image[] = [];
+  /** Image of each slot, created on the slot's first use (slots are reused lowest-first). */
+  private readonly imgs: (Phaser.GameObjects.Image | null)[] = [];
+  private readonly fallbackKey: string;
   private readonly act = new Int32Array(MAX);
   private actCount = 0;
   private readonly slotOf = new Int32Array(MAX); // index in act[] of bullet i
@@ -109,9 +115,9 @@ export class EnemyBullets {
 
   constructor(private readonly w: World) {
     const scene = (this.scene = w.scene);
-    const fb = fallbackTex(scene, 'bullet');
+    this.fallbackKey = fallbackTex(scene, 'bullet');
     for (let i = 0; i < MAX; i++) {
-      this.imgs.push(scene.add.image(-50, -50, fb).setDepth(DEPTH.enemyBullets).setVisible(false));
+      this.imgs.push(i < BULLET_PREWARM ? this.makeImg() : null);
       this.free[this.freeCount++] = MAX - 1 - i;
     }
     for (let i = 0; i < 16; i++) {
@@ -136,6 +142,20 @@ export class EnemyBullets {
   /** The laser slots (read-only view for the autopilot; check `active`). */
   get laserViews(): readonly LaserView[] {
     return this.lasers;
+  }
+
+  private makeImg(): Phaser.GameObjects.Image {
+    return this.scene.add.image(-50, -50, this.fallbackKey).setDepth(DEPTH.enemyBullets).setVisible(false);
+  }
+
+  /** Image of slot `i` (created on first use; live slots always have one). */
+  private img(i: number): Phaser.GameObjects.Image {
+    let img = this.imgs[i];
+    if (!img) {
+      img = this.makeImg();
+      this.imgs[i] = img;
+    }
+    return img;
   }
 
   /** Resolved texture key for a bullet sprite/colour (cached; falls back if the art is missing). */
@@ -173,7 +193,7 @@ export class EnemyBullets {
     this.color[i] = Math.max(0, SHOT_COLORS.indexOf(color));
     this.sprite[i] = Math.max(0, SPRITE_NAMES.indexOf(spr));
     this.rotates[i] = ELONGATED[spr] ? 1 : 0;
-    const img = this.imgs[i];
+    const img = this.img(i);
     img.setTexture(this.key(spr, color)).setPosition(x, y).setVisible(true).setAlpha(1)
       .setScale(kind === KIND_FLAK ? FLAK_SHELL_SCALE : 1);
     img.rotation = this.rotates[i] ? angle - BULLET_ART_ANGLE : 0;
@@ -187,7 +207,7 @@ export class EnemyBullets {
     this.act[k] = last;
     this.slotOf[last] = k;
     this.free[this.freeCount++] = i;
-    this.imgs[i].setVisible(false);
+    this.img(i).setVisible(false);
     if (this.kind[i] === KIND_MISSILE) {
       for (let m = 0; m < this.missileCount; m++) {
         if (this.missiles[m] === i) {
@@ -244,7 +264,7 @@ export class EnemyBullets {
         const s = Math.min(this.spd[i] * 1.6, Math.hypot(this.vx[i], this.vy[i]) + 18 * dt);
         this.vx[i] = Math.cos(na) * s;
         this.vy[i] = Math.sin(na) * s;
-        this.imgs[i].rotation = na - BULLET_ART_ANGLE;
+        this.img(i).rotation = na - BULLET_ART_ANGLE;
         if (trail) this.w.fx.trail(this.x[i] - Math.cos(na) * 5, this.y[i] - Math.sin(na) * 5);
       } else if (kind === KIND_FLAK && this.life[i] >= FLAK_FUSE) {
         this.burstFlak(i);
@@ -266,7 +286,7 @@ export class EnemyBullets {
           continue;
         }
       }
-      this.imgs[i].setPosition(x, y);
+      this.img(i).setPosition(x, y);
     }
     this.updateLasers(dt, hittable, sx, sy, sr);
   }

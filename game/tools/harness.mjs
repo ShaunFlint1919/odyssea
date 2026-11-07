@@ -96,7 +96,12 @@ export function newMobileContext(browser, deviceScaleFactor) {
   return browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor, hasTouch: true, isMobile: true });
 }
 
-const IGNORED_CONSOLE = [/favicon\.ico/i];
+const IGNORED_CONSOLE = [
+  /favicon\.ico/i,
+  // Chrome intervention logged when Phaser's TouchManager calls preventDefault() on a touchcancel
+  // (never cancelable): harmless, and any check that cancels a touch would otherwise fail on it.
+  /^Ignored attempt to cancel a touchcancel event with cancelable=false, for example because scrolling is in progress and cannot be interrupted\.$/,
+];
 
 /** Attaches error collectors to a page. `take()` returns and clears the errors collected so far. */
 export function collectErrors(page) {

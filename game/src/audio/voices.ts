@@ -2,6 +2,11 @@
 //  SFX VOICES — tiny synth layers (tone / noise / FM / note sequence) built per sound and
 //  a voice pool with a global cap, priority-aware stealing (oldest first) and automatic
 //  disconnection when the last source of a voice ends.
+//  A build may run on a Chain: the persistent level / envelope / filter nodes of an earlier
+//  voice of the same key, wired once and reprogrammed (their automation is cleared from the
+//  new start time). Sources (oscillators, noise players) and the gains that modulate a
+//  source's own params (FM depth, vibrato) are created per play. Builds are deterministic per
+//  key, so the n-th node a build asks for always plays the same role.
 // =====================================================================================
 import { setWave, type Graph, type NoiseName, type WaveName } from './engine';
 
@@ -22,6 +27,33 @@ export interface Build {
   /** Source that stops last (its `onended` disposes the voice). */
   last: AudioScheduledSourceNode | null;
   rnd: () => number;
+  /** Pooled nodes to build on (null = every node is created for this play). */
+  chain: Chain | null;
+  /** Index of the next pooled node the build asks for. */
+  ni: number;
+}
+
+/** Persistent nodes of one voice slot of an SFX key (see the header). */
+export class Chain {
+  /** Gains and filters in the order the key's build asks for them. */
+  readonly nodes: AudioNode[] = [];
+  /** Static wiring done (the first build on this chain ran). */
+  wired = false;
+  /** Voice playing on it (null: never used). */
+  voice: Voice | null = null;
+
+  /** `level` is the voice input, already connected to its bus. */
+  constructor(readonly level: GainNode) {}
+
+  /**
+   * Reusable for a voice starting at `t`: the last voice was disposed, or `t` is past its natural
+   * end. A stolen voice's chain waits for that natural end too: clearing automation from `t` would
+   * otherwise drop envelope ramps still running before `t` (sounds scheduled ahead, offline renders).
+   */
+  freeAt(t: number): boolean {
+    const v = this.voice;
+    return !v || v.dead || t >= v.until;
+  }
 }
 
 export interface FilterSpec {
@@ -112,6 +144,52 @@ function hz(b: Build, f: number): number {
   return Math.min(b.ctx.sampleRate * 0.45, Math.max(1, f));
 }
 
+/** A silent gain: an envelope must not pass a source that starts a frame before its first event. */
+function silentGain(ctx: BaseAudioContext): GainNode {
+  const g = ctx.createGain();
+  g.gain.value = 0;
+  return g;
+}
+
+/** Envelope gain: the chain's next pooled gain (automation cleared from the voice start) or a new one. */
+function gainNode(b: Build): GainNode {
+  const c = b.chain;
+  if (!c) return own(b, silentGain(b.ctx));
+  let g = c.nodes[b.ni] as GainNode | undefined;
+  if (g) g.gain.cancelScheduledValues(b.t);
+  else c.nodes.push((g = silentGain(b.ctx)));
+  b.ni++;
+  return g;
+}
+
+/** Filter: the chain's next pooled filter (type / Q fixed per layer) or a new one. */
+function filterNode(b: Build, type: BiquadFilterType, q: number): BiquadFilterNode {
+  const c = b.chain;
+  let f = c ? (c.nodes[b.ni] as BiquadFilterNode | undefined) : undefined;
+  if (f) {
+    f.frequency.cancelScheduledValues(b.t);
+  } else {
+    f = b.ctx.createBiquadFilter();
+    f.type = type;
+    f.Q.value = q;
+    if (c) c.nodes.push(f);
+    else b.nodes.push(f);
+  }
+  if (c) b.ni++;
+  return f;
+}
+
+/** Connection between two persistent (or this-play) nodes: made once per chain. */
+function wire(b: Build, from: AudioNode, to: AudioNode): void {
+  if (!b.chain || !b.chain.wired) from.connect(to);
+}
+
+/** A per-play node (source, FM / vibrato depth): disconnected when the voice is disposed. */
+function own<T extends AudioNode>(b: Build, n: T): T {
+  b.nodes.push(n);
+  return n;
+}
+
 function track(b: Build, src: AudioScheduledSourceNode, stop: number): void {
   b.srcs.push(src);
   if (stop >= b.end || !b.last) {
@@ -140,46 +218,41 @@ function sweep(param: AudioParam, t0: number, f0: number, f1: number | undefined
 /** Optional filter between `src` and `dst`; returns the node the source must connect to. */
 function filterInto(b: Build, spec: FilterSpec | undefined, t0: number, dur: number, dst: AudioNode, pitch: number): AudioNode {
   if (!spec) return dst;
-  const f = b.ctx.createBiquadFilter();
-  f.type = spec.type;
-  f.Q.value = spec.q ?? (spec.type === 'bandpass' ? 1 : 0.7);
+  const f = filterNode(b, spec.type, spec.q ?? (spec.type === 'bandpass' ? 1 : 0.7));
   const maxF = b.ctx.sampleRate * 0.45;
   const f0 = Math.min(maxF, spec.f * pitch);
   const f1 = spec.to === undefined ? undefined : Math.min(maxF, spec.to * pitch);
   sweep(f.frequency, t0, f0, f1, spec.sw ?? dur);
-  f.connect(dst);
-  b.nodes.push(f);
+  wire(b, f, dst);
   return f;
 }
 
 function vibrato(b: Build, osc: OscillatorNode, vib: [number, number] | undefined, t0: number, stop: number): void {
   if (!vib) return;
-  const lfo = b.ctx.createOscillator();
-  const depth = b.ctx.createGain();
+  const lfo = own(b, b.ctx.createOscillator());
+  const depth = own(b, b.ctx.createGain());
   lfo.frequency.value = vib[0];
   depth.gain.value = vib[1];
   lfo.connect(depth);
   depth.connect(osc.detune);
   lfo.start(t0);
   lfo.stop(stop);
-  b.nodes.push(lfo, depth);
   track(b, lfo, stop);
 }
 
 /** Oscillator layer with pitch sweep, envelope, optional vibrato and filter sweep. */
 export function tone(b: Build, s: ToneSpec): void {
   const t0 = b.t + (s.at ?? 0);
-  const osc = b.ctx.createOscillator();
+  const osc = own(b, b.ctx.createOscillator());
   setWave(b.g, osc, s.w);
   if (s.det) osc.detune.value = s.det;
-  const env = b.ctx.createGain();
+  const env = gainNode(b);
   sweep(osc.frequency, t0, hz(b, s.f * b.p), s.to === undefined ? undefined : hz(b, s.to * b.p), s.sw ?? s.dur, s.lin);
   const end = envelope(env.gain, t0, s.a ?? 0.002, s.hold ?? 0, s.dur, s.v);
-  env.connect(b.out);
+  wire(b, env, b.out);
   osc.connect(filterInto(b, s.flt, t0, s.dur, env, b.p));
   osc.start(t0);
   osc.stop(end + 0.01);
-  b.nodes.push(osc, env);
   track(b, osc, end + 0.01);
   vibrato(b, osc, s.vib, t0, end + 0.01);
 }
@@ -188,18 +261,17 @@ export function tone(b: Build, s: ToneSpec): void {
 export function noise(b: Build, s: NoiseSpec): void {
   const t0 = b.t + (s.at ?? 0);
   const buf = b.g.noise[s.n ?? 'white'];
-  const src = b.ctx.createBufferSource();
+  const src = own(b, b.ctx.createBufferSource());
   src.buffer = buf;
   src.loop = true;
   const rate = s.rate ?? 1;
   sweep(src.playbackRate, t0, rate, s.rateTo, s.dur);
-  const env = b.ctx.createGain();
+  const env = gainNode(b);
   const end = envelope(env.gain, t0, s.a ?? 0.001, s.hold ?? 0, s.dur, s.v);
-  env.connect(b.out);
+  wire(b, env, b.out);
   src.connect(filterInto(b, s.flt, t0, s.dur, env, 1));
   src.start(t0, b.rnd() * buf.duration * 0.9);
   src.stop(end + 0.01);
-  b.nodes.push(src, env);
   track(b, src, end + 0.01);
 }
 
@@ -207,10 +279,10 @@ export function noise(b: Build, s: NoiseSpec): void {
 export function fm(b: Build, s: FmSpec): void {
   const t0 = b.t + (s.at ?? 0);
   const fc = hz(b, s.f * b.p);
-  const car = b.ctx.createOscillator();
-  const mod = b.ctx.createOscillator();
-  const modGain = b.ctx.createGain();
-  const env = b.ctx.createGain();
+  const car = own(b, b.ctx.createOscillator());
+  const mod = own(b, b.ctx.createOscillator());
+  const modGain = own(b, b.ctx.createGain());
+  const env = gainNode(b);
   sweep(car.frequency, t0, fc, s.to === undefined ? undefined : hz(b, s.to * b.p), s.dur);
   mod.frequency.setValueAtTime(hz(b, fc * s.ratio), t0);
   const d0 = Math.max(1, s.i0 * fc * s.ratio);
@@ -221,12 +293,11 @@ export function fm(b: Build, s: FmSpec): void {
   modGain.connect(car.frequency);
   const end = envelope(env.gain, t0, s.a ?? 0.001, 0, s.dur, s.v);
   car.connect(env);
-  env.connect(b.out);
+  wire(b, env, b.out);
   car.start(t0);
   mod.start(t0);
   car.stop(end + 0.01);
   mod.stop(end + 0.01);
-  b.nodes.push(car, mod, modGain, env);
   track(b, mod, end + 0.01);
   track(b, car, end + 0.01);
 }
@@ -234,10 +305,10 @@ export function fm(b: Build, s: FmSpec): void {
 /** Fast arpeggio / blip sequence on ONE oscillator with a re-triggered envelope (cheap). */
 export function seq(b: Build, s: SeqSpec): void {
   const t0 = b.t + (s.at ?? 0);
-  const osc = b.ctx.createOscillator();
+  const osc = own(b, b.ctx.createOscillator());
   setWave(b.g, osc, s.w);
   if (s.det) osc.detune.value = s.det;
-  const env = b.ctx.createGain();
+  const env = gainNode(b);
   const a = s.a ?? 0.002;
   const nd = Math.min(s.nd ?? s.step * 0.9, s.step - 0.002);
   const g = env.gain;
@@ -252,11 +323,10 @@ export function seq(b: Build, s: SeqSpec): void {
     g.exponentialRampToValueAtTime(FLOOR, tn + Math.max(len, a + 0.004));
     end = tn + Math.max(len, a + 0.004);
   }
-  env.connect(b.out);
+  wire(b, env, b.out);
   osc.connect(filterInto(b, s.flt, t0, end - t0, env, b.p));
   osc.start(t0);
   osc.stop(end + 0.01);
-  b.nodes.push(osc, env);
   track(b, osc, end + 0.01);
   vibrato(b, osc, s.vib, t0, end + 0.01);
 }
@@ -264,9 +334,9 @@ export function seq(b: Build, s: SeqSpec): void {
 /** Melody with individual note lengths on one oscillator (jingles). Notes are [Hz, seconds]. */
 export function mel(b: Build, s: MelSpec): void {
   const t0 = b.t + (s.at ?? 0);
-  const osc = b.ctx.createOscillator();
+  const osc = own(b, b.ctx.createOscillator());
   setWave(b.g, osc, s.w);
-  const env = b.ctx.createGain();
+  const env = gainNode(b);
   const g = env.gain;
   const a = s.a ?? 0.004;
   const gate = s.gate ?? 0.92;
@@ -282,26 +352,33 @@ export function mel(b: Build, s: MelSpec): void {
     g.exponentialRampToValueAtTime(FLOOR, tn + len);
     tn += d;
   }
-  env.connect(b.out);
+  wire(b, env, b.out);
   osc.connect(filterInto(b, s.flt, t0, tn - t0, env, b.p));
   osc.start(t0);
   osc.stop(tn + 0.02);
-  b.nodes.push(osc, env);
   track(b, osc, tn + 0.02);
   vibrato(b, osc, s.vib, t0, tn + 0.02);
 }
 
 // ------------------------------------------------------------------------- voice pool
 
-interface Voice {
+export interface Voice {
   key: string;
   prio: number;
   start: number;
+  /** When the voice stops sounding (pulled in by a steal). */
   end: number;
+  /** When its last source was scheduled to stop (never changed). */
+  until: number;
   level: GainNode;
+  /** Level gain value of this voice (a pooled gain's `.value` may not reflect it yet). */
+  gain: number;
   pan: StereoPannerNode | null;
   srcs: AudioScheduledSourceNode[];
+  /** Nodes created for this play only (disconnected on dispose). */
   nodes: AudioNode[];
+  /** Plays on a Chain: its level gain and pooled nodes stay connected. */
+  pooled: boolean;
   dead: boolean;
 }
 
@@ -363,14 +440,15 @@ export class VoicePool {
   }
 
   /** Registers a finished build as a live voice and wires its auto-dispose. */
-  add(key: string, prio: number, b: Build, level: GainNode, pan: StereoPannerNode | null): void {
-    const v: Voice = { key, prio, start: b.t, end: b.end, level, pan, srcs: b.srcs, nodes: b.nodes, dead: false };
+  add(key: string, prio: number, b: Build, level: GainNode, pan: StereoPannerNode | null, gain = level.gain.value): Voice {
+    const v: Voice = { key, prio, start: b.t, end: b.end, until: b.end, level, gain, pan, srcs: b.srcs, nodes: b.nodes, pooled: b.chain !== null, dead: false };
     this.voices.push(v);
     this.stats.started++;
     if (this.voices.length > this.stats.peak) this.stats.peak = this.voices.length;
     if (b.last) {
       b.last.onended = () => this.dispose(v);
     }
+    return v;
   }
 
   private steal(v: Voice, now: number): void {
@@ -378,7 +456,7 @@ export class VoicePool {
     try {
       const g = v.level.gain;
       g.cancelScheduledValues(t);
-      g.setValueAtTime(g.value, t);
+      g.setValueAtTime(v.gain, t);
       g.linearRampToValueAtTime(0, t + 0.012);
       for (const s of v.srcs) {
         try {
@@ -416,11 +494,13 @@ export class VoicePool {
         /* ignore */
       }
     }
-    try {
-      v.level.disconnect();
-      v.pan?.disconnect();
-    } catch {
-      /* ignore */
+    if (!v.pooled) {
+      try {
+        v.level.disconnect();
+        v.pan?.disconnect();
+      } catch {
+        /* ignore */
+      }
     }
     const i = this.voices.indexOf(v);
     if (i >= 0) this.voices.splice(i, 1);

@@ -5,6 +5,9 @@
 //  Depth bands: ground FX (DEPTH.groundFx, scroll with the terrain); air smoke, glows and
 //  fireballs just under the enemy bullets (bullets stay readable through any explosion);
 //  sparks / debris / texts / edge warnings / vignette / flash above everything but the HUD.
+//  The animation, pixel and glow pools grow on demand up to their caps (then recycle round
+//  robin): hidden pooled objects still cost Phaser a willRender() every frame, so only the peak
+//  actually reached stays in the display list.
 // =====================================================================================
 import Phaser from 'phaser';
 import { DEPTH, H, PLAY_W } from '../config';
@@ -14,6 +17,11 @@ import { FrameAnim, TEX_CHEVRON, TEX_CRATER, TEX_PX, TEX_VIGNETTE, fallbackTex, 
 import type { World } from './world';
 
 const FIRE_TINTS = [0xffffff, 0xfff2b0, 0xffd050, 0xff9a30, 0xff5a18, 0xe03010];
+/** Hot pixels / debris and additive glows: pool caps and the part created up front. */
+const BIT_CAP = 240;
+const BIT_PREWARM = 64;
+const GLOW_CAP = 40;
+const GLOW_PREWARM = 12;
 
 class AnimFx {
   active = false;
@@ -71,30 +79,45 @@ class Marker {
   constructor(readonly img: Phaser.GameObjects.Image) {}
 }
 
-/** One depth band of frame-animated effects. */
+/**
+ * Index of a free item of a round-robin pool (searched from `cursor`), -1 when all are busy.
+ * The caller then grows the pool or recycles the item at the cursor.
+ */
+function freeIndex(items: readonly { active: boolean }[], cursor: number): number {
+  const n = items.length;
+  for (let k = 0; k < n; k++) {
+    const i = (cursor + k) % n;
+    if (!items[i].active) return i;
+  }
+  return -1;
+}
+
+/** One depth band of frame-animated effects (grows on demand up to `cap`). */
 class AnimPool {
   private readonly items: AnimFx[] = [];
   private cursor = 0;
 
-  constructor(scene: Phaser.Scene, size: number, depth: number) {
-    for (let i = 0; i < size; i++) {
-      const img = scene.add.image(-100, -100, TEX_PX).setDepth(depth).setVisible(false);
-      this.items.push(new AnimFx(img));
-    }
+  constructor(private readonly scene: Phaser.Scene, private readonly cap: number, private readonly depth: number, prewarm: number) {
+    for (let i = 0; i < prewarm; i++) this.grow();
   }
 
-  /** Grab a free slot (or recycle the oldest-ish one round robin when full). */
+  private grow(): AnimFx {
+    const f = new AnimFx(this.scene.add.image(-100, -100, TEX_PX).setDepth(this.depth).setVisible(false));
+    this.items.push(f);
+    return f;
+  }
+
+  /** Grab a free slot (grow while under the cap, else recycle the oldest-ish one round robin). */
   take(): AnimFx {
-    const n = this.items.length;
-    for (let k = 0; k < n; k++) {
-      const i = (this.cursor + k) % n;
-      if (!this.items[i].active) {
-        this.cursor = (i + 1) % n;
-        return this.items[i];
-      }
+    const items = this.items;
+    const i = freeIndex(items, this.cursor);
+    if (i >= 0) {
+      this.cursor = (i + 1) % items.length;
+      return items[i];
     }
-    const it = this.items[this.cursor];
-    this.cursor = (this.cursor + 1) % n;
+    if (items.length < this.cap) return this.grow();
+    const it = items[this.cursor];
+    this.cursor = (this.cursor + 1) % items.length;
     return it;
   }
 
@@ -173,9 +196,10 @@ export class Fx {
   readonly animMuzzle: FrameAnim;
   private readonly pixelKey: string;
   private readonly glowKey: string;
+  private readonly scene: Phaser.Scene;
 
   constructor(private readonly w: World) {
-    const scene = w.scene;
+    const scene = (this.scene = w.scene);
     this.animS = new FrameAnim(scene, ANIM.explosion_s, 'fx_explosion_s', 'blast', 22, false);
     this.animM = new FrameAnim(scene, ANIM.explosion_m, 'fx_explosion_m', 'blast', 20, false);
     this.animL = new FrameAnim(scene, ANIM.explosion_l, 'fx_explosion_l', 'blast', 18, false);
@@ -193,19 +217,13 @@ export class Fx {
     }
     // Readability: smoke, glows and fireballs draw just UNDER the enemy bullets (above the
     // air units and the player shots); only sparks, debris, texts and overlays are above them.
-    this.ground = new AnimPool(scene, 48, DEPTH.groundFx);
-    this.air = new AnimPool(scene, 110, DEPTH.enemyBullets - 0.5);
-    this.haze = new AnimPool(scene, 56, DEPTH.enemyBullets - 1);
-    this.over = new AnimPool(scene, 16, DEPTH.fx);
-    for (let i = 0; i < 240; i++) {
-      const img = scene.add.image(-100, -100, this.pixelKey).setDepth(DEPTH.fx + 1).setVisible(false);
-      this.bits.push(new Bit(img));
-    }
-    for (let i = 0; i < 40; i++) {
-      const img = scene.add.image(-100, -100, this.glowKey).setDepth(DEPTH.enemyBullets - 0.6).setVisible(false)
-        .setBlendMode(Phaser.BlendModes.ADD);
-      this.glows.push(new Bit(img));
-    }
+    // caps as before; about a third is created up front, the rest on demand
+    this.ground = new AnimPool(scene, 48, DEPTH.groundFx, 16);
+    this.air = new AnimPool(scene, 110, DEPTH.enemyBullets - 0.5, 36);
+    this.haze = new AnimPool(scene, 56, DEPTH.enemyBullets - 1, 16);
+    this.over = new AnimPool(scene, 16, DEPTH.fx, 6);
+    for (let i = 0; i < BIT_PREWARM; i++) this.growBit();
+    for (let i = 0; i < GLOW_PREWARM; i++) this.growGlow();
     ensureFonts(scene);
     for (let i = 0; i < 14; i++) {
       const t = scene.add.bitmapText(-100, -100, FONT.s, '').setDepth(DEPTH.fx + 3).setOrigin(0.5).setVisible(false);
@@ -375,17 +393,29 @@ export class Fx {
       .setBlendMode(Phaser.BlendModes.ADD).setVisible(true);
   }
 
+  private growBit(): Bit {
+    const b = new Bit(this.scene.add.image(-100, -100, this.pixelKey).setDepth(DEPTH.fx + 1).setVisible(false));
+    this.bits.push(b);
+    return b;
+  }
+
+  private growGlow(): Bit {
+    const b = new Bit(this.scene.add.image(-100, -100, this.glowKey).setDepth(DEPTH.enemyBullets - 0.6).setVisible(false)
+      .setBlendMode(Phaser.BlendModes.ADD));
+    this.glows.push(b);
+    return b;
+  }
+
   private takeBit(): Bit {
-    const n = this.bits.length;
-    for (let k = 0; k < n; k++) {
-      const i = (this.bitCursor + k) % n;
-      if (!this.bits[i].active) {
-        this.bitCursor = (i + 1) % n;
-        return this.bits[i];
-      }
+    const bits = this.bits;
+    const i = freeIndex(bits, this.bitCursor);
+    if (i >= 0) {
+      this.bitCursor = (i + 1) % bits.length;
+      return bits[i];
     }
-    const b = this.bits[this.bitCursor];
-    this.bitCursor = (this.bitCursor + 1) % n;
+    if (bits.length < BIT_CAP) return this.growBit();
+    const b = bits[this.bitCursor];
+    this.bitCursor = (this.bitCursor + 1) % bits.length;
     return b;
   }
 
@@ -465,15 +495,17 @@ export class Fx {
 
   /** Additive radial glow flash. */
   glow(x: number, y: number, tint: number, scale: number, ms: number): void {
-    const n = this.glows.length;
-    let b = this.glows[this.glowCursor];
-    for (let k = 0; k < n; k++) {
-      const i = (this.glowCursor + k) % n;
-      if (!this.glows[i].active) {
-        b = this.glows[i];
-        this.glowCursor = (i + 1) % n;
-        break;
-      }
+    const glows = this.glows;
+    const i = freeIndex(glows, this.glowCursor);
+    let b: Bit;
+    if (i >= 0) {
+      b = glows[i];
+      this.glowCursor = (i + 1) % glows.length;
+    } else if (glows.length < GLOW_CAP) {
+      b = this.growGlow();
+    } else {
+      // all busy at the cap: reuse the one at the cursor (as before: the cursor does not move)
+      b = glows[this.glowCursor];
     }
     b.active = true;
     b.age = 0;

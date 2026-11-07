@@ -6,7 +6,7 @@
 import type { SfxKey } from '../types';
 import type { Graph } from './engine';
 import { mtof } from './theory';
-import { fm, mel, noise, seq, tone, VoicePool, type Build } from './voices';
+import { Chain, fm, mel, noise, seq, tone, VoicePool, type Build } from './voices';
 
 export interface SfxDef {
   /** Minimum seconds between two plays of this key (extra calls are ignored). */
@@ -296,6 +296,8 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
 
 /** Major-scale ladder used when credits are collected in quick succession. */
 const CREDIT_LADDER = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16];
+/** Pooled chains per key beyond its voice limit (stolen voices fade out on their own chain). */
+const CHAIN_SPARE = 2;
 
 export interface SfxPlayOptions {
   volume?: number;
@@ -313,10 +315,15 @@ export interface SfxStats {
   disposed: number;
 }
 
-/** Plays SFX on one Graph: rate limits, voice pool, pitch variation, stereo pan. */
+/**
+ * Plays SFX on one Graph: rate limits, voice pool, pitch variation, stereo pan. Unpanned plays
+ * reuse a per-key Chain of persistent level / envelope / filter nodes (see voices.ts), so a
+ * fight mostly creates sources only; a burst beyond the chains builds one-off nodes.
+ */
 export class SfxEngine {
   readonly pool: VoicePool;
   private last = new Map<SfxKey, number>();
+  private chains = new Map<SfxKey, Chain[]>();
   private rateLimited = 0;
   private combo = 0;
   private lastCredit = -1;
@@ -351,23 +358,53 @@ export class SfxEngine {
     }
     // Same-key pile-ups get quieter so 20 shots/s or a chain of explosions never clip.
     const same = this.pool.countKey(key, now);
-    const level = ctx.createGain();
-    level.gain.value = def.v * vol / Math.sqrt(1 + 0.45 * same);
+    const gain = def.v * vol / Math.sqrt(1 + 0.45 * same);
     let pan: StereoPannerNode | null = null;
     const panV = clampNum(opts?.pan, -1, 1, 0);
     const dest = def.crunch ? this.g.crunchBus : this.g.sfxBus;
-    if (this.g.canPan && Math.abs(panV) > 0.01) {
-      pan = ctx.createStereoPanner();
-      pan.pan.value = panV;
-      level.connect(pan);
-      pan.connect(dest);
+    const panned = this.g.canPan && Math.abs(panV) > 0.01;
+    const chain = panned ? null : this.chainFor(key, def.max + CHAIN_SPARE, dest, now);
+    let level: GainNode;
+    if (chain) {
+      level = chain.level;
+      level.gain.cancelScheduledValues(now);
+      level.gain.setValueAtTime(gain, now);
     } else {
-      level.connect(dest);
+      level = ctx.createGain();
+      level.gain.value = gain;
+      if (panned) {
+        pan = ctx.createStereoPanner();
+        pan.pan.value = panV;
+        level.connect(pan);
+        pan.connect(dest);
+      } else {
+        level.connect(dest);
+      }
     }
-    const b: Build = { g: this.g, ctx, t: now, p, out: level, end: now, srcs: [], nodes: [], last: null, rnd: this.rnd };
+    const b: Build = { g: this.g, ctx, t: now, p, out: level, end: now, srcs: [], nodes: [], last: null, rnd: this.rnd, chain, ni: 0 };
     def.build(b);
-    this.pool.add(key, def.prio, b, level, pan);
+    const voice = this.pool.add(key, def.prio, b, level, pan, gain);
+    if (chain) {
+      chain.wired = true;
+      chain.voice = voice;
+    }
     return true;
+  }
+
+  /** A free pooled chain of `key` for a voice starting at `now` (created up to `limit`), or null. */
+  private chainFor(key: SfxKey, limit: number, dest: AudioNode, now: number): Chain | null {
+    let list = this.chains.get(key);
+    if (!list) {
+      list = [];
+      this.chains.set(key, list);
+    }
+    for (let i = 0; i < list.length; i++) if (list[i].freeAt(now)) return list[i];
+    if (list.length >= limit) return null;
+    const level = this.g.ctx.createGain();
+    level.connect(dest);
+    const c = new Chain(level);
+    list.push(c);
+    return c;
   }
 
   stats(now: number): SfxStats {

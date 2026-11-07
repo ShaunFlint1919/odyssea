@@ -5,6 +5,8 @@
 //  (movement.ts), firing (firePatterns.ts), hit flash, damage smoke, deaths (explosions by
 //  size, debris, shake, hit-stop, credit gems, drops, score) and culling. Every step records
 //  each unit's previous position (px, py) for the swept player-shot tests (collisions.ts).
+//  The pools grow on demand up to their caps and a turret head image exists only on units
+//  that have one (hidden pooled objects still cost Phaser a willRender() every frame).
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, DEPTH, H, PLAY_W } from '../config';
@@ -33,6 +35,11 @@ const HEAD_TIP: Record<string, number> = { gr_turret: 9, gr_twin: 12, gr_tank: 1
 /** Lateral barrel offsets of multi-barrel heads (volleys alternate between them). */
 const HEAD_BARRELS: Record<string, number[]> = { gr_twin: [-4, 4] };
 const MAX_LIFE = 70;
+/** Pool caps (air / surface units alive at once) and how many of each are created up front. */
+const MAX_AIR = 84;
+const MAX_GROUND = 48;
+const PREWARM_AIR = 32;
+const PREWARM_GROUND = 16;
 const CONTACT_COOLDOWN = 0.5;
 /** Carrier hangar launch cadence (s) and the cap of live enemies above which launches pause. */
 const BAY_INTERVAL = 3.4;
@@ -101,11 +108,13 @@ export class Enemy implements LaserOwner, FireSpec {
   hasShadow = false;
   shadowAnimated = false;
   hasHead = false;
+  /** Rotatable turret head, created the first time this pooled unit spawns as a turret unit. */
+  head: Phaser.GameObjects.Image | null = null;
 
   constructor(
     readonly img: Phaser.GameObjects.Image,
+    /** Ground shadow (air units only); null marks a surface-pool unit. */
     readonly shadow: Phaser.GameObjects.Image | null,
-    readonly head: Phaser.GameObjects.Image,
   ) {}
 
   get alive(): boolean {
@@ -158,6 +167,9 @@ export class Enemies {
   private readonly airFree: Enemy[] = [];
   private readonly groundFree: Enemy[] = [];
   private serialSeq = 1;
+  private airCreated = 0;
+  private groundCreated = 0;
+  private readonly fallbackKey: string;
   private readonly animCache = new Map<string, FrameAnim | null>();
   private readonly texCache = new Map<string, string>();
   private hapticT = 0;
@@ -166,25 +178,28 @@ export class Enemies {
   midboss: Enemy | null = null;
 
   constructor(private readonly w: World) {
-    const scene = w.scene;
-    const fb = fallbackTex(scene, 'enemy');
-    for (let i = 0; i < 84; i++) {
-      const shadow = scene.add.image(-100, -100, fb).setDepth(DEPTH.shadows).setVisible(false);
-      const img = scene.add.image(-100, -100, fb).setDepth(DEPTH.air).setVisible(false);
-      const head = scene.add.image(-100, -100, fb).setDepth(DEPTH.air + 1).setVisible(false);
-      this.airFree.push(new Enemy(img, shadow, head));
-    }
-    for (let i = 0; i < 48; i++) {
-      const img = scene.add.image(-100, -100, fb).setDepth(DEPTH.ground).setVisible(false);
-      const head = scene.add.image(-100, -100, fb).setDepth(DEPTH.ground + 1).setVisible(false);
-      this.groundFree.push(new Enemy(img, null, head));
-    }
+    this.fallbackKey = fallbackTex(w.scene, 'enemy');
+    for (let i = 0; i < PREWARM_AIR; i++) this.airFree.push(this.create(true) as Enemy);
+    for (let i = 0; i < PREWARM_GROUND; i++) this.groundFree.push(this.create(false) as Enemy);
     const intel = w.level.intel;
     this.knownIntel = !!intel && getSave().intel.includes(intel);
   }
 
   get count(): number {
     return this.list.length;
+  }
+
+  /** A new pooled unit of the air or surface pool, or null once that pool reached its cap. */
+  private create(air: boolean): Enemy | null {
+    if (air ? this.airCreated >= MAX_AIR : this.groundCreated >= MAX_GROUND) return null;
+    const scene = this.w.scene, fb = this.fallbackKey;
+    if (air) {
+      this.airCreated++;
+      const shadow = scene.add.image(-100, -100, fb).setDepth(DEPTH.shadows).setVisible(false);
+      return new Enemy(scene.add.image(-100, -100, fb).setDepth(DEPTH.air).setVisible(false), shadow);
+    }
+    this.groundCreated++;
+    return new Enemy(scene.add.image(-100, -100, fb).setDepth(DEPTH.ground).setVisible(false), null);
   }
 
   private tex(key: string): string {
@@ -213,7 +228,7 @@ export class Enemies {
    */
   spawn(def: EnemyDef, x: number, y: number, move: MovePattern, dir: number, opts?: SpawnOpts): Enemy | null {
     const air = def.layer === 'air';
-    const e = (air ? this.airFree : this.groundFree).pop();
+    const e = (air ? this.airFree : this.groundFree).pop() ?? this.create(air);
     if (!e) return null;
     const w = this.w;
     const scene = w.scene;
@@ -265,8 +280,12 @@ export class Enemies {
     e.bays = mz?.bays ?? null;
     e.bayT = BAY_INTERVAL * 0.5;
     e.shot = 0;
-    if (e.hasHead) e.head.setTexture(hk).clearTint().setVisible(true).setPosition(x, y).setRotation(0);
-    else e.head.setVisible(false);
+    if (e.hasHead) {
+      const head = e.head ?? (e.head = scene.add.image(x, y, hk).setDepth((e.shadow ? DEPTH.air : DEPTH.ground) + 1));
+      head.setTexture(hk).clearTint().setVisible(true).setPosition(x, y).setRotation(0);
+    } else if (e.head) {
+      e.head.setVisible(false);
+    }
     initMove(e, w);
     e.img.rotation = e.rot;
     this.list.push(e);
@@ -314,7 +333,7 @@ export class Enemies {
     e.active = false;
     e.img.setVisible(false);
     e.shadow?.setVisible(false);
-    e.head.setVisible(false);
+    e.head?.setVisible(false);
     const i = this.list.indexOf(e);
     if (i >= 0) {
       this.list[i] = this.list[this.list.length - 1];
@@ -338,7 +357,7 @@ export class Enemies {
     e.hp -= amount;
     if (e.flash <= 0 && e.flashCd <= 0) {
       e.img.setTintFill(0xffffff);
-      if (e.hasHead) e.head.setTintFill(0xffffff);
+      if (e.hasHead) e.head?.setTintFill(0xffffff);
       e.flash = FLASH_TIME;
       e.flashCd = FLASH_TIME + (e.isMidboss || e.radius >= BIG_RADIUS ? FLASH_GAP_BIG : FLASH_GAP);
     }
@@ -501,7 +520,7 @@ export class Enemies {
         e.flash -= dt;
         if (e.flash <= 0) {
           e.img.clearTint();
-          if (e.hasHead) e.head.clearTint();
+          if (e.hasHead) e.head?.clearTint();
         }
       }
       // damaged smoke
@@ -533,9 +552,10 @@ export class Enemies {
       e.shadow.setPosition(x + 6, y + 10);
       e.shadow.rotation = e.rot;
     }
-    if (e.hasHead) {
-      e.head.setPosition(x, y);
-      e.head.rotation = e.headRot;
+    const head = e.head;
+    if (e.hasHead && head) {
+      head.setPosition(x, y);
+      head.rotation = e.headRot;
     }
   }
 
