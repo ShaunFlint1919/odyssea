@@ -14,7 +14,7 @@ import {
   BAND_H, BAND_H_SHORT, BAND_W, BOSS_H, BOSS_W, ICON, LAMP, PIPS, PIP_H, PIP_STRIDE, PIP_W, SEG,
   type HudLayout, type LegendBox, type Rect,
 } from './layout';
-import { drawTexture, fill, hex, hline, nineSlice, px, raisedPlate, ramp, shade, strokeRect, vgrad, vline, withAlpha, type Ctx } from './paint';
+import { drawTexture, fill, hex, hline, nineSlice, paintPixels, px, raisedPlate, ramp, rgb, shade, strokeRect, vgrad, vline, withAlpha, type Ctx } from './paint';
 
 // ------------------------------------------------------------------------------ palette
 
@@ -127,32 +127,36 @@ function ledColumn(ctx: Ctx, x: number, y: number, w: number, h: number, col: Ra
     const fb = h - 1 - row;
     const k = fb % SEG;
     if (k === SEG - 1) continue;
+    const yy = y + row;
     const t = h <= 1 ? 0 : fb / (h - 1);
     let c = col(t);
-    if (!flat) {
-      if (k === SEG - 2) c = shade(c, 0.2);
-      else if (k === 0) c = shade(c, -0.2);
+    if (flat) {
+      fill(ctx, x, yy, w, 1, c);
+      px(ctx, x, yy, '#d8d8e0');
+      px(ctx, x + w - 1, yy, '#d8d8e0');
+      continue;
     }
-    for (let xx = 0; xx < w; xx++) {
-      let cc = c;
-      if (flat) cc = xx === 0 || xx === w - 1 ? '#d8d8e0' : c;
-      else if (xx === 0 || xx === w - 1) cc = shade(c, -0.34);
-      else if (xx === 2 || xx === 3) cc = shade(c, 0.3);
-      else if (xx === w - 2) cc = shade(c, -0.12);
-      px(ctx, x + xx, y + row, cc);
-    }
+    if (k === SEG - 2) c = shade(c, 0.2);
+    else if (k === 0) c = shade(c, -0.2);
+    // spans: rounded dark sides, glassy highlight at x = 2..3, soft shade at w - 2
+    fill(ctx, x, yy, w, 1, c);
+    const edge = shade(c, -0.34);
+    px(ctx, x, yy, edge);
+    px(ctx, x + w - 1, yy, edge);
+    fill(ctx, x + 2, yy, 2, 1, shade(c, 0.3));
+    px(ctx, x + w - 2, yy, shade(c, -0.12));
   }
 }
 
 /** Horizontal segmented bar (boss): vertical row shading, 1 px gap column every `seg` px. */
 function hbar(ctx: Ctx, x: number, y: number, w: number, rows: string[], seg: number, white = false): void {
-  for (let xx = 0; xx < w; xx++) {
-    if (xx % seg === seg - 1) continue;
-    for (let r = 0; r < rows.length; r++) {
-      const c = white ? (r === 0 || r === rows.length - 1 ? '#e0dce8' : '#ffffff') : rows[r];
-      px(ctx, x + xx, y + r, xx % seg === 0 && !white ? shade(c, -0.15) : c);
-    }
-  }
+  const base = rows.map((c, r) => rgb(white ? (r === 0 || r === rows.length - 1 ? '#e0dce8' : '#ffffff') : c));
+  const dark = rows.map((c) => rgb(shade(c, -0.15)));
+  paintPixels(ctx, x, y, w, rows.length, (xx, r, d, o) => {
+    if (xx % seg === seg - 1) { d[o + 3] = 0; return; }
+    const c = xx % seg === 0 && !white ? dark[r] : base[r];
+    d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+  });
 }
 
 /** 10 power pips: lit = teal -> magenta ramp, unlit = dark. */
@@ -488,12 +492,10 @@ export function buildParts(scene: Phaser.Scene, key: string, L: HudLayout, fonts
   const sh = L.scoreShade;
   a.add(PART.scoreShade, sh.w, sh.h, (c, x, y) => {
     const ss = (e0: number, e1: number, v: number) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
-    for (let yy = 0; yy < sh.h; yy++) {
-      for (let xx = 0; xx < sh.w; xx++) {
-        const al = 0.5 * (1 - ss(0.45, 1, xx / sh.w)) * ss(0, 0.5, yy / sh.h);
-        if (al > 0.01) px(c, x + xx, y + yy, withAlpha('#05040a', al));
-      }
-    }
+    paintPixels(c, x, y, sh.w, sh.h, (xx, yy, d, o) => {
+      const al = 0.5 * (1 - ss(0.45, 1, xx / sh.w)) * ss(0, 0.5, yy / sh.h);
+      d[o] = 5; d[o + 1] = 4; d[o + 2] = 10; d[o + 3] = Math.round(al * 255);
+    });
   });
   // hazard stripes (fx_warning tiled) and banner bands
   const sw = BAND_W + 64;
@@ -511,24 +513,20 @@ export function buildParts(scene: Phaser.Scene, key: string, L: HudLayout, fonts
     }
   });
   const band = (h: number, warn: boolean) => (c: Ctx, x: number, y: number) => {
-    const bgA = warn ? '#22040a' : '#0b0a1c';
-    const scan = warn ? '#2e0810' : '#121028';
-    const edge = warn ? '#ff4a4a' : PAL.neon;
-    const edge2 = warn ? '#8a1018' : PAL.neonDeep;
-    for (let yy = 0; yy < h; yy++) {
-      const base = yy % 2 ? scan : bgA;
-      for (let xx = 0; xx < BAND_W; xx++) {
-        const fade = Math.min(1, Math.min(xx, BAND_W - 1 - xx) / 28);
-        const isEdge = yy === 0 || yy === h - 1;
-        const isEdge2 = yy === 1 || yy === h - 2;
-        const col = isEdge ? edge : isEdge2 ? edge2 : base;
-        const al = isEdge ? 0.95 * fade : isEdge2 ? 0.9 * fade : 0.84 * (0.35 + 0.65 * fade);
-        px(c, x + xx, y + yy, withAlpha(col, al));
-      }
-    }
-    // centre accents on the edges
-    hline(c, x + BAND_W / 2 - 20, y, 40, '#ffffff');
-    hline(c, x + BAND_W / 2 - 20, y + h - 1, 40, '#ffffff');
+    const bgA = rgb(warn ? '#22040a' : '#0b0a1c');
+    const scan = rgb(warn ? '#2e0810' : '#121028');
+    const edge = rgb(warn ? '#ff4a4a' : PAL.neon);
+    const edge2 = rgb(warn ? '#8a1018' : PAL.neonDeep);
+    const mid = BAND_W / 2;
+    paintPixels(c, x, y, BAND_W, h, (xx, yy, d, o) => {
+      const fade = Math.min(1, Math.min(xx, BAND_W - 1 - xx) / 28);
+      const isEdge = yy === 0 || yy === h - 1;
+      const isEdge2 = yy === 1 || yy === h - 2;
+      const accent = isEdge && xx >= mid - 20 && xx < mid + 20;
+      const col = accent ? [255, 255, 255] : isEdge ? edge : isEdge2 ? edge2 : yy % 2 ? scan : bgA;
+      const al = accent ? 1 : isEdge ? 0.95 * fade : isEdge2 ? 0.9 * fade : 0.84 * (0.35 + 0.65 * fade);
+      d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = Math.round(al * 255);
+    });
   };
   a.add(PART.bandInfo, BAND_W, BAND_H, band(BAND_H, false));
   a.add(PART.bandInfoShort, BAND_W, BAND_H_SHORT, band(BAND_H_SHORT, false));

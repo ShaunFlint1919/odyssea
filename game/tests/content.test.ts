@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOSSES, ENEMIES, FRONT_WEAPONS, GENERATORS, HULLS, INTEL, LEVELS, PLANETS, REAR_WEAPONS, SHIELDS, SIDEKICKS,
-  START_CREDITS, START_LOADOUT, WEAPONS, estimateLevelCredits, findLevel, getBoss, getEnemy, getGenerator, getHull,
+  DPS_UPTIME, REFERENCE_DPS, START_CREDITS, START_LOADOUT, WEAPONS, estimateLevelCredits, findLevel, getBoss, getEnemy, getGenerator, getHull,
   getLevel, getLevelStats, getShield, getWeapon, levelOrder, levelsOfPlanet, nextLevelId, nominalDps, planetOfLevel,
   targetLevelCredits, validateContent,
 } from '../src/data';
@@ -161,6 +161,14 @@ describe('balance', () => {
     expect(mb[0]).toBe(1500);
     expect(mb[mb.length - 1]).toBe(4000);
     for (let i = 1; i < mb.length; i++) expect(mb[i]).toBeGreaterThan(mb[i - 1]);
+  });
+
+  it('boss fights last 45-180 s for the reference player', () => {
+    CAMPAIGN.forEach((c, i) => {
+      const ttk = getBoss(c.boss).hp / (REFERENCE_DPS[i] * DPS_UPTIME);
+      expect(ttk, c.boss).toBeGreaterThanOrEqual(45);
+      expect(ttk, c.boss).toBeLessThanOrEqual(180);
+    });
   });
 
   it('boss hp climbs from 3500 to 40000 with 2-4 phases and 2-6 parts', () => {

@@ -35,7 +35,6 @@ const CATS: { cat: ShopCategory; label: string; title: string; icon: string; hel
 
 const isCategory = (c: unknown): c is ShopCategory => typeof c === 'string' && (SHOP_CATEGORIES as string[]).includes(c);
 const isGun = (c: ShopCategory | null): c is 'front' | 'rear' => c === 'front' || c === 'rear';
-const isSidekick = (c: ShopCategory | null): boolean => c === 'sidekickL' || c === 'sidekickR';
 
 /** Upgrade Ship: category list, then the item list of a category with a live weapon preview. */
 export class ShopScene extends Phaser.Scene {
@@ -112,11 +111,13 @@ export class ShopScene extends Phaser.Scene {
     this.buyBtn = undefined;
     this.pageDispose.forEach((d) => d());
     this.pageDispose = [];
+    this.tweens.killTweensOf(this.page);
     this.page.forEach((o) => o.destroy());
     this.page = [];
   }
 
   private clearInfo(): void {
+    this.tweens.killTweensOf(this.infoObjs);
     this.infoObjs.forEach((o) => o.destroy());
     this.infoObjs = [];
   }
@@ -294,8 +295,7 @@ export class ShopScene extends Phaser.Scene {
     const infoH = 76;
     let pvH = avail - (n * rowH + 10) - infoH - 2 * gap;
     while (pvH > 230 && rowH < 26) { rowH++; pvH = avail - (n * rowH + 10) - infoH - 2 * gap; }
-    while (pvH < 96 && rowH > 18) { rowH--; pvH = avail - (n * rowH + 10) - infoH - 2 * gap; }
-    pvH = Math.min(pvH, 300);
+    pvH = Phaser.Math.Clamp(pvH, 70, 300);
     const listH = n * rowH + 10;
     const px = 4, pw = W - 8;
 
@@ -338,7 +338,10 @@ export class ShopScene extends Phaser.Scene {
       const label = upper(it.id === null ? 'NONE' : it.name);
       const icon = it.locked ? iconOr(this, 'ui_icon_lock', META.icLock) : this.itemIcon(cat, it.id);
       const base = { label, icon, arrows: false } as const;
-      if (it.equipped) return { ...base, value: 'EQUIPPED', valueColor: COLORS.teal, color: COLORS.teal, help: 'EQUIPPED ON YOUR SHIP' };
+      if (it.equipped) {
+        const help = isGun(cat) && it.id !== null ? 'EQUIPPED - USE < > TO CHANGE ITS POWER' : 'EQUIPPED ON YOUR SHIP';
+        return { ...base, value: 'EQUIPPED', valueColor: COLORS.teal, color: COLORS.teal, help };
+      }
       if (it.locked) return { ...base, value: 'LOCKED', disabled: true, help: unlockHint(this.unlockLevel(cat, it.id)) };
       if (!slotOk && it.id !== null) return { ...base, value: 'NO SLOT', disabled: true, help: 'NO MOUNT HERE - FLY A TWIN-MOUNT HULL' };
       const net = switchCost(cat, it.id);

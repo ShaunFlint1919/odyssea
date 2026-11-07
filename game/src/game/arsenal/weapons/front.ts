@@ -16,7 +16,7 @@ import type { FrontPattern } from '../../../types';
 import { SLOT_FRONT } from '../fx';
 import { HIT_BLAST, HIT_SOFT, HitRegistry, MOVE_HOMING, MOVE_SINE, makeSpec, type ShotSpec } from '../shots';
 import { fxTexture } from '../textures';
-import { DEG, TAU, UP, dpsMul, rateMul, ramp, table } from '../scaling';
+import { DEG, TAU, UP, dpsMul, ramp, table } from '../scaling';
 import { WeaponGun, type ArsenalCore } from './gun';
 
 // ------------------------------------------------------------------------------ pulse
@@ -43,7 +43,7 @@ class PulseGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.03);
+    const r = this.rate();
     this.layout = table(p, PULSE_LAYOUT);
     let weight = 0;
     for (let i = 1; i < this.layout.length; i += 2) weight += PULSE_WEIGHT[this.layout[i]];
@@ -88,7 +88,7 @@ class ScatterGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.03);
+    const r = this.rate();
     this.n = table(p, SCATTER_N);
     this.half = ramp(p, 10, 40.6) * DEG;
     const s = this.spec();
@@ -135,7 +135,7 @@ class GatlingGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.06);
+    const r = this.rate();
     const nb = table(p, GATLING_N);
     this.subs = 2;
     this.barrels = GATLING_BARRELS[nb - 1];
@@ -189,7 +189,7 @@ class LanceGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.03);
+    const r = this.rate();
     this.segments = 2 + Math.floor((p - 1) / 3);
     this.length = this.segments * BEAM_STEP + 6;
     const w = ramp(p, 1, 1.81);
@@ -263,7 +263,7 @@ class SeekerGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.03);
+    const r = this.rate();
     const n = table(p, SEEKER_N);
     this.subs = n;
     this.subSpread = 0.45;
@@ -322,7 +322,7 @@ class HelixGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.03);
+    const r = this.rate();
     this.subs = 3;
     this.four = p >= 6;
     const n = (this.four ? 4 : 2) * this.subs;
@@ -378,7 +378,7 @@ class MortarGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.025);
+    const r = this.rate();
     const n = p < 5 ? 1 : p < 9 ? 2 : 3;
     this.layout = MORTAR_LAYOUT[n - 1];
     const sc = ramp(p, 1, 1.45);
@@ -427,7 +427,7 @@ class PrismGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.03);
+    const r = this.rate();
     this.bolts = table(p, PRISM_BOLTS);
     const k = table(p, PRISM_SHARDS);
     const boltDmg = this.dmg(1, this.bolts, r);

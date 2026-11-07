@@ -10,7 +10,7 @@ import { isCompleted, isUnlocked } from '../state/progress';
 import * as kit from '../ui/kit';
 import { META, ensureMetaArt, frameIcon, iconOr, nebulaBackdrop } from '../ui/meta/art';
 import { HEADER_H, MD, cornerBrackets, header, scanlines, sectionLabel, toast } from '../ui/meta/chrome';
-import { findLevel, fmt, nextMissionId, planetOfLevel, upper, wrapLines } from '../ui/meta/common';
+import { findLevel, fmt, nextMissionId, planetOfLevel, setHangarFocus, upper, wrapLines } from '../ui/meta/common';
 import { RouteRenderer, type RouteState } from '../ui/meta/galaxy';
 import { BIOME_TINT, planetTexture } from '../ui/meta/planets';
 
@@ -356,6 +356,7 @@ export class MapScene extends Phaser.Scene {
     const save = getSave();
     save.currentLevel = id;
     saveNow();
+    setHangarFocus(0);
     audio.sfx('ui_buy');
     const lv = findLevel(id);
     toast(this, 'MISSION SET', COLORS.good, this.scale.gameSize.height / 2, upper(lv?.name ?? id));
@@ -368,6 +369,7 @@ export class MapScene extends Phaser.Scene {
     audio.sfx('ui_back');
     this.panelList?.destroy();
     this.panelList = undefined;
+    this.tweens.killTweensOf([...this.briefObjs, ...this.panelObjs]);
     this.briefObjs.forEach((o) => o.destroy());
     this.briefObjs = [];
     this.panelObjs.forEach((o) => o.destroy());

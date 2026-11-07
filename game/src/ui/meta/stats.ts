@@ -1,18 +1,13 @@
 // =====================================================================================
 //  META SCREENS — loadout statistics for the Specs screen, the hangar summary and the shop
-//  comparisons. Uses the shared power-scaling formulas of the arsenal
-//  (src/game/arsenal/scaling.ts: DPS x M(p), energy per volley x E(p), cadence x R(p)) and
-//  the projectiles-per-volley tables of the content balance model (src/data/weapons.ts,
-//  src/data/sidekicks.ts). Values are nominal (every projectile hitting).
+//  comparisons. Front / rear weapon numbers come from the arsenal's single source of truth
+//  (weaponFireStats in src/game/arsenal/scaling.ts); sidekick volleys use the content balance
+//  table (src/data/sidekicks.ts). Values are nominal (every projectile hitting).
 // =====================================================================================
 import type { Loadout, SidekickDef, WeaponDef } from '../../types';
-import { dpsMul, energyMul, rateMul } from '../../game/arsenal/scaling';
-import { PROJECTILES_AT_P1 } from '../../data/weapons';
+import { weaponFireStats } from '../../game/arsenal/scaling';
 import { SIDEKICK_PROJECTILES } from '../../data/sidekicks';
 import { findGenerator, findHull, findShield, findSidekick, findWeapon } from './common';
-
-/** Cadence slope of R(p) used for display (the arsenal uses 0.02..0.06 per pattern). */
-const RATE_SLOPE = 0.04;
 
 export interface GunStats {
   name: string;
@@ -25,32 +20,25 @@ export interface GunStats {
   dps: number;
   /** Generator energy drawn per second while firing. */
   energy: number;
-  projectiles: number;
 }
 
-/** Stats of a front / rear weapon at a power level. */
+/** Stats of a front / rear weapon at a power level (exactly as the arsenal fires it). */
 export function weaponStats(def: WeaponDef, power: number): GunStats {
-  const p = Math.max(1, Math.round(power));
-  const n = PROJECTILES_AT_P1[def.pattern] ?? 1;
-  const rate = def.fireRate * rateMul(p, RATE_SLOPE);
-  const dps = def.damage * n * def.fireRate * dpsMul(p);
+  const s = weaponFireStats(def, power);
   return {
     name: def.name,
-    power: p,
-    volley: rate > 0 ? dps / rate : 0,
-    rate,
-    dps,
-    energy: def.energyPerShot * energyMul(p) * rate,
-    projectiles: n,
+    power: s.power,
+    volley: s.volleysPerSec > 0 ? s.dps / s.volleysPerSec : 0,
+    rate: s.volleysPerSec,
+    dps: s.dps,
+    energy: s.energyPerSec,
   };
 }
 
 /** Stats of a sidekick (sidekicks draw no generator energy). */
 export function sidekickStats(def: SidekickDef): GunStats {
   const n = SIDEKICK_PROJECTILES[def.pattern] ?? 1;
-  return {
-    name: def.name, power: 1, volley: def.damage * n, rate: def.fireRate, dps: def.damage * n * def.fireRate, energy: 0, projectiles: n,
-  };
+  return { name: def.name, power: 1, volley: def.damage * n, rate: def.fireRate, dps: def.damage * n * def.fireRate, energy: 0 };
 }
 
 export interface EnergyBalance {

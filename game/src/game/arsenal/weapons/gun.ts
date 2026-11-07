@@ -5,7 +5,8 @@
 //  inside a frame are fired with their lateness so fast streams stay evenly spaced.
 //  Energy: host.trySpendEnergy(energy) before every volley (false -> the volley is skipped,
 //  the cadence continues). energy = def.energyPerShot * E(p) / R(p), i.e. the generator
-//  drain per second grows only by E(p) = 1 + 0.05 (p - 1) while cadence rises with R(p).
+//  drain per second grows only by E(p) = 1 + 0.05 (p - 1) while cadence rises with R(p)
+//  (exact numbers for displays: weaponFireStats() in ../scaling.ts).
 //  Priority: while the front gun is starved, the rear gun does not draw energy.
 // =====================================================================================
 import type { SfxKey, WeaponDef } from '../../../types';
@@ -16,7 +17,7 @@ import { ANCHOR_SHIP } from '../env';
 import type { FxPool } from '../fx';
 import { makeSpec, type ShotPool, type ShotSpec } from '../shots';
 import { shotTexture } from '../textures';
-import { clampPower, energyMul, intervalMs, shotDamage } from '../scaling';
+import { clampPower, energyMul, intervalMs, patternRate, shotDamage } from '../scaling';
 
 /** What guns and sidekicks need from the arsenal. */
 export interface ArsenalCore extends AnchorSource {
@@ -165,6 +166,11 @@ export abstract class WeaponGun extends Gun {
 
   /** Builds the specs for the current def/power/mode; returns the cadence multiplier R(p). */
   protected abstract build(): number;
+
+  /** Cadence multiplier R(p) of this weapon (RATE_SLOPE of its pattern, see scaling.ts). */
+  protected rate(): number {
+    return patternRate(this.def.pattern, this.p);
+  }
 
   /** A spec showing `sprite` (default: the weapon's projectile) in the weapon colour. */
   protected spec(sprite: string = this.def.projectile): ShotSpec {

@@ -376,14 +376,25 @@ function crystal(): Spr {
 }
 
 function stalagmite(): Spr {
-  const s = new Spr(22, 22);
-  s.ball(8, 8, 6.6, 6.6, CAVE, { rough: 0.12, seed: 141, gain: 1.1 });
-  for (let k = 0; k < 28; k++) {
-    const a = (k / 28) * Math.PI * 2;
-    for (const rr of [2.6, 4.8]) s.set(8 + Math.cos(a) * rr, 8 + Math.sin(a) * rr, mixc(pick(CAVE, 0.3, k, 0), 0x000000, 0.1));
-  }
-  s.set(7, 7, CAVE[7]);
-  s.set(8, 7, CAVE[6]);
+  const s = new Spr(24, 24);
+  // a cone seen from above: shading depends on the facing angle (lit north-west half, dark
+  // south-east half meeting at the tip), with concentric mineral deposit rings
+  const cone = (cx: number, cy: number, R: number, seed: number) => {
+    for (let y = Math.floor(cy - R); y <= cy + R; y++) {
+      for (let x = Math.floor(cx - R); x <= cx + R; x++) {
+        const dx = x + 0.5 - cx, dy = y + 0.5 - cy, d = Math.hypot(dx, dy);
+        if (d > R) continue;
+        const face = d < 0.5 ? 1 : -(dx * 0.6 + dy * 0.8) / d;
+        let t = 0.48 + face * 0.36 + (hash2(x, y, seed) - 0.5) * 0.1;
+        if (Math.abs(d - R * 0.45) < 0.5 || Math.abs(d - R * 0.75) < 0.5) t -= 0.12;
+        if (d < 1.2) t = 0.98;
+        s.set(x, y, pick(CAVE, t, x, y));
+      }
+    }
+  };
+  cone(15, 14, 3.4, 142);
+  cone(8.5, 8.5, 6.8, 141);
+  cone(4, 15, 2.6, 143);
   s.outline(0x0a0606);
   s.longShadow(5, 6, 0.3);
   return s;

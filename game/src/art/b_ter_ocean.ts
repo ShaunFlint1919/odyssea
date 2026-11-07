@@ -43,7 +43,7 @@ export function paintOcean(c: Chunk): void {
         // wavy dashed crests with a dark trough line below them
         const ph = (wy + 3.2 * Math.sin(x * 0.11 + WAV[i] * 6.3) + WAV[i] * 14) / 7.5;
         const f = ph - Math.floor(ph);
-        if (f < 0.12 && DET[i] > 0.52) t += depth > 0.5 ? 0.17 : 0.1;
+        if (f < 0.12 && DET[i] > 0.52) t += depth > 0.5 ? 0.2 : 0.11;
         else if (f >= 0.12 && f < 0.24 && DET[i] > 0.52) t -= 0.06;
         // shallow sea floor: sand ripples and dark weed/rock patches
         if (depth < 0.45) {
@@ -78,7 +78,8 @@ export function paintOcean(c: Chunk): void {
           if (I[i - S - 1] < LAND + 0.13 + (MID[i - S - 1] - 0.5) * 0.06) t += 0.25;
           col = tone(ROCK, t, d);
         } else {
-          let t = 0.44 + slope * 0.8 + bump + (DET[i] - 0.5) * 0.3 + (g - 0.5) * 0.12;
+          let t = 0.46 + slope * 0.8 + bump + (DET[i] - 0.5) * 0.3 + (g - 0.5) * 0.12;
+          if (DET[i] < 0.4) t -= 0.22;                         // gaps between tree crowns
           if (v < LAND + 0.03) t -= 0.12;                     // darker fringe behind the beach
           col = tone(VEG, t, d);
         }

@@ -107,7 +107,7 @@ export function validateContent(): string[] {
 }
 
 export type { LevelStats } from './balance';
-export { KILL_RATE, REFERENCE_DPS, targetLevelCredits } from './balance';
+export { DPS_UPTIME, KILL_RATE, REFERENCE_DPS, energyFactor, targetLevelCredits } from './balance';
 export { BIOME_PALETTES, BIOME_BULLET_COLORS, LAND_BIOMES, PLANET_PALETTES, SEA_BIOMES } from './helpers';
 export { ENEMY_MUZZLES, type SpriteMuzzles } from './muzzles';
 export { nominalDps, powerFactor, PROJECTILES_AT_P1 } from './weapons';

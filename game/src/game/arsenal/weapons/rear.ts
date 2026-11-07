@@ -10,7 +10,7 @@
 import type { RearPattern } from '../../../types';
 import { SLOT_REAR } from '../fx';
 import { HIT_BLAST, HIT_SOFT, MOVE_FLAME, MOVE_HOMING, MOVE_MINE, type ShotSpec } from '../shots';
-import { DEG, DOWN, LEFT, RIGHT, UP, rateMul, ramp, table } from '../scaling';
+import { DEG, DOWN, LEFT, RIGHT, UP, ramp, table } from '../scaling';
 import { WeaponGun } from './gun';
 import type { ArsenalCore } from './gun';
 
@@ -27,7 +27,7 @@ class TailGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.03);
+    const r = this.rate();
     this.n = this.mode === 0 ? table(p, [1, 2, 2, 3, 3, 3, 4, 4, 5, 5]) : table(p, [1, 1, 2, 2, 2, 3, 3, 3, 4, 4]);
     const count = this.mode === 0 ? this.n : this.n * 2;
     const s = this.spec();
@@ -79,7 +79,7 @@ class FlameGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.02);
+    const r = this.rate();
     this.subs = 2;
     let count: number;
     if (this.mode === 0) {
@@ -148,7 +148,7 @@ class MinesGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.025);
+    const r = this.rate();
     this.n = this.mode === 0 ? (p < 5 ? 1 : p < 9 ? 2 : 3) : (p < 6 ? 1 : 2);
     const count = this.mode === 0 ? this.n : this.n * 2;
     const s = this.spec();
@@ -214,7 +214,7 @@ class ArcGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.03);
+    const r = this.rate();
     let count: number;
     if (this.mode === 0) {
       this.perFan = table(p, [3, 3, 4, 4, 5, 5, 6, 6, 7, 7]);
@@ -279,7 +279,7 @@ class SeekersGun extends WeaponGun {
 
   protected build(): number {
     const p = this.p;
-    const r = rateMul(p, 0.03);
+    const r = this.rate();
     this.n = this.mode === 0 ? table(p, [2, 2, 2, 3, 3, 3, 4, 4, 4, 5]) : (p < 4 ? 1 : p < 8 ? 2 : 3);
     const count = this.mode === 0 ? this.n : this.n * 2;
     this.subs = this.n;

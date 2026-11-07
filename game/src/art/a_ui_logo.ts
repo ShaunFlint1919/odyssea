@@ -131,7 +131,7 @@ export function buildLogo(): HTMLCanvasElement {
 
 /**
  * Magenta speed blade under the letters: italic-cut left end (same slant as the letters),
- * constant body, long pointed tail on the right, plus a thin detached speed line.
+ * constant body, pointed tip on the right, plus a thin detached speed line.
  */
 function drawStreak(buf: PixBuf, x0: number, x1: number): void {
   const m = new Mask(LOGO_W, LOGO_H);

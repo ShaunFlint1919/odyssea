@@ -178,3 +178,11 @@ export function catalogMax(): { armor: number; speed: number; shield: number; re
     genOut: max(GENERATORS.map((g) => g.output), 1),
   };
 }
+
+// ------------------------------------------------------------------------- hangar focus memory
+
+let hangarFocus = 0;
+/** Remember which Hangar menu entry to focus next time the Hangar opens. */
+export function setHangarFocus(i: number): void { hangarFocus = Math.max(0, Math.floor(i)); }
+/** The Hangar menu entry to focus (defaults to LAUNCH MISSION). */
+export function hangarFocusIndex(): number { return hangarFocus; }

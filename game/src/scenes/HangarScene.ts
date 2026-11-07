@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLORS, SCENES } from '../config';
 import { markSceneReady, setHookState } from '../debug';
 import { audio } from '../audio';
+import type { GameStartData } from '../game/contracts';
 import { getSave, saveNow } from '../state/save';
 import { loadoutValue } from '../state/economy';
 import { isCompleted } from '../state/progress';
@@ -9,7 +10,8 @@ import * as kit from '../ui/kit';
 import { META, ensureMetaArt, iconOr } from '../ui/meta/art';
 import { HEADER_H, MD, backdrop, badge, header, scanlines, sectionLabel } from '../ui/meta/chrome';
 import {
-  campaignProgress, dec, findGenerator, findLevel, findShield, findWeapon, fmt, nextMissionId, planetOfLevel, signed, unreadIntelCount, upper, wrapLines,
+  campaignProgress, dec, findGenerator, findLevel, findShield, findWeapon, fmt, hangarFocusIndex, nextMissionId, planetOfLevel, setHangarFocus, signed,
+  unreadIntelCount, upper, wrapLines,
 } from '../ui/meta/common';
 import { ShipBay } from '../ui/meta/shipBay';
 import { energyBalance, totalDps } from '../ui/meta/stats';
@@ -66,11 +68,11 @@ export class HangarScene extends Phaser.Scene {
     kit.panel(this, px + 5, iy, plateW, infoH - 2, 'inset').setDepth(MD.content);
     kit.panel(this, px + 9 + plateW, iy, plateW, infoH - 2, 'inset').setDepth(MD.content);
     kit.text(this, px + 12, iy + 10, 'SHIP VALUE', { size: 's', color: COLORS.textDim, originY: 0.5, depth: MD.content });
+    const value = fmt(loadoutValue());
     const valX = px + 5 + plateW - 7;
-    kit.text(this, valX, iy + 10, fmt(loadoutValue()), { size: 'm', color: COLORS.gold, originX: 1, originY: 0.5, depth: MD.content });
+    kit.text(this, valX, iy + 10, value, { size: 'm', color: COLORS.gold, originX: 1, originY: 0.5, depth: MD.content });
     if (this.textures.exists('ui_icon_credits')) {
-      const vt = kit.measure(this, fmt(loadoutValue()), 'm');
-      this.add.image(valX - vt - 3, iy + 10, 'ui_icon_credits').setOrigin(1, 0.5).setDepth(MD.content);
+      this.add.image(valX - kit.measure(this, value, 'm') - 3, iy + 10, 'ui_icon_credits').setOrigin(1, 0.5).setDepth(MD.content);
     }
     kit.text(this, px + 16 + plateW, iy + 10, 'FIREPOWER', { size: 's', color: COLORS.textDim, originY: 0.5, depth: MD.content });
     kit.text(this, px + 9 + 2 * plateW - 7, iy + 10, `${dec(totalDps(loadout), 0)} DPS`, { size: 'm', color: COLORS.teal, originX: 1, originY: 0.5, depth: MD.content });
@@ -92,7 +94,7 @@ export class HangarScene extends Phaser.Scene {
     const items: kit.MenuItem[] = [
       {
         label: 'LAUNCH MISSION', icon: META.icLaunch, color: COLORS.teal,
-        value: mission && planet ? `${upper(planet.name).split(' ')[0]} ${mission.index}` : undefined, valueColor: COLORS.accentLight,
+        value: mission && planet ? `${upper(planet.name).replace(/^THE /, '').split(' ')[0]} ${mission.index}` : undefined, valueColor: COLORS.accentLight,
         disabled: !mission,
         help: mission ? kit.fit(`FLY "${upper(mission.name)}" - FULL REPAIR INCLUDED`, 296, 's') : 'NO MISSION DATA AVAILABLE',
       },
@@ -113,10 +115,11 @@ export class HangarScene extends Phaser.Scene {
       { label: 'OPTIONS', icon: META.icOptions, help: 'SOUND, CONTROLS AND DISPLAY SETTINGS' },
       { label: 'SAVE & QUIT', icon: META.icQuit, help: 'SAVE AND RETURN TO THE TITLE SCREEN' },
     ];
-    const status = kit.statusBar(this, items[0].help ?? '');
+    const start = Math.min(items.length - 1, hangarFocusIndex());
+    const status = kit.statusBar(this, items[start].help ?? '');
     const listX = px + 20, listW = pw - 28;
     this.list = new kit.MenuList(this, {
-      x: listX, y: ly + 6, width: listW, items, rowHeight: rowH, size: 'm', depth: MD.content,
+      x: listX, y: ly + 6, width: listW, items, rowHeight: rowH, size: 'm', depth: MD.content, startIndex: start,
       onFocus: (i, it) => { status.setText(it.help ?? ''); setHookState({ menu: i }); },
       onSelect: (i) => this.activate(i, missionId),
       onDisabled: (_i, it) => status.setText(it.help ?? ''),
@@ -125,7 +128,7 @@ export class HangarScene extends Phaser.Scene {
 
     kit.onBack(this, () => this.askQuit());
     markSceneReady(SCENES.Hangar, {
-      credits: save.credits, level: missionId, menu: 0, value: loadoutValue(), unread, items: items.map((i) => i.label),
+      credits: save.credits, level: missionId, menu: start, value: loadoutValue(), unread, items: items.map((i) => i.label),
     });
   }
 
@@ -189,11 +192,12 @@ export class HangarScene extends Phaser.Scene {
 
   private activate(i: number, missionId: string | null): void {
     if (this.dialogOpen) return;
+    setHangarFocus(i === 6 ? 0 : i);
     switch (i) {
       case 0:
         if (!missionId) return;
         saveNow();
-        kit.goto(this, SCENES.Game, { levelId: missionId });
+        kit.goto(this, SCENES.Game, { levelId: missionId } satisfies GameStartData);
         break;
       case 1: kit.goto(this, SCENES.Shop, {}); break;
       case 2: kit.goto(this, SCENES.Map); break;
@@ -218,6 +222,7 @@ export class HangarScene extends Phaser.Scene {
       this.list?.setEnabled(true);
       if (yes) {
         saveNow();
+        setHangarFocus(0);
         kit.goto(this, SCENES.Title);
       }
     });

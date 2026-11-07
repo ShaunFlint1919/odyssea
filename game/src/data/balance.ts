@@ -16,12 +16,18 @@ export function targetLevelCredits(i: number, n = 24): number {
 }
 
 /**
- * Reference player firepower per planet (nominal DPS of front + rear + sidekicks for a
- * player who spends their credits sensibly, docs/BALANCE.md "Progression").
+ * Reference player firepower when reaching each planet's boss (nominal DPS of front + rear
+ * + sidekicks for a player who spends the credit curve sensibly; docs/BALANCE.md
+ * "Progression" derives it from the shop prices).
  */
-export const REFERENCE_DPS = [45, 75, 100, 130, 165, 205, 250, 300];
+export const REFERENCE_DPS = [70, 82, 105, 150, 180, 230, 290, 330];
 /** Share of the nominal DPS that actually lands while dodging. */
 export const DPS_UPTIME = 0.7;
+
+/** Energy drawn per second at power p relative to power 1 (gameplay: E(p) = 1 + 0.05 (p - 1)). */
+export function energyFactor(power: number): number {
+  return 1 + 0.05 * (Math.max(1, power) - 1);
+}
 
 export interface LevelStats {
   waves: number;

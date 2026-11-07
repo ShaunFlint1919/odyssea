@@ -23,6 +23,7 @@ export function paintLava(c: Chunk): void {
   const ASHF = lattice(c, 52, s + 4, 0, 1.6);
   const DET = lattice(c, 4, s + 7, 2);
   const MID = lattice(c, 12, s + 8, 9);
+  const FLOW = lattice(c, 72, s + 10, 0, 1.7);
   const G = grain(c, s + 9, 1);
   const flow = new Meander(W, s + 20, {
     amp: W * 0.3, wave: 260, wave2: 70, amp2: 14, width: 17, widthVar: 6, widthWave: 150,
@@ -36,7 +37,7 @@ export function paintLava(c: Chunk): void {
   lavaField(c, L, river.xc, river.hw, river.slope, pools, MID, DET);
   const cls = scratchU8(W * CH);
   const vor = new Voronoi(c, 29, s + 31, 0.9, 12);
-  paintRock(c, cls, vor, L, HEAT, ASHF, DET, MID, G);
+  paintRock(c, cls, vor, L, HEAT, ASHF, FLOW, DET, MID, G);
   paintFlow(c, cls, L, MID, DET, G);
   placeLavaDoodads(c, cls, HEAT, ASHF);
 }
@@ -65,7 +66,7 @@ function lavaField(c: Chunk, L: Float32Array, xcA: Float32Array, hwA: Float32Arr
 
 /** Basalt plates with bevels, cracks (glowing where hot), ash drifts and lava-side glow. */
 function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEAT: Float32Array, ASHF: Float32Array,
-  DET: Float32Array, MID: Float32Array, G: Float32Array): void {
+  FLOW: Float32Array, DET: Float32Array, MID: Float32Array, G: Float32Array): void {
   const W = c.w, M = c.M, S = c.S, px = c.px;
   const wo = 7 * S + 7;                                             // second warp channel = MID shifted
   for (let r = 0; r < CH; r++) {
@@ -75,6 +76,19 @@ function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEA
       const lv = L[i];
       if (lv < 0) continue;                                         // lava pass paints it
       const d = bayer4(x, wy), g = G[i];
+      const fl = FLOW[i] + (DET[i] - 0.5) * 0.06;
+      if (fl > 0.64) {
+        // fresh ropy (pahoehoe) flow: glossy dark folds across the flow direction
+        const ph = (x * 0.42 + wy * 0.9 + MID[i] * 10) / 3.4;
+        const f = ph - Math.floor(ph);
+        let t = 0.36 + (f < 0.22 ? 0.2 : f < 0.45 ? 0.04 : f < 0.6 ? -0.14 : 0) + (g - 0.5) * 0.08 + (fl < 0.67 ? -0.12 : 0);
+        if (lv < 7) t -= 0.05;
+        let col = tone(BASALT, t, d);
+        if (lv < 7 && d < (1 - lv / 7) * 1.2) col = mixPacked(col, GLOW, 0.3);
+        px[o] = col;
+        cls[o] = lv < 7 ? K_EDGE : K_ROCK;
+        continue;
+      }
       vor.at(x + (MID[i] - 0.5) * 18, wy + (MID[i + wo] - 0.5) * 18);
       const gap = vor.f2 - vor.f1;
       const light = (vor.dy - vor.dx) / (vor.f1 + 6);
@@ -90,6 +104,8 @@ function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEA
         } else col = tone(BASALT, 0.02, d);
       } else {
         if (gap < 3) t += light > 0 ? 0.16 : -0.14;                 // bevelled plate edges
+        const cc = DET[i] - 0.5;
+        if (cc > -0.016 && cc < 0.016) t -= 0.22;                    // fine internal cracks
         if (g > 0.986) t += 0.25;
         else if (G[i - S - 1] > 0.986) t -= 0.2;
         const ash = ASHF[i] + (MID[i] - 0.5) * 0.3;

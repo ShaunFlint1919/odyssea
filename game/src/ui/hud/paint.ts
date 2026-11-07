@@ -39,21 +39,35 @@ export function strokeRect(ctx: Ctx, r: Rect, color: string): void {
   vline(ctx, r.x + r.w - 1, r.y, r.h, color);
 }
 
-/** Vertical gradient with 4x4 ordered dithering between adjacent rows (pixel-art friendly). */
+/** Parsed '#rrggbb' -> [r, g, b] (cached by pixel.ts). */
+export const rgb = (c: string): [number, number, number] => {
+  const p = parseColor(c);
+  return [p[0], p[1], p[2]];
+};
+
+/**
+ * Writes pixels of a rect through one getImageData / putImageData pair. `fn` receives the
+ * local coordinates, the data array and the byte offset, and writes RGBA (replace, no blend).
+ */
+export function paintPixels(ctx: Ctx, x: number, y: number, w: number, h: number, fn: (xx: number, yy: number, d: Uint8ClampedArray, o: number) => void): void {
+  if (w <= 0 || h <= 0) return;
+  const img = ctx.getImageData(x, y, w, h);
+  const d = img.data;
+  for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) fn(xx, yy, d, (yy * w + xx) * 4);
+  ctx.putImageData(img, x, y);
+}
+
+/** Vertical gradient with 4x4 ordered dithering between adjacent rows (opaque, replaces pixels). */
 export function vgrad(ctx: Ctx, x: number, y: number, w: number, h: number, top: string, bottom: string, steps = 6): void {
   if (h <= 0 || w <= 0) return;
-  const cols: string[] = [];
-  for (let i = 0; i <= steps; i++) cols.push(mix(top, bottom, i / steps));
-  for (let yy = 0; yy < h; yy++) {
+  const cols: [number, number, number][] = [];
+  for (let i = 0; i <= steps; i++) cols.push(rgb(mix(top, bottom, i / steps)));
+  paintPixels(ctx, x, y, w, h, (xx, yy, d, o) => {
     const t = h <= 1 ? 0 : (yy / (h - 1)) * steps;
     const i0 = Math.min(steps, Math.floor(t));
-    const frac = t - i0;
-    for (let xx = 0; xx < w; xx++) {
-      const c = frac > bayer(x + xx, y + yy) && i0 < steps ? cols[i0 + 1] : cols[i0];
-      ctx.fillStyle = c;
-      ctx.fillRect(x + xx, y + yy, 1, 1);
-    }
-  }
+    const c = t - i0 > bayer(x + xx, y + yy) && i0 < steps ? cols[i0 + 1] : cols[i0];
+    d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+  });
 }
 
 /** Recessed bevel: dark top / left lines, light bottom / right lines, on the rect border. */

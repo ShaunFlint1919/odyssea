@@ -10,7 +10,7 @@ import {
 
 const WALL = rampN(8, 0x150f0e, 0x221814, 0x30221b, 0x3e2c22, 0x4e382a, 0x5e4533, 0x6e533d, 0x806248);
 const FACE = rampN(6, 0x0e0909, 0x170f0d, 0x211612, 0x2c1e17, 0x38271d, 0x443024);
-const FLOOR = rampN(7, 0x0e0b0c, 0x161112, 0x1f1716, 0x291e1b, 0x332620, 0x3e2e26, 0x4a382d);
+const FLOOR = rampN(8, 0x0e0b0c, 0x161112, 0x1f1716, 0x291e1b, 0x342720, 0x403027, 0x4c3a2e, 0x584435);
 const POOL = rampN(4, 0x080a10, 0x0e121a, 0x151b26, 0x1e2632);
 const GLOW_C = rampN(6, 0x0e1a22, 0x123040, 0x18485c, 0x206474, 0x2c8494, 0x46a8b4);
 const GLOW_V = rampN(6, 0x1a1024, 0x2a1640, 0x3c205c, 0x522c78, 0x6a3c92, 0x8a54ac);
@@ -28,27 +28,32 @@ function wallDepth(wy: number, w: number, seed: number): number {
 
 /** Paints one cavern chunk. */
 export function paintCavern(c: Chunk): void {
-  const s = c.seed, W = c.w, M = c.M, S = c.S, rows = CH + 2 * M;
+  const s = c.seed, W = c.w;
   const ROUGH = lattice(c, 14, s + 3);
   const DET = lattice(c, 4, s + 4);
   const PIL = field(c, 8, (x, y) => fbm(x / 70, y / 80, s + 5, 3) + 0.3 * (valueNoise(x / 400, y / 500, s + 6) - 0.5));
   const MID = lattice(c, 9, s + 7, 1);
-  const G = grain(c, s + 9, 0);
+  const BIG = lattice(c, 40, s + 12, 1, 1.5);
+  const G = grain(c, s + 9, 1);
   const crystals = sites(c, 300, 901, 0.75, 60, 40);
   const nests = sites(c, 420, 951, 0.6, 70, 50);
   ensureSite(c, crystals);
   ensureSite(c, nests);
-
-  // --- solid rock field (>0 = raised rock): side walls + rare central pillars
   const R = scratch(c.N);
-  const lw = scratch(rows), rw = scratch(rows);
+  rockField(c, R, ROUGH, DET, PIL);
+  const cls = scratchU8(W * CH);
+  paintMain(c, cls, R, ROUGH, DET, MID, BIG, G);
+  for (let k = 0; k < crystals.length; k++) paintGlow(c, cls, crystals[k], DET, G);
+  for (let k = 0; k < nests.length; k++) paintNest(c, cls, nests[k], DET, MID, G);
+  placeCavernDoodads(c, cls, crystals, nests);
+}
+
+/** Solid rock field (>0 = raised rock) over the margin layout: side walls + rare pillars. */
+function rockField(c: Chunk, R: Float32Array, ROUGH: Float32Array, DET: Float32Array, PIL: Float32Array): void {
+  const W = c.w, M = c.M, S = c.S, rows = CH + 2 * M, s = c.seed;
   for (let rr = 0; rr < rows; rr++) {
     const wy = c.wy0 - (rr - M);
-    lw[rr] = wallDepth(wy, W, s + 11);
-    rw[rr] = wallDepth(wy, W, s + 23);
-  }
-  for (let rr = 0; rr < rows; rr++) {
-    const L = lw[rr], Rr = W - rw[rr];
+    const L = wallDepth(wy, W, s + 11), Rr = W - wallDepth(wy, W, s + 23);
     let i = rr * S;
     for (let xx = 0; xx < S; xx++, i++) {
       const x = xx - M;
@@ -58,15 +63,17 @@ export function paintCavern(c: Chunk): void {
       R[i] = side > pil ? side : pil;
     }
   }
+}
 
-  // --- face counters seeded through the top margin
+/** Main pass: boulder walls (lit rims), south faces, floor with dust, rubble, cracks, puddles. */
+function paintMain(c: Chunk, cls: Uint8Array, R: Float32Array, ROUGH: Float32Array, DET: Float32Array,
+  MID: Float32Array, BIG: Float32Array, G: Float32Array): void {
+  const W = c.w, M = c.M, S = c.S, px = c.px, s = c.seed;
   const since = new Int16Array(W).fill(99);
   for (let rr = 0; rr < M; rr++) {
     const o = rr * S + M;
     for (let x = 0; x < W; x++) since[x] = R[o + x] > 0 ? 0 : since[x] < 99 ? since[x] + 1 : 99;
   }
-
-  const px = c.px, cls = scratchU8(W * CH);
   const sh = SHADOW * S + SHADOW, sh2 = 4 * S + 4;
   const vor = new Voronoi(c, 23, s + 31, 0.9, 4);
   for (let r = 0; r < CH; r++) {
@@ -79,13 +86,14 @@ export function paintCavern(c: Chunk): void {
       since[x] = s1;
       let col: number;
       if (v > 0) {
-        // raised rock top: chunky boulders (Voronoi) lit from the top-left, dark crevices,
-        // knobbly detail, lit north-west rim and dark south-east rim
+        // raised rock top: chunky boulders (Voronoi) lit from the top-left, large ridges and
+        // gullies, dark crevices, lit north-west rim and dark south-east rim
         cls[o] = K_WALL;
         vor.at(x + (DET[i] - 0.5) * 6, wy + (ROUGH[i] - 0.5) * 6);
         const rad = vor.f1 + 4;
-        const light = (vor.dy - vor.dx) / rad;                  // up-left of the boulder centre = lit
-        let t = 0.4 + light * 0.3 + (vor.id - 0.5) * 0.26 + (DET[i + S + 1] - DET[i - S - 1]) * 1.6 + (g - 0.5) * 0.1;
+        const light = (vor.dy - vor.dx) / rad;
+        let t = 0.4 + light * 0.28 + (vor.id - 0.5) * 0.24 + (DET[i + S + 1] - DET[i - S - 1]) * 1.6 + (g - 0.5) * 0.1;
+        t += (BIG[i + S + 1] - BIG[i - S - 1]) * 7 + (BIG[i] - 0.5) * 0.24;
         t += (v > 40 ? 40 : v) * 0.004 - vor.f1 * 0.008;
         const gap = vor.f2 - vor.f1;
         if (gap < 1.4) t = 0.06 + (g - 0.5) * 0.06;
@@ -102,17 +110,19 @@ export function paintCavern(c: Chunk): void {
         col = tone(FACE, t, d);
         if (s1 > 3 && R[i - sh] > 0) col = shade(col, 150, 150, 170, 4);
       } else {
-        // cave floor: rubble, pebbles, cracks, dark puddles; darker near walls (ambient occlusion)
+        // cave floor: dust drifts, rubble patches with pebbles, cracks, dark puddles,
+        // darker toward the walls (ambient occlusion)
         cls[o] = K_FLOOR;
-        const m = MID[i];
-        let t = 0.44 + (DET[i] - 0.5) * 0.2 + (m - 0.5) * 0.36 + (ROUGH[i] - 0.5) * 0.3 + (g - 0.5) * 0.12
-          + (MID[i + S + 1] - MID[i - S - 1]) * 2.2;
+        const m = MID[i], b = BIG[i];
+        let t = 0.42 + (DET[i] - 0.5) * 0.2 + (m - 0.5) * 0.3 + (ROUGH[i] - 0.5) * 0.22 + (g - 0.5) * 0.12
+          + (MID[i + S + 1] - MID[i - S - 1]) * 2 + (b - 0.5) * 0.3;
         const occ = v > -16 ? (v + 16) / 16 : 0;
         t -= occ * 0.32;
         const cr = m - 0.5;
         if (cr > -0.012 && cr < 0.012) t -= 0.28;
-        if (g > 0.984) t += 0.38;                               // pebble
-        else if (G[i - S - 1] > 0.984) t -= 0.3;                // its shadow
+        const rubble = ROUGH[i] > 0.6 ? 0.94 : 0.984;
+        if (g > rubble) t += 0.36;                              // pebble
+        else if (G[i - S - 1] > rubble) t -= 0.3;               // its shadow
         if (m < 0.2 && ROUGH[i] < 0.42) {
           cls[o] = K_POOL;
           col = tone(POOL, 0.35 + (0.2 - m) * 2.5 + (g > 0.97 ? 0.4 : 0), d);
@@ -122,9 +132,6 @@ export function paintCavern(c: Chunk): void {
       px[o] = col;
     }
   }
-  for (let k = 0; k < crystals.length; k++) paintGlow(c, cls, crystals[k], DET, G);
-  for (let k = 0; k < nests.length; k++) paintNest(c, cls, nests[k], DET, MID, G);
-  placeCavernDoodads(c, cls, crystals, nests);
 }
 
 /** Crystal patch: dithered cyan or violet glow on the floor around a crystal cluster. */

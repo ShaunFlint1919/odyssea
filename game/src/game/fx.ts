@@ -128,7 +128,6 @@ class AnimPool {
 }
 
 export class Fx {
-  private readonly scene: Phaser.Scene;
   private readonly air: AnimPool;
   private readonly ground: AnimPool;
   private readonly bits: Bit[] = [];
@@ -157,7 +156,7 @@ export class Fx {
   private readonly glowKey: string;
 
   constructor(private readonly w: World) {
-    const scene = (this.scene = w.scene);
+    const scene = w.scene;
     this.animS = new FrameAnim(scene, ANIM.explosion_s, 'fx_explosion_s', 'blast', 22, false);
     this.animM = new FrameAnim(scene, ANIM.explosion_m, 'fx_explosion_m', 'blast', 20, false);
     this.animL = new FrameAnim(scene, ANIM.explosion_l, 'fx_explosion_l', 'blast', 18, false);

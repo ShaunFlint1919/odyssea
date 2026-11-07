@@ -72,7 +72,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
     inst: {
       lead: { w: 'triangle', v: 0.2, a: 0.05, d: 0.4, s: 0.7, r: 0.3, gate: 0.95, vib: [4.5, 14, 0.3], det: 5, echo: 0.4 },
       bass: { w: 'tri4', v: 0.22, a: 0.01, d: 0.4, s: 0.8, r: 0.2, gate: 0.95 },
-      arp: { w: 'pulse12', v: 0.045, a: 0.002, d: 0.12, s: 0.2, r: 0.1, gate: 0.6, echo: 0.55 },
+      arp: { w: 'pulse12', v: 0.06, a: 0.002, d: 0.12, s: 0.2, r: 0.1, gate: 0.6, echo: 0.55 },
     },
     kit: { v: 0.3, hat: [8000, 0.03] },
     echo: { beats: 0.75, fb: 0.45, wet: 0.4, tone: 2500 },
@@ -432,8 +432,8 @@ export const SONGS: Record<MusicTrack, SongDef> = {
     bpm: 126,
     inst: {
       lead: { w: 'triangle', v: 0.2, a: 0.06, d: 0.4, s: 0.8, r: 0.3, gate: 0.95, vib: [4.5, 20, 0.2], det: 6, echo: 0.4 },
-      bass: { w: 'tri4', v: 0.24, a: 0.01, d: 0.3, s: 0.85, r: 0.2, gate: 0.95 },
-      arp: { w: 'pulse12', v: 0.05, a: 0.001, d: 0.08, s: 0.2, r: 0.05, gate: 0.6, echo: 0.55 },
+      bass: { w: 'tri4', v: 0.21, a: 0.01, d: 0.3, s: 0.85, r: 0.2, gate: 0.95 },
+      arp: { w: 'pulse12', v: 0.075, a: 0.001, d: 0.08, s: 0.2, r: 0.05, gate: 0.6, echo: 0.55 },
     },
     kit: { v: 0.38, hat: [9000, 0.02] },
     echo: { beats: 0.75, fb: 0.48, wet: 0.42, tone: 3200 },

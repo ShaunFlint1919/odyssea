@@ -148,13 +148,15 @@ export class HudController implements HudApi {
     this.fonts = loadHudFonts(scene);
     const f = this.fonts;
 
-    // ---- textures (composed once)
-    const panelKey = `${prefix}panel`;
-    if (scene.textures.exists(panelKey)) scene.textures.remove(panelKey);
-    scene.textures.addCanvas(panelKey, paintPanel(scene, L, f, LEGEND_COLORS));
-    this.parts = `${prefix}parts`;
-    buildParts(scene, this.parts, L, f);
-    this.texKeys.push(panelKey, this.parts);
+    // ---- static textures: composed once per game height and kept for the next levels (the
+    //      art they copy is generated once at boot). Per-instance text strips are removed on destroy.
+    const panelKey = `__hud_panel_h${L.height}`;
+    this.parts = `__hud_parts_h${L.height}`;
+    if (!scene.textures.exists(panelKey) || !scene.textures.exists(this.parts)) {
+      if (scene.textures.exists(panelKey)) scene.textures.remove(panelKey);
+      scene.textures.addCanvas(panelKey, paintPanel(scene, L, f, LEGEND_COLORS));
+      buildParts(scene, this.parts, L, f);
+    }
 
     // ---- root container
     this.root = scene.add.container(0, 0).setDepth(DEPTH.hud).setScrollFactor(0);

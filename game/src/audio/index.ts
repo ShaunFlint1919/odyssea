@@ -33,7 +33,12 @@ const st = {
   wanted: null as MusicTrack | null,
   armed: false,
   primed: false,
+  lastError: null as string | null,
 };
+
+function note(e: unknown): void {
+  st.lastError = String((e as Error)?.message ?? e);
+}
 
 function clamp01(v: number): number {
   return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0;
@@ -65,7 +70,8 @@ function create(): Live | null {
   } catch {
     try {
       ctx = new Ctor();
-    } catch {
+    } catch (e) {
+      note(e);
       st.failures++;
       return null;
     }
@@ -81,7 +87,8 @@ function create(): Live | null {
       else if (ctx.state !== 'closed' && !st.userSuspended) arm();
     });
     return live;
-  } catch {
+  } catch (e) {
+    note(e);
     st.failures++;
     try {
       quiet(ctx.close());
@@ -144,8 +151,8 @@ export const audio = {
       prime(l);
       if (st.wanted !== (l.music.current?.track ?? null)) l.music.play(st.wanted);
       if (l.ctx.state !== 'running') arm();
-    } catch {
-      /* audio must never break the game */
+    } catch (e) {
+      note(e); // audio must never break the game
     }
   },
   /** Play a procedural sound effect (rate-limited per key to avoid clipping). */
@@ -158,8 +165,8 @@ export const audio = {
       }
       if (st.userSuspended || st.sfxVol <= 0 || l.ctx.state !== 'running') return;
       l.sfx.play(key, opts);
-    } catch {
-      /* ignore */
+    } catch (e) {
+      note(e);
     }
   },
   /** Start a looping procedural music track (null = stop). Cross-fades. */
@@ -173,8 +180,8 @@ export const audio = {
         return;
       }
       l.music.play(track);
-    } catch {
-      /* ignore */
+    } catch (e) {
+      note(e);
     }
   },
   /** Apply volumes 0..1 (read from settings). */
@@ -226,6 +233,8 @@ export interface AudioState {
   musicVolume: number;
   suspended: boolean;
   gestureArmed: boolean;
+  /** Last error swallowed by the facade (null = none). */
+  lastError: string | null;
 }
 
 export interface MusicStats extends PlayerStats {
@@ -254,6 +263,7 @@ export const audioDebug = {
       musicVolume: st.musicVol,
       suspended: st.userSuspended,
       gestureArmed: st.armed,
+      lastError: st.lastError,
     };
   },
   sfxStats(): SfxStats | null {
