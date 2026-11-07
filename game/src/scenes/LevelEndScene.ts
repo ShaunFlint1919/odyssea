@@ -181,7 +181,7 @@ export class LevelEndScene extends Phaser.Scene {
         out.push({ text: `NEXT MISSION: ${lv.name.toUpperCase()}`, color: COLORS.teal });
       }
     }
-    if (result.completed) {
+    if (result.completed && !applied.completedBefore) {
       const gear = itemsUnlockedBy(result.levelId).map((g) => g.name.toUpperCase());
       if (gear.length > 0) out.push({ text: this.listFit('NEW GEAR: ', gear, NOTICE_CHARS), color: COLORS.gold });
     }

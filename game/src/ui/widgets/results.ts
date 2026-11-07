@@ -50,6 +50,8 @@ export interface AppliedResult {
   creditsBefore: number;
   creditsAfter: number;
   bestBefore: number;
+  /** The level was already completed before this result (a replay). */
+  completedBefore: boolean;
 }
 
 let lastAppliedSig = '';
@@ -62,7 +64,10 @@ export function applyOnce(result: LevelResult, real: boolean): AppliedResult {
   const save = getSave();
   const creditsBefore = save.credits;
   const bestBefore = save.bestScores[result.levelId] ?? 0;
-  const out: AppliedResult = { applied: false, unlocked: [], newIntel: [], creditsBefore, creditsAfter: creditsBefore, bestBefore };
+  const completedBefore = save.completedLevels.includes(result.levelId);
+  const out: AppliedResult = {
+    applied: false, unlocked: [], newIntel: [], creditsBefore, creditsAfter: creditsBefore, bestBefore, completedBefore,
+  };
   if (!real) {
     out.creditsAfter = creditsBefore + (result.completed ? result.creditsEarned : Math.floor(result.creditsEarned / 2));
     out.newIntel = result.intelFound.slice();
