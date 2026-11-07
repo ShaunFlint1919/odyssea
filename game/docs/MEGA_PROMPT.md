@@ -2,8 +2,9 @@
 
 ## Mode d'emploi (pour toi, Shaun)
 
-1. Ouvre une **nouvelle session Claude Code** sur le dépôt du jeu (`ShaunFlint1919/odyssea`, ou
-   son nouveau nom si tu l'as renommé, ex. `nova-corsair`, ou le dépôt de sauvegarde).
+1. Ouvre une **nouvelle session Claude Code** sur le dépôt du jeu **`ShaunFlint1919/NovaCorsairAPK`**
+   (privé). L'ancien dépôt `ShaunFlint1919/odyssea` (branche `ccr-47cc43a7-n24a5r`) garde
+   l'historique détaillé de la première itération.
 2. Copie **tout le bloc** entre `===== DÉBUT DU PROMPT =====` et `===== FIN DU PROMPT =====`.
 3. Colle-le dans le message, puis **ajoute tes images de référence** dans ce même message
    (captures d'écran de jeu, de menus, de boutique…).
@@ -36,13 +37,14 @@ Réponds-moi en français.
 </mission>
 
 <contexte_projet>
-- Dépôt : ShaunFlint1919/odyssea (il a pu être renommé, ex. `nova-corsair` ; une copie de
-  sauvegarde peut exister dans un autre dépôt). Le dépôt est entièrement dédié au jeu : l'ancien
-  site web a été supprimé. Le jeu est dans le dossier `game/`, les workflows CI dans
-  `.github/workflows/`.
-- Si `game/` n'existe pas sur ta branche, récupère-le d'abord :
-  `git fetch origin ccr-47cc43a7-n24a5r && git merge --no-edit origin/ccr-47cc43a7-n24a5r`
-  (ou depuis `main` si cette branche y a été fusionnée).
+- Dépôt principal : ShaunFlint1919/NovaCorsairAPK, branche `main`. Il est PRIVÉ et doit le rester
+  (ne publie jamais le code ailleurs, ne crée rien de public). L'historique détaillé de
+  l'itération 0 est dans ShaunFlint1919/odyssea, branche `ccr-47cc43a7-n24a5r`. Le jeu est dans le
+  dossier `game/`, les workflows CI dans `.github/workflows/`.
+- Ta branche de session part de `main`, qui contient déjà le jeu. Si `game/` manque, récupère-le :
+  `git fetch origin main && git merge --no-edit origin/main`.
+- Dépôt privé = minutes GitHub Actions limitées (2 000 min/mois sur un compte gratuit ; un build
+  complet ≈ 8 min) : un push « vrai » par itération, `[skip ci]` sur les pushs intermédiaires.
 - Stack : Phaser 3.90 + TypeScript strict + Vite 6 ; Android via Capacitor 8 (`game/android/`) ;
   tests Vitest ; Playwright 1.63 (Chromium préinstallé) pour smoke tests et captures.
 - Tout l'art, les polices, les terrains, les sons et la musique sont générés PROCÉDURALEMENT en

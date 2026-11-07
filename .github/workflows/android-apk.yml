@@ -10,6 +10,7 @@ on:
     branches:
       - main
       - 'ccr-**'
+      - 'claude/**'
     tags:
       - 'v*'
     paths:

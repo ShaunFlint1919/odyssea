@@ -5,9 +5,9 @@ high-pace vertical-scrolling space shooter for mobile (portrait) in the spirit o
 shoot'em-ups with an upgrade shop between missions. Stack: Phaser 3.90.0 + TypeScript (strict)
 + Vite 6, packaged for Android with Capacitor 8.
 
-Project root: `/home/user/odyssea/game`. The repo root `/home/user/odyssea` only contains
-`game/`, `README.md`, `.gitignore` and `.github/`. Never write outside `game/` unless your
-brief explicitly says so.
+Project root: `<repo>/game` (the clone path depends on the session, e.g. `/home/user/<repo>/game`).
+The repo root only contains `game/`, `README.md`, `.gitignore` and `.github/`. Never write outside
+`game/` unless your brief explicitly says so. The repository is PRIVATE: never publish code elsewhere.
 
 ## 1. Read the contracts first
 `docs/ARCHITECTURE.md`, `src/types.ts`, `src/config.ts`, `src/art/keys.ts`, `src/art/pixel.ts`,
@@ -33,7 +33,7 @@ them). You may add exports and new files inside your own folders/prefixes.
   vite, vitest, typescript, playwright 1.63 (Chromium pre-installed; never run `playwright install`).
 - Keep your files syntactically valid at all times: everyone's dev server compiles every module.
   Prefer writing a whole file at once; after each batch of edits run
-  `cd /home/user/odyssea/game && npx tsc --noEmit -p . 2>&1 | grep -E '<regex of your paths>'`.
+  `cd <repo>/game && npx tsc --noEmit -p . 2>&1 | grep -E '<regex of your paths>'`.
   Errors in other people's files are not yours. Your files must end with ZERO type errors.
 - If you start a dev server or Playwright, use ONLY your own port (given in your brief) and kill
   every process you started before finishing.
