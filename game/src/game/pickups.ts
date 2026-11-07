@@ -262,7 +262,7 @@ export class Pickups {
         if (id && !w.stats.intelFound.includes(id)) w.stats.intelFound.push(id);
         w.services.sfx('pickup_intel');
         w.services.hudFlash('pickup');
-        w.services.banner('INTEL ACQUIRED', 'transmission decoded', 1600);
+        w.services.banner('INTEL RECOVERED', 'NEW TRANSMISSION', 1600);
         fx.glow(p.x, p.y, COLORS.teal, 2, 400);
         break;
       }

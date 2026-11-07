@@ -11,7 +11,7 @@ export const PLANETS: PlanetDef[] = [
   },
   {
     id: 'verdance', name: 'Verdance', biome: 'jungle', mapX: 0.68, mapY: 0.78, levels: levelsOf('verdance'),
-    desc: 'The jungle that fed the Outer Worlds, rendered into fuel valley by valley. Ambush country.',
+    desc: 'The jungle that fed the Outer Marches, rendered into fuel valley by valley. Ambush country.',
   },
   {
     id: 'thalassa', name: 'Thalassa', biome: 'ocean', mapX: 0.82, mapY: 0.66, levels: levelsOf('thalassa'),
@@ -19,7 +19,7 @@ export const PLANETS: PlanetDef[] = [
   },
   {
     id: 'umbra', name: 'Umbra Deep', biome: 'cavern', mapX: 0.5, mapY: 0.56, levels: levelsOf('umbra'),
-    desc: 'A penal colony bored into living rock, where the Hive breeds its drones in the dark.',
+    desc: 'A penal colony bored into living rock, where the Hive breeds its swarms in the dark.',
   },
   {
     id: 'cinder', name: 'Cinder', biome: 'lava', mapX: 0.2, mapY: 0.45, levels: levelsOf('cinder'),
@@ -35,6 +35,6 @@ export const PLANETS: PlanetDef[] = [
   },
   {
     id: 'axiom', name: 'Axiom Citadel', biome: 'techno', mapX: 0.52, mapY: 0.12, levels: levelsOf('axiom'),
-    desc: 'The machine heart of the Directorate. Every defence it has left is waiting for you.',
+    desc: 'The machine heart of the Directorate. Every defense it has left is waiting for you.',
   },
 ];

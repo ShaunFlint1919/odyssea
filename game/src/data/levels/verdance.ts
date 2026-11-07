@@ -61,7 +61,7 @@ export const VERDANCE_LEVELS: LevelDef[] = [
   level({
     planet: 'verdance', index: 2, name: 'Spore Delta', duration: 78, scrollSpeed: 52, intel: 'in_confession',
     midboss: { t: 47, enemy: 'v_carrier' },
-    briefing: 'Missile silos bloom along the river delta and a Canopy carrier holds the river mouth.',
+    briefing: 'Missile silos bloom along the delta and a Canopy carrier holds the river mouth.',
     waves: [
       vees(1, 'v_hornet', 0.3, 3, 24),
       snake(2.6, 'v_mite', 0.5, 7, 0.28),

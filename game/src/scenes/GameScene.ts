@@ -59,6 +59,11 @@ class DragArea extends Phaser.Geom.Rectangle {
   }
 }
 
+/** Integer with thousands separators (38750 -> "38,750"), as in the menus. */
+function fmtScore(n: number): string {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 function safe<T>(fn: () => T, fallback: T): T {
   try {
     return fn();
@@ -381,7 +386,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     w.enemies.killAll(false);
     w.pickups.magnetAll();
     this.arsenal.clearShots();
-    this.hud.showBanner('STAGE CLEAR', `${w.stats.score} PTS`, 2600);
+    this.hud.showBanner('ALL CLEAR', `${fmtScore(w.stats.score)} PTS`, 2600);
     this.sfx('level_clear');
     audio.music('victory');
   }

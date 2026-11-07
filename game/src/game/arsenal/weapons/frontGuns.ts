@@ -102,9 +102,13 @@ class PulseGun extends WeaponGun {
 // ------------------------------------------------------------------------------ scatter
 
 const SCATTER_N = [3, 4, 5, 6, 7, 7, 8, 9, 10, 11];
-const SCATTER_TIER = [0, 0, 0, 1, 1, 1, 1, 2, 2, 2];
+const SCATTER_TIER = [1, 1, 1, 1, 1, 1, 2, 2, 2, 2];
+const SCATTER_SUBS = [3, 3, 3, 3, 2, 2, 2, 2, 2, 2];
 
-/** Two fans per paid volley: n pellets, then n - 1 pellets in the gaps (interleaved). */
+/**
+ * Fans per paid volley alternate n pellets and n - 1 pellets in the gaps (interleaved):
+ * 3 fans (n, n - 1, n) at low power, 2 from p5 where the fans are already wide.
+ */
 class ScatterGun extends WeaponGun {
   private n = 3;
   private half = 0;
@@ -116,12 +120,13 @@ class ScatterGun extends WeaponGun {
     const scene = this.core.env.scene;
     this.n = table(p, SCATTER_N);
     this.half = ramp(p, 10, 40.6) * DEG;
-    this.subs = 2;
+    this.subs = table(p, SCATTER_SUBS);
     const tier = table(p, SCATTER_TIER);
+    const per = this.subs === 3 ? 3 * this.n - 1 : 2 * this.n - 1;
     const s = this.spec(pelletTex(scene, this.color, tier));
     s.speed = 520;
     s.life = 950;
-    s.damage = this.dmg(3, 2 * this.n - 1, r);
+    s.damage = this.dmg(3, per, r);
     s.radius = 3.5 + tier;
     s.halo = p >= 4 ? glowTex(scene, 13 + tier * 2) : null;
     s.haloAlpha = 0.22;
@@ -136,8 +141,9 @@ class ScatterGun extends WeaponGun {
     const shots = this.core.shots;
     const half = this.half;
     const step = this.n > 1 ? (2 * half) / (this.n - 1) : 0;
-    const n = sub === 0 ? this.n : this.n - 1;
-    const start = sub === 0 ? -half : -half + step / 2;
+    const gaps = sub === 1;
+    const n = gaps ? this.n - 1 : this.n;
+    const start = gaps ? -half + step / 2 : -half;
     for (let k = 0; k < n; k++) {
       const a = UP + start + step * k + (Math.random() - 0.5) * step * 0.25;
       const s = shots.fire(this.pellet, x + Math.cos(a) * 4, y + 3 + Math.sin(a) * 4, a);
@@ -147,7 +153,7 @@ class ScatterGun extends WeaponGun {
       s.speed *= j;
       shots.advance(s, late);
     }
-    this.flash(SLOT_FRONT, nx, ny, UP, sub === 0 ? 2 : 1, 70);
+    this.flash(SLOT_FRONT, nx, ny, UP, gaps ? 1 : 2, 70);
   }
 }
 
@@ -156,14 +162,17 @@ class ScatterGun extends WeaponGun {
 const GATLING_BARRELS: readonly (readonly number[])[] = [[0], [-3, 3], [-6, 0, 6], [-9, -3, 3, 9]];
 const GATLING_N = [1, 1, 2, 2, 2, 3, 3, 3, 4, 4];
 const GATLING_TIER = [0, 0, 1, 1, 1, 1, 2, 2, 2, 2];
+/** Sub-volleys (= needles) per paid volley by barrel count. */
+const GATLING_SUBS = [3, 4, 5, 6];
 
-/** One barrel: 3 sub-volleys; several barrels: 2 sub-volleys alternating odd / even barrels. */
+/** Rotary barrels: every sub-volley fires the next barrel in turn (3 -> 6 needles per volley). */
 class GatlingGun extends WeaponGun {
   private barrels: readonly number[] = GATLING_BARRELS[0];
   private jitter = 0;
   private needle!: ShotSpec;
   private casing!: TexInfo;
   private muzzleTier = 0;
+  private barrel = 0;
 
   protected build(): number {
     const p = this.p;
@@ -172,7 +181,7 @@ class GatlingGun extends WeaponGun {
     const nb = table(p, GATLING_N);
     const tier = table(p, GATLING_TIER);
     this.barrels = GATLING_BARRELS[nb - 1];
-    this.subs = nb === 1 ? 3 : 2;
+    this.subs = GATLING_SUBS[nb - 1];
     this.jitter = ramp(p, 2, 4) * DEG;
     this.muzzleTier = tier >= 2 ? 1 : 0;
     this.casing = emberTex(scene);
@@ -180,7 +189,7 @@ class GatlingGun extends WeaponGun {
     s.speed = 840;
     s.life = 800;
     s.rotate = false;
-    s.damage = this.dmg(1, nb === 1 ? 3 : nb, r);
+    s.damage = this.dmg(1, this.subs, r);
     s.radius = 3;
     s.fx = impactFx(scene, this.color, tier >= 2 ? 1 : 0);
     this.needle = s;
@@ -192,15 +201,15 @@ class GatlingGun extends WeaponGun {
     const x = this.shipX() + nx, y = this.shipY() + ny;
     const B = this.barrels;
     const shots = this.core.shots;
-    for (let b = 0; b < B.length; b++) {
-      if (B.length > 1 && (b & 1) !== (sub & 1)) continue;
-      const ox = B[b] + (Math.random() - 0.5) * 1.2;
-      const a = UP + (Math.random() * 2 - 1) * this.jitter;
-      const s = shots.fire(this.needle, x + ox, y + Math.abs(B[b]) * 0.3, a);
-      shots.advance(s, late + Math.random() * 4);
-      this.flash(SLOT_FRONT + b, nx + B[b], ny + Math.abs(B[b]) * 0.3, UP, this.muzzleTier, 50);
-    }
-    const side = (this.volleys + sub) & 1 ? 1 : -1;
+    this.barrel = (this.barrel + 1) % B.length;
+    const b = this.barrel;
+    const ox = B[b] + (Math.random() - 0.5) * 1.2;
+    const a = UP + (Math.random() * 2 - 1) * this.jitter;
+    const s = shots.fire(this.needle, x + ox, y + Math.abs(B[b]) * 0.3, a);
+    shots.advance(s, late + Math.random() * 3);
+    this.flash(SLOT_FRONT + b, nx + B[b], ny + Math.abs(B[b]) * 0.3, UP, this.muzzleTier, 50);
+    if (sub & 1) return;
+    const side = this.volleys & 1 ? 1 : -1;
     this.core.fx.particle(this.casing, x + side * 5, y + 10, side * (50 + Math.random() * 40), 15 + Math.random() * 30, 3,
       240, 0xffd060, 0.9);
   }
@@ -321,7 +330,7 @@ class SeekerGun extends WeaponGun {
     s.damage = this.dmg(2, n, r);
     s.radius = 4;
     s.trail = TRAIL_SMOKE;
-    s.trailMs = 40;
+    s.trailMs = 32;
     s.popOnExpire = true;
     s.fx = impactFx(scene, this.color, p >= 6 ? 2 : 1);
     this.missile = s;
@@ -357,7 +366,7 @@ class SeekerGun extends WeaponGun {
 
 // ------------------------------------------------------------------------------ helix
 
-const HELIX_TIER = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3];
+const HELIX_TIER = [1, 1, 1, 1, 2, 2, 2, 3, 3, 3];
 
 /** Three sub-volleys per paid volley so each stream shows ~6 crescents per wavelength. */
 class HelixGun extends WeaponGun {
@@ -469,7 +478,7 @@ class MortarGun extends WeaponGun {
 const PRISM_BOLTS = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2];
 const PRISM_SHARDS = [3, 3, 5, 5, 7, 3, 5, 5, 7, 7];
 const PRISM_TIER = [0, 0, 1, 1, 1, 1, 2, 2, 2, 2];
-const SHARD_TIER = [0, 0, 0, 1, 1, 1, 1, 1, 1, 1];
+const SHARD_TIER = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
 
 /**
  * White crystal bolts (2 sub-volleys per paid volley) split after 80 px into an odd fan

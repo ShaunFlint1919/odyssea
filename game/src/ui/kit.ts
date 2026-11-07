@@ -126,11 +126,13 @@ export function measure(scene: Phaser.Scene, str: string, size: FontSize = 'm'):
   return Math.max(longest, cur) * advance(scene, size);
 }
 
-/** Truncate to fit `maxPx` with the given font (adds '.' when cut). */
+/** Truncate to fit `maxPx` with the given font (adds '.' when cut; never leaves "WORD ."). */
 export function fit(str: string, maxPx: number, size: FontSize = 'm'): string {
   const [cw] = FONT_CELL[size];
   const max = Math.max(1, Math.floor(maxPx / cw));
-  return str.length <= max ? str : `${str.slice(0, Math.max(1, max - 1))}.`;
+  if (str.length <= max) return str;
+  const cut = str.slice(0, Math.max(1, max - 1)).trimEnd().replace(/[-,:;]+$/, '').trimEnd();
+  return `${cut || str.slice(0, 1)}.`;
 }
 
 /** Glyph cell height in px of a font size (line height without extra spacing). */

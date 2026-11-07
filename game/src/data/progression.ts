@@ -31,8 +31,12 @@ export const SIDEKICK_SHARE = 0.28;
 export const REAR_ON_TARGET = 0.3;
 /** Forward-DPS weight per sidekick pattern (the orbiter only grinds what it touches). */
 export const SIDEKICK_ON_TARGET: Record<string, number> = { pod: 1, twin: 1, orbiter: 0, rocket: 1, shard: 1, charge: 1 };
-/** In-level 'power' pickups the reference player has collected when a (mid-)boss fight starts. */
-export const POWER_PICKUPS = 1;
+/**
+ * Share of the level's expected 'power' drops (loot discs, relays, bombers... dropped before
+ * the fight starts) that the reference player has collected when a (mid-)boss fight starts.
+ * Each one is +1 front power for the rest of the level (src/game/pickups.ts).
+ */
+export const POWER_COLLECT = 0.8;
 
 export interface ProgressionInput {
   hulls: HullDef[];
@@ -50,6 +54,8 @@ export interface ProgressionInput {
   /** Planet boss / mid-boss hp of a level (0 = none). */
   bossHp(level: LevelDef): number;
   midbossHp(level: LevelDef): number;
+  /** Expected number of 'power' drops spawned by the level's waves before level time `t`. */
+  powerDrops(level: LevelDef, t: number): number;
 }
 
 export interface ProgressionStep {
@@ -65,14 +71,19 @@ export interface ProgressionStep {
   rearDps: number;
   /** Nominal DPS on a target in front: front + sidekicks + REAR_ON_TARGET x rear. */
   dps: number;
-  /** dps with POWER_PICKUPS extra front power levels (what a boss / mid-boss fight sees). */
+  /** In-level front power the reference player has when the boss / mid-boss fight starts. */
+  bossPower: number;
+  midbossPower: number;
+  /** dps at bossPower: what the planet boss fight sees (0 when the level has no boss). */
   fightDps: number;
+  /** dps at midbossPower: what the mid-boss fight sees (0 when the level has none). */
+  midbossDps: number;
   /** Generator drain at full fire with the shield regenerating, and generator output (energy/s). */
   energyUse: number;
   energyOut: number;
   bossHp: number;
   midbossHp: number;
-  /** Expected fight lengths: hp / (fightDps x uptime). null when the level has none. */
+  /** Expected fight lengths: hp / (fight DPS x uptime). null when the level has none. */
   bossTtk: number | null;
   midbossTtk: number | null;
 }
@@ -86,6 +97,14 @@ export function weaponValue(w: WeaponDef, p: number): number {
 export function sidekickDps(s: SidekickDef | null | undefined): number {
   if (!s) return 0;
   return s.damage * s.fireRate * (SIDEKICK_PROJECTILES[s.pattern] ?? 1) * (SIDEKICK_ON_TARGET[s.pattern] ?? 1);
+}
+
+/** Nominal DPS of a weapon at a fractional power (linear in p, like M(p)), capped at MAX_POWER. */
+export function dpsAtPower(def: WeaponDef, power: number): number {
+  const p = Math.max(1, Math.min(MAX_POWER, power));
+  const lo = Math.floor(p);
+  const a = weaponFireStats(def, lo).dps;
+  return lo >= MAX_POWER ? a : a + (p - lo) * (weaponFireStats(def, lo + 1).dps - a);
 }
 
 interface GunPick { def: WeaponDef; power: number; cost: number; dps: number; eps: number }
@@ -207,11 +226,15 @@ export function simulateProgression(input: ProgressionInput): ProgressionStep[] 
     const kit = allocate(input, value, (d) => !d.unlockLevel || done.has(d.unlockLevel));
     const rearDps = kit.rear ? kit.rear.dps : 0;
     const dps = kit.dps;
-    const boosted = weaponFireStats(kit.front.def, Math.min(MAX_POWER, kit.front.power + POWER_PICKUPS)).dps;
-    const fightDps = dps - kit.front.dps + boosted;
     const bossHp = input.bossHp(level);
     const midbossHp = input.midbossHp(level);
     const income = input.income(level, index);
+    const bossPower = Math.min(MAX_POWER, kit.front.power + POWER_COLLECT * input.powerDrops(level, level.duration));
+    const midbossPower = level.midboss
+      ? Math.min(MAX_POWER, kit.front.power + POWER_COLLECT * input.powerDrops(level, level.midboss.t))
+      : kit.front.power;
+    const fightDps = bossHp > 0 ? dps - kit.front.dps + dpsAtPower(kit.front.def, bossPower) : 0;
+    const midbossDps = midbossHp > 0 ? dps - kit.front.dps + dpsAtPower(kit.front.def, midbossPower) : 0;
     steps.push({
       levelId: level.id,
       index,
@@ -232,13 +255,16 @@ export function simulateProgression(input: ProgressionInput): ProgressionStep[] 
       sidekickDps: kit.pair.dps,
       rearDps,
       dps,
+      bossPower,
+      midbossPower,
       fightDps,
+      midbossDps,
       energyUse: drainOf(kit),
       energyOut: kit.gen.output,
       bossHp,
       midbossHp,
       bossTtk: bossHp > 0 ? bossHp / (fightDps * DPS_UPTIME) : null,
-      midbossTtk: midbossHp > 0 ? midbossHp / (fightDps * MIDBOSS_UPTIME) : null,
+      midbossTtk: midbossHp > 0 ? midbossHp / (midbossDps * MIDBOSS_UPTIME) : null,
     });
     value += income;
     done.add(level.id);

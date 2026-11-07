@@ -190,7 +190,7 @@ export class IntelScene extends Phaser.Scene {
     const cy = this.top + 26;
     if (this.textures.exists('ui_icon_intel')) this.add.image(width / 2, cy, 'ui_icon_intel').setScale(2).setAlpha(0.6);
     text(this, width / 2, cy + 22, 'NO TRANSMISSIONS YET', { size: 'm', color: COLORS.teal, originX: 0.5 });
-    text(this, width / 2, cy + 42, wrapText('Some missions hide encrypted data caches. Shoot down the courier ships that carry them to intercept enemy transmissions.', area.w - 2 * 14, 's'), {
+    text(this, width / 2, cy + 42, wrapText('Every mission hides one data cache. Allies and enemy nodes alike ride the Directorate relay net: destroy relay dishes and courier ships to recover their transmissions.', area.w - 2 * 14, 's'), {
       size: 's', color: COLORS.textDim, originX: 0.5, align: 'center',
     }).setLineSpacing(3);
     this.status.setText('Recovered intel appears here.');

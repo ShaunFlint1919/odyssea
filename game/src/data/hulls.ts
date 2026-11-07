@@ -5,16 +5,16 @@ import type { HullDef } from '../types';
 export const HULLS: HullDef[] = [
   {
     id: 'sparrow', name: 'Sparrow Skiff', cost: 0, armor: 20, speed: 150, hitRadius: 4, sidekickSlots: 1,
-    desc: 'Nimble starter skiff. Light plating and one sidekick mount; cheap to fly, cheaper to fix.',
+    desc: 'Nimble starter skiff. Light plating and one drone mount; cheap to fly, cheaper to fix.',
   },
   {
     id: 'lancer', name: 'Lancer Interceptor', cost: 5000, armor: 26, speed: 180, hitRadius: 3.5, sidekickSlots: 2,
-    desc: 'Interceptor frame with twin sidekick mounts and a slim, forgiving profile.',
+    desc: 'Interceptor frame with twin drone mounts and a slim, forgiving profile.',
     unlockLevel: 'kessra-2',
   },
   {
     id: 'bulwark', name: 'Bulwark Brawler', cost: 14000, armor: 40, speed: 130, hitRadius: 5, sidekickSlots: 2,
-    desc: 'Armoured brawler. Slow to turn, but shrugs off fire that would gut a skiff.',
+    desc: 'Armored brawler. Slow to turn, but shrugs off fire that would gut a skiff.',
     unlockLevel: 'verdance-2',
   },
   {
@@ -29,7 +29,7 @@ export const HULLS: HullDef[] = [
   },
   {
     id: 'leviathan', name: 'Leviathan Ark', cost: 90000, armor: 60, speed: 125, hitRadius: 6, sidekickSlots: 2,
-    desc: 'Super-heavy fortress hull. Colossal armour for pilots who would rather not dodge.',
+    desc: 'Super-heavy fortress hull. Colossal armor for pilots who would rather not dodge.',
     unlockLevel: 'glacia-3',
   },
 ];

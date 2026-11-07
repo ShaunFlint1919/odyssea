@@ -30,7 +30,7 @@ const BIOME_LABEL: Record<string, string> = {
   lava: 'VOLCANIC WORLD', ice: 'ICE WORLD', space: 'DEEP SPACE', techno: 'MACHINE CITADEL',
 };
 
-/** Galaxy map: 8 planets on routes; a planet opens its mission panel; picking a level sets the next mission. */
+/** Star chart: 8 planets on routes; a planet opens its mission panel; picking a level sets the next mission. */
 export class MapScene extends Phaser.Scene {
   private nodes: PlanetNode[] = [];
   private focus = 0;
@@ -66,7 +66,7 @@ export class MapScene extends Phaser.Scene {
 
     this.add.image(0, 0, nebulaBackdrop(this, W, H)).setOrigin(0).setScale(2).setDepth(MD.bg);
     kit.starfield(this, { density: 0.45, speed: 2, depth: MD.stars });
-    screenHeader(this, 'GALAXY MAP', { back: () => this.back(), credits: save.credits });
+    screenHeader(this, 'STAR CHART', { back: () => this.back(), credits: save.credits });
     this.status = kit.statusBar(this, 'TAP A PLANET OR USE THE ARROWS - ENTER: MISSIONS');
 
     // ------------------------------------------------------------ layout
@@ -153,7 +153,7 @@ export class MapScene extends Phaser.Scene {
       const rad = (a * Math.PI) / 180;
       g.fillStyle(COLORS.teal, a % 45 === 0 ? 0.25 : 0.1).fillRect(Math.round(cx + Math.cos(rad) * 180), Math.round(cy + Math.sin(rad) * 180), 1, 1);
     }
-    kit.text(this, 8, top + 6, 'OUTER WORLDS - SECTOR 7', { size: 's', color: COLORS.textDim, depth: MD.stars + 1 });
+    kit.text(this, 8, top + 6, 'OUTER MARCHES - SECTOR 31', { size: 's', color: COLORS.textDim, depth: MD.stars + 1 });
     kit.text(this, W - 8, bottom - 10, 'DIRECTORATE SPACE', { size: 's', color: 0x6a4a7a, originX: 1, depth: MD.stars + 1 });
   }
 
@@ -332,7 +332,7 @@ export class MapScene extends Phaser.Scene {
         help: !open ? 'CLEAR THE PREVIOUS MISSION FIRST' : done ? 'REPLAY FOR CREDITS - BEST SCORE SHOWN' : 'SET AS NEXT MISSION AND RETURN TO HANGAR',
       };
     });
-    items.push({ label: 'CLOSE', icon: META.icDone, color: COLORS.textDim, arrows: false, help: 'BACK TO THE GALAXY MAP' });
+    items.push({ label: 'CLOSE', icon: META.icDone, color: COLORS.textDim, arrows: false, help: 'BACK TO THE STAR CHART' });
     const start = Math.max(0, n.def.levels.indexOf(save.currentLevel));
     const firstOpen = n.def.levels.findIndex((id) => isUnlocked(id) && !isCompleted(id));
     const by = ly + 12 + items.length * rowH + 6;

@@ -42,7 +42,7 @@ export class HangarScene extends Phaser.Scene {
     // ------------------------------------------------------------ layout (adapts to H)
     const rowH = H >= 660 ? 26 : H >= 560 ? 24 : 22;
     const menuH = 7 * rowH + 12;
-    const missionH = H >= 540 ? 62 : 56;
+    const missionH = 62; // room for 3 briefing lines (briefings are <= 120 chars)
     const statusH = 16;
     const gap = H >= 600 ? 5 : 4;
     const top = HEADER_H + gap;
@@ -99,17 +99,17 @@ export class HangarScene extends Phaser.Scene {
         disabled: !mission,
         help: mission ? kit.fit(`FLY "${upper(mission.name)}" - FULL REPAIR INCLUDED`, 296, 's') : 'NO MISSION DATA AVAILABLE',
       },
-      { label: 'UPGRADE SHIP', icon: META.icUpgrade, help: 'BUY AND TRADE HULLS, GUNS, SHIELDS AND DRONES' },
+      { label: 'REFIT BAY', icon: META.icUpgrade, help: 'BUY AND TRADE HULLS, GUNS, SHIELDS AND DRONES' },
       {
-        label: 'GALAXY MAP', icon: META.icMap, value: total ? `${done}/${total}` : undefined, valueColor: COLORS.textDim,
+        label: 'STAR CHART', icon: META.icMap, value: total ? `${done}/${total}` : undefined, valueColor: COLORS.textDim,
         help: 'PICK A TARGET OR REPLAY MISSIONS FOR CREDITS',
       },
       {
-        label: 'SHIP SPECS', icon: META.icSpecs, value: `${signed(bal.net)} EN/S`, valueColor: bal.net < 0 ? COLORS.bad : COLORS.good,
-        help: bal.net < 0 ? 'WARNING: YOUR GUNS DRAIN MORE THAN THE GENERATOR' : 'FULL LOADOUT STATS AND ENERGY BALANCE',
+        label: 'LOADOUT STATS', icon: META.icSpecs, value: `${signed(bal.net)} EN/S`, valueColor: bal.net < 0 ? COLORS.bad : COLORS.good,
+        help: bal.net < 0 ? 'WARNING: GUNS DRAW MORE THAN THE GENERATOR MAKES' : 'FULL LOADOUT STATS AND ENERGY BALANCE',
       },
       {
-        label: 'COMMS', icon: iconOr(this, 'ui_icon_intel', META.icComms),
+        label: 'TRANSMISSIONS', icon: iconOr(this, 'ui_icon_intel', META.icComms),
         value: unread === 0 && save.intel.length ? `${save.intel.length} MSG` : undefined, valueColor: COLORS.textDim,
         help: unread ? `${unread} UNREAD TRANSMISSION${unread > 1 ? 'S' : ''}` : 'READ THE TRANSMISSIONS YOU RECOVERED',
       },
@@ -180,14 +180,14 @@ export class HangarScene extends Phaser.Scene {
       const all = campaignProgress();
       const msg = all.total > 0 && all.done >= all.total ? 'CAMPAIGN COMPLETE' : 'NO MISSION DATA';
       kit.text(this, tx, y + 19, msg, { size: 'm', color: COLORS.gold, depth: MD.content });
-      wrapLines('Replay any cleared mission from the galaxy map to farm credits.', Math.floor(tw / 6), 2)
+      wrapLines('Replay any cleared mission from the star chart to farm credits.', Math.floor(tw / 6), 2)
         .forEach((ln, i) => kit.text(this, tx, y + 32 + i * 9, ln, { size: 's', color: COLORS.textDim, depth: MD.content }));
       return;
     }
     const replay = isCompleted(lv.id);
     kit.text(this, tx, y + 18, kit.fit(upper(lv.name), tw - (replay ? 54 : 0), 'm'), { size: 'm', color: COLORS.text, depth: MD.content });
     if (replay) kit.text(this, x + w - 8, y + 19, 'REPLAY', { size: 's', color: COLORS.gold, originX: 1, depth: MD.content });
-    const maxLines = h >= 60 ? 3 : 2;
+    const maxLines = Math.max(2, Math.min(3, Math.floor((h - 33) / 9)));
     const lines = wrapLines(lv.briefing, Math.floor(tw / 6), maxLines);
     lines.forEach((ln, i) => kit.text(this, tx, y + 31 + i * 9, ln, { size: 's', color: COLORS.textDim, depth: MD.content }));
   }
@@ -219,7 +219,7 @@ export class HangarScene extends Phaser.Scene {
     this.dialogOpen = true;
     audio.sfx('ui_back');
     this.list?.setEnabled(false);
-    kit.confirm(this, 'RETURN TO THE TITLE SCREEN?\nYOUR PROGRESS IS SAVED.', (yes) => {
+    kit.confirm(this, 'Return to the title screen?\nYour progress is saved.', (yes) => {
       this.dialogOpen = false;
       this.list?.setEnabled(true);
       if (yes) {

@@ -393,7 +393,8 @@ function printModel(data) {
     return;
   }
   const steps = data.referenceProgression();
-  const head = ['level', 'value', 'income', 'hull', 'front', 'side L/R', 'rear', 'gen', 'shield', 'DPS', 'fight', 'e/s use/out', 'boss hp', 'boss TTK', 'mid hp', 'mid TTK'];
+  const head = ['level', 'value', 'income', 'hull', 'front', 'drones L/R', 'rear', 'gen', 'shield', 'DPS', 'e/s use/out',
+    'boss: pow', 'dps', 'hp', 'TTK', 'mid: pow', 'dps', 'hp', 'TTK'];
   const rows = steps.map((s) => [
     s.levelId,
     String(Math.round(s.value)),
@@ -405,10 +406,13 @@ function printModel(data) {
     s.loadout.generator,
     s.loadout.shield,
     s.dps.toFixed(0),
-    s.fightDps.toFixed(0),
     `${s.energyUse.toFixed(1)}/${s.energyOut.toFixed(0)}`,
+    s.bossHp ? s.bossPower.toFixed(1) : '',
+    s.bossHp ? s.fightDps.toFixed(0) : '',
     s.bossHp ? String(s.bossHp) : '',
     s.bossTtk ? `${s.bossTtk.toFixed(0)} s` : '',
+    s.midbossHp ? s.midbossPower.toFixed(1) : '',
+    s.midbossHp ? s.midbossDps.toFixed(0) : '',
     s.midbossHp ? String(s.midbossHp) : '',
     s.midbossTtk ? `${s.midbossTtk.toFixed(0)} s` : '',
   ]);
@@ -416,6 +420,7 @@ function printModel(data) {
   const line = (c) => c.map((x, i) => x.padEnd(widths[i])).join('  ');
   console.log(line(head));
   for (const r of rows) console.log(line(r));
+  if (Array.isArray(data.REFERENCE_DPS)) console.log(`REFERENCE_DPS (boss fights, by planet): ${data.REFERENCE_DPS.join(', ')}`);
 }
 
 // ------------------------------------------------------------------------------ main

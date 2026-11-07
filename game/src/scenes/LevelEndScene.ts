@@ -2,13 +2,14 @@
 //  LEVEL END — mission complete screen. Applies the LevelResult to the save exactly once,
 //  then plays a skippable sequence: tally rows (kills, ratio, credits, score, time, bank),
 //  a rank stamp, notices (record, NEW TRANSMISSION, unlocks, new gear) and, after a boss,
-//  the "PLANET LIBERATED" flourish. CONTINUE -> Hangar, or the galaxy Map after a planet.
+//  the "PLANET LIBERATED" flourish. CONTINUE -> Hangar, or the star chart (Map) after a planet.
 //  Shared screen frame: header strip (no back arrow: back = skip / continue), status bar.
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, SCENES } from '../config';
 import { markSceneReady, setHookState } from '../debug';
-import { planetKey } from '../art/keys';
+import { ANIM, hullKey, planetKey } from '../art/keys';
+import { HULL_MOUNTS } from '../art/player';
 import type { Biome, LevelResult } from '../types';
 import { audio } from '../audio';
 import { haptic } from '../platform/haptics';
@@ -79,7 +80,7 @@ export class LevelEndScene extends Phaser.Scene {
     if (bonus > 0) rows.push({ label: 'MISSION BONUS', value: bonus, color: COLORS.gold });
     rows.push({ label: 'SCORE', value: result.score, color: COLORS.text });
     rows.push({ label: 'MISSION TIME', value: Math.round(result.timeSeconds), format: fmtTime });
-    const rowH = height >= 560 ? 20 : 18;
+    const rowH = height >= 640 ? 22 : height >= 560 ? 20 : 18;
     const bankH = 24;
     const pad = 12;
     const labelH = 18;
@@ -119,16 +120,24 @@ export class LevelEndScene extends Phaser.Scene {
       return c;
     });
 
-    // ---- free space between the notices and the CONTINUE button: flourish band or UP NEXT card
+    // ---- free space between the notices and the CONTINUE button: the flourish band or the
+    // UP NEXT card sit just above the button; the player's ship takes the room left above them
     const freeTop = ry + Math.max(64, 6 + notices.length * 15) + LAYOUT.gap;
     const freeBottom = bottomButtonY(this) - LAYOUT.gap;
-    const bandY = Math.round(freeTop + Math.max(0, (freeBottom - freeTop - 52) / 2));
+    let shipBottom = freeBottom;
+    const bandY = Math.round(Math.max(freeTop, freeBottom - 52 - 6));
+    if (flourish) shipBottom = bandY - 8;
     const card = showCard ? this.upNextCard(nextId, width) : null;
     if (card) {
       const ch = card.getData('h') as number;
-      if (freeBottom - freeTop >= ch) card.setY(Math.round(freeTop + (freeBottom - freeTop - ch) / 2));
-      else { card.destroy(); }
+      if (freeBottom - freeTop >= ch) {
+        card.setY(Math.round(freeBottom - ch));
+        shipBottom = freeBottom - ch - LAYOUT.gap;
+      } else {
+        card.destroy();
+      }
     }
+    if (shipBottom - freeTop >= 88) this.heroShip(Math.round(width / 2), Math.round((freeTop + shipBottom) / 2));
 
     const steps: SequenceStep[] = [];
     for (let i = 0; i < board.count; i++) steps.push({ wait: i === 0 ? 450 : 330, run: (inst) => board.reveal(i, inst) });
@@ -150,7 +159,7 @@ export class LevelEndScene extends Phaser.Scene {
     if (flourish) {
       const biome = info.level?.biome;
       const title = campaignDone ? 'CAMPAIGN COMPLETE' : 'PLANET LIBERATED';
-      const sub = campaignDone ? 'THE OUTER WORLDS ARE FREE' : (info.planet?.name ?? '').toUpperCase();
+      const sub = campaignDone ? 'THE OUTER MARCHES ARE FREE' : (info.planet?.name ?? '').toUpperCase();
       steps.push({ wait: 500, run: (inst) => this.liberated(bandY, title, sub, biome, inst) });
     }
     this.seq = new Sequence(this, steps, () => this.showContinue());
@@ -167,7 +176,7 @@ export class LevelEndScene extends Phaser.Scene {
 
   private buildNotices(result: LevelResult, applied: ReturnType<typeof applyOnce>, rankNote: string, nextShownInCard: boolean): Notice[] {
     const out: Notice[] = [];
-    if (result.score > applied.bestBefore && applied.bestBefore > 0) out.push({ text: 'NEW SCORE RECORD!', color: COLORS.gold });
+    if (result.score > applied.bestBefore && applied.bestBefore > 0) out.push({ text: 'NEW HIGH SCORE!', color: COLORS.gold });
     else out.push({ text: rankNote, color: COLORS.textDim });
     if (applied.newIntel.length > 0) {
       out.push({ text: applied.newIntel.length > 1 ? `${applied.newIntel.length} TRANSMISSIONS` : 'NEW TRANSMISSION', color: COLORS.accentLight, icon: 'ui_icon_intel', badge: 'NEW' });
@@ -178,7 +187,7 @@ export class LevelEndScene extends Phaser.Scene {
       if (!lv) continue;
       if (lv.planet !== curPlanet) {
         const p = PLANETS.find((pl) => pl.id === lv.planet);
-        out.push({ text: `SECTOR UNLOCKED: ${(p?.name ?? lv.planet).toUpperCase()}`, color: COLORS.teal });
+        out.push({ text: `NEW WORLD UNLOCKED: ${(p?.name ?? lv.planet).toUpperCase()}`, color: COLORS.teal });
       } else if (!nextShownInCard) {
         out.push({ text: `NEXT MISSION: ${lv.name.toUpperCase()}`, color: COLORS.teal });
       }
@@ -223,6 +232,52 @@ export class LevelEndScene extends Phaser.Scene {
     if (brief) c.add(text(this, x0 + tx, 34, brief, { size: 's', color: COLORS.textDim }).setLineSpacing(2));
     c.setData('h', h);
     return c;
+  }
+
+  /** The player's ship cruising home: hull x2 with engine flames, a gentle banking sway and sparkles. */
+  private heroShip(x: number, y: number): void {
+    const key = hullKey(getSave().loadout.hull);
+    if (!this.textures.exists(key)) return;
+    const c = this.add.container(x, y).setDepth(2);
+    const glowKey = cachedTexture(this, '__le_glow', 32, 32, (ctx) => {
+      const img = ctx.createImageData(32, 32);
+      for (let yy = 0; yy < 32; yy++) {
+        for (let xx = 0; xx < 32; xx++) {
+          const d = Math.hypot(xx - 15.5, yy - 15.5) / 16;
+          const i = (yy * 32 + xx) * 4;
+          img.data[i] = 255; img.data[i + 1] = 255; img.data[i + 2] = 255; img.data[i + 3] = Math.round(Math.max(0, 1 - d) ** 2 * 255);
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+    });
+    c.add(this.add.image(0, 4, glowKey).setScale(3.2, 2.2).setTint(COLORS.teal).setAlpha(0.18).setBlendMode(Phaser.BlendModes.ADD));
+    const mounts = HULL_MOUNTS[getSave().loadout.hull]?.engines ?? [[0, 14]];
+    if (this.textures.exists('fx_engine')) {
+      for (const [ex, ey] of mounts) {
+        const fl = this.add.sprite(ex * 2, (ey - 1) * 2, 'fx_engine', 0).setOrigin(0.5, 0).setScale(2);
+        if (this.anims.exists(ANIM.engine)) fl.play({ key: ANIM.engine, startFrame: Math.floor(Math.random() * 4) });
+        c.add(fl);
+      }
+    }
+    const ship = this.add.sprite(0, 0, key, 0).setScale(2);
+    c.add(ship);
+    this.tweens.add({ targets: c, y: y - 5, duration: 1700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    // banking sway: the hull leans into the drift while it is fast (frames 1 / 2 = banked left / right)
+    const banks = this.textures.get(key).frameTotal - 1 >= 3;
+    let prevX = x - 10;
+    this.tweens.add({
+      targets: c, x: { from: x - 10, to: x + 10 }, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        const dx = c.x - prevX;
+        prevX = c.x;
+        if (banks) ship.setFrame(Math.abs(c.x - x) < 6 && Math.abs(dx) > 0.01 ? (dx < 0 ? 1 : 2) : 0);
+      },
+    });
+    this.time.addEvent({
+      delay: 900, loop: true, callback: () => {
+        burst(this, c.x + (Math.random() - 0.5) * 40, c.y + (Math.random() - 0.5) * 30, { count: 6, speed: 30, life: 500, depth: 1, colors: [COLORS.teal, 0xffffff, COLORS.accentLight] });
+      },
+    });
   }
 
   private stampRank(box: Phaser.GameObjects.Container, letter: Phaser.GameObjects.BitmapText, instant: boolean): void {
@@ -282,8 +337,8 @@ export class LevelEndScene extends Phaser.Scene {
 
   private showContinue(): void {
     const toMap = this.target === SCENES.Map;
-    const b = bottomButton(this, toMap ? 'GALAXY MAP' : 'CONTINUE', () => this.leave());
-    this.status.setText(toMap ? 'New routes are open on the galaxy map.' : 'Return to the hangar: repair and upgrade.');
+    const b = bottomButton(this, toMap ? 'STAR CHART' : 'CONTINUE', () => this.leave());
+    this.status.setText(toMap ? 'New routes are open on the star chart.' : 'Return to the hangar: repair and upgrade.');
     b.container.setAlpha(0);
     b.container.y += 6;
     this.tweens.add({ targets: b.container, alpha: 1, y: b.container.y - 6, duration: 180, ease: 'Quad.easeOut' });

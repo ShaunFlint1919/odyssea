@@ -159,7 +159,7 @@ export const AXIOM_LEVELS: LevelDef[] = [
   }),
 
   level({
-    planet: 'axiom', index: 3, name: 'The Architect', duration: 120, scrollSpeed: 78, intel: 'in_privatelog',
+    planet: 'axiom', index: 3, name: 'Architect\'s Core', duration: 120, scrollSpeed: 78, intel: 'in_privatelog',
     briefing: 'The core of the Directorate. End the Architect\'s will and the gate is ours.',
     waves: [
       vee(1, 'a_hornet', 0.5, 7, 22), comets(1.4, 2, 0.45),

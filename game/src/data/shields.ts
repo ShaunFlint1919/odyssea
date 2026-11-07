@@ -29,7 +29,7 @@ export const SHIELDS: ShieldDef[] = [
   },
   {
     id: 'sh_eclipse', name: 'Eclipse Mantle', cost: 60000, capacity: 54, regen: 6.5, energyPerPoint: 2.8, color: 'pink',
-    desc: 'Prototype mantle that drinks starlight. The finest shield in the Outer Worlds.',
+    desc: 'Prototype mantle that drinks starlight. The finest shield in the Outer Marches.',
     unlockLevel: 'glacia-2',
   },
 ];

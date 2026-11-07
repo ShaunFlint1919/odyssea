@@ -140,7 +140,7 @@ export const GLACIA_LEVELS: LevelDef[] = [
 
   level({
     planet: 'glacia', index: 3, name: 'Cryo Sanctum', duration: 106, scrollSpeed: 66, intel: 'in_coolant',
-    briefing: 'The Rime Sentinel guards the drained seed vault. Shatter it and free the cold.',
+    briefing: 'The Rime Sentinel guards the drained seed vault. Shatter it and save what is left.',
     waves: [
       vee(1, 'g_hornet', 0.5, 5, 26), convoys(1.4, 'g_walker', 0.2, 3, 0.6),
       duo(3, 'g_warden', 0.25),

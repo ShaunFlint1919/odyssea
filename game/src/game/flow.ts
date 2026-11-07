@@ -15,7 +15,7 @@ export type FlowPhase = 'waves' | 'clearing' | 'boss' | 'bossDown' | 'clear' | '
 export interface FlowHost {
   /** WARNING banner + alarm + boss music + boss entrance. */
   startBoss(def: BossDef): void;
-  /** STAGE CLEAR banner, music, gem magnet. */
+  /** ALL CLEAR banner, music, gem magnet. */
   stageClear(): void;
   /** Leave the mission (completed = LevelEnd, else GameOver). */
   finish(completed: boolean): void;

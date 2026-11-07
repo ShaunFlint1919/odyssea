@@ -13,7 +13,7 @@ import { scanlines, screenBackdrop, screenHeader } from '../ui/widgets';
 import { catalogMax, dec, findGenerator, findHull, findShield, findSidekick, findWeapon, fmt, signed, upper } from '../ui/meta/common';
 import { energyBalance, sidekickStats, toughness, totalDps, weaponStats, type GunStats } from '../ui/meta/stats';
 
-/** Ship specs: summary cards, hull schematic, defense / power, armament table, energy balance. */
+/** Loadout stats: summary cards, hull schematic, defense / power, armament table, energy balance. */
 export class SpecsScene extends Phaser.Scene {
   constructor() {
     super(SCENES.Specs);
@@ -29,8 +29,8 @@ export class SpecsScene extends Phaser.Scene {
     screenBackdrop(this);
     const leave = () => kit.goto(this, SCENES.Hangar);
     const back = () => { audio.sfx('ui_back'); leave(); };
-    screenHeader(this, 'SHIP SPECS', { back, credits: save.credits });
-    const status = kit.statusBar(this, 'NOMINAL: EVERY SHOT HITS, GUNS FIRE NONSTOP');
+    screenHeader(this, 'LOADOUT STATS', { back, credits: save.credits });
+    const status = kit.statusBar(this, 'NOMINAL STATS: ALL SHOTS HIT, GUNS FIRE NONSTOP');
     kit.onBack(this, back);
 
     // ------------------------------------------------------------ vertical layout

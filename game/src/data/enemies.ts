@@ -146,7 +146,7 @@ const UMBRA: EnemyDef[] = [
   mk(U, 'u_scree', 'Falling Scree', 'hz_rock_s', 'violet', { hp: 13, speed: 70, move: 'drift', contact: 8 }),
   mk(U, 'u_boulder', 'Cave-in Boulder', 'hz_rock_m', 'violet', { hp: 58, speed: 45, move: 'drift', contact: 14 }),
   mk(U, 'u_relay', 'Echo Relay', 'gr_radar', 'toxic', { hp: 10, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
-  mk(U, 'u_loot', 'Lantern Moth', 'en_saucer', 'cobalt', { hp: 12, speed: 70, move: 'strafe', drops: LOOT_POWER_ARMOR, loot: true }),
+  mk(U, 'u_loot', 'Lumen Moth', 'en_saucer', 'cobalt', { hp: 12, speed: 70, move: 'strafe', drops: LOOT_POWER_ARMOR, loot: true }),
   mk(U, 'u_frigate', 'Gloam Frigate', 'en_frigate', 'cobalt', { hp: 2280, speed: 24, move: 'hover', fire: 'ring16', rate: 0.35, bs: 90, b: 'eb_orb', c: 'pink', credits: 600, drops: MIDBOSS_DROP }),
 ];
 

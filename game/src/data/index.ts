@@ -18,7 +18,7 @@ import { LEVELS as LEVEL_LIST } from './levels';
 import { INTEL as INTEL_LIST } from './intel';
 import { validateBundle } from './validate';
 import { REPLAY_BONUS_FACTOR, clearBonus, levelStats, type LevelStats } from './balance';
-import { simulateProgression, type ProgressionStep } from './progression';
+import { POWER_COLLECT, REAR_ON_TARGET, dpsAtPower, sidekickDps, simulateProgression, type ProgressionStep } from './progression';
 
 export const HULLS: HullDef[] = HULL_LIST;
 export const SHIELDS: ShieldDef[] = SHIELD_LIST;
@@ -129,10 +129,41 @@ export function referenceProgression(): ProgressionStep[] {
       income: (l) => estimateLevelIncome(l.id),
       bossHp: (l) => (l.boss ? getBoss(l.boss).hp : 0),
       midbossHp: (l) => (l.midboss ? getEnemy(l.midboss.enemy).hp : 0),
+      powerDrops: (l, t) => expectedPowerDrops(l.id, t),
     });
   }
   return progression;
 }
+/**
+ * Expected number of 'power' pickups dropped by a level's wave enemies that spawn before
+ * level time `t` (every unit destroyed; the mid-boss drops are not counted).
+ */
+export function expectedPowerDrops(levelId: string, t: number = Infinity): number {
+  let n = 0;
+  for (const w of getLevel(levelId).waves) {
+    if (w.t >= t) continue;
+    const drops = ENEMIES.find((e) => e.id === w.enemy)?.drops ?? [];
+    const chance = drops.reduce((sum, d) => sum + (d.kind === 'power' ? d.chance : 0), 0);
+    n += chance * w.count * (w.mirror ? 2 : 1);
+  }
+  return n;
+}
+
+/**
+ * Nominal DPS a loadout brings to the planet boss ('boss') or the mid-boss ('midboss') fight
+ * of a level: front gun at its power + POWER_COLLECT x the power drops before the fight, the
+ * sidekicks, and REAR_ON_TARGET x the rear gun. Fight length = hp / (this x uptime).
+ */
+export function fightDps(loadout: Loadout, levelId: string, fight: 'boss' | 'midboss' = 'boss'): number {
+  const l = getLevel(levelId);
+  const until = fight === 'midboss' && l.midboss ? l.midboss.t : l.duration;
+  const power = loadout.frontPower + POWER_COLLECT * expectedPowerDrops(levelId, until);
+  const front = dpsAtPower(getWeapon(loadout.front), power);
+  const side = [loadout.sidekickL, loadout.sidekickR].reduce((sum, id) => sum + (id ? sidekickDps(getSidekick(id)) : 0), 0);
+  const rear = loadout.rear ? REAR_ON_TARGET * dpsAtPower(getWeapon(loadout.rear), loadout.rearPower) : 0;
+  return front + side + rear;
+}
+
 /** The reference player's loadout when it starts `levelId` (START_LOADOUT for unknown ids). */
 export function referenceLoadout(levelId: string): Loadout {
   const step = referenceProgression().find((s) => s.levelId === levelId);
@@ -150,7 +181,7 @@ export function validateContent(): string[] {
 
 /**
  * Reference boss-fight DPS per planet (campaign order): the reference player's nominal DPS
- * (front with POWER_PICKUPS in-level power + sidekicks + a share of the rear gun) when it
+ * (front with its in-level power pickups + sidekicks + a share of the rear gun) when it
  * meets each planet boss. Fight length = boss hp / (REFERENCE_DPS x DPS_UPTIME).
  */
 export const REFERENCE_DPS: number[] = PLANETS.map((p) => {
@@ -164,7 +195,7 @@ export type { ProgressionStep } from './progression';
 export {
   CLEAR_BONUS, CREDIT_CURVE, DPS_UPTIME, KILL_RATE, MIDBOSS_UPTIME, REPLAY_BONUS_FACTOR, energyFactor, targetLevelCredits,
 } from './balance';
-export { POWER_PICKUPS, sidekickDps, weaponValue } from './progression';
+export { POWER_COLLECT, REAR_ON_TARGET, dpsAtPower, sidekickDps, weaponValue } from './progression';
 export { BIOME_PALETTES, BIOME_BULLET_COLORS, LAND_BIOMES, PLANET_PALETTES, SEA_BIOMES } from './helpers';
 export { ENEMY_MUZZLES, type SpriteMuzzles } from './muzzles';
 export { nominalDps, powerFactor, PROJECTILES_AT_P1 } from './weapons';

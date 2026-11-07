@@ -26,18 +26,18 @@ interface ShopData { category?: string; focus?: string }
 
 const CATS: { cat: ShopCategory; label: string; title: string; icon: string; help: string }[] = [
   { cat: 'hull', label: 'HULL', title: 'HULL', icon: 'ui_icon_hull', help: 'SHIP FRAME: ARMOR, SPEED, HITBOX, DRONE MOUNTS' },
-  { cat: 'front', label: 'FRONT GUN', title: 'FRONT GUN', icon: 'ui_icon_front', help: 'MAIN GUN - BUY POWER LEVELS UP TO 10' },
-  { cat: 'rear', label: 'REAR GUN', title: 'REAR GUN', icon: 'ui_icon_rear', help: 'TAIL GUN WITH TWO MODES, TOGGLED IN FLIGHT' },
+  { cat: 'front', label: 'MAIN GUN', title: 'MAIN GUN', icon: 'ui_icon_front', help: 'YOUR PRIMARY WEAPON - BUY POWER LEVELS UP TO 10' },
+  { cat: 'rear', label: 'TAIL GUN', title: 'TAIL GUN', icon: 'ui_icon_rear', help: 'GUARDS YOUR TAIL - TWO MODES, TOGGLED IN FLIGHT' },
   { cat: 'shield', label: 'SHIELD', title: 'SHIELD', icon: 'ui_icon_shield', help: 'SOAKS HITS FIRST, RECHARGES ON ENERGY' },
   { cat: 'generator', label: 'GENERATOR', title: 'GENERATOR', icon: 'ui_icon_generator', help: 'POWERS YOUR GUNS AND SHIELD RECHARGE' },
-  { cat: 'sidekickL', label: 'LEFT SIDEKICK', title: 'LEFT DRONE', icon: 'ui_icon_sidekick', help: 'DRONE ON THE LEFT MOUNT - USES NO ENERGY' },
-  { cat: 'sidekickR', label: 'RIGHT SIDEKICK', title: 'RIGHT DRONE', icon: 'ui_icon_sidekick', help: 'DRONE ON THE RIGHT MOUNT - USES NO ENERGY' },
+  { cat: 'sidekickL', label: 'LEFT DRONE', title: 'LEFT DRONE', icon: 'ui_icon_sidekick', help: 'DRONE ON THE LEFT MOUNT - USES NO ENERGY' },
+  { cat: 'sidekickR', label: 'RIGHT DRONE', title: 'RIGHT DRONE', icon: 'ui_icon_sidekick', help: 'DRONE ON THE RIGHT MOUNT - USES NO ENERGY' },
 ];
 
 const isCategory = (c: unknown): c is ShopCategory => typeof c === 'string' && (SHOP_CATEGORIES as string[]).includes(c);
 const isGun = (c: ShopCategory | null): c is 'front' | 'rear' => c === 'front' || c === 'rear';
 
-/** Upgrade Ship: category list, then the item list of a category with a live weapon preview. */
+/** Refit bay: category list, then the item list of a category with a live weapon preview. */
 export class ShopScene extends Phaser.Scene {
   private cat: ShopCategory | null = null;
   private startFocus: ShopCategory | null = null;
@@ -71,7 +71,7 @@ export class ShopScene extends Phaser.Scene {
     this.page = [];
     this.infoObjs = [];
     screenBackdrop(this);
-    this.hdr = screenHeader(this, 'UPGRADE SHIP', { back: () => this.back(), credits: getSave().credits });
+    this.hdr = screenHeader(this, 'REFIT BAY', { back: () => this.back(), credits: getSave().credits });
     this.status = kit.statusBar(this, '');
     kit.onBack(this, () => this.back());
     this.showPage(this.cat, this.startFocus, false);
@@ -189,7 +189,7 @@ export class ShopScene extends Phaser.Scene {
 
   private buildCategories(focus: ShopCategory | null): void {
     const { width: W, height: H } = this.scale.gameSize;
-    this.hdr.setTitle('UPGRADE SHIP');
+    this.hdr.setTitle('REFIT BAY');
     const l = getSave().loadout;
     const n = CATS.length + 1;
     const gap = 4, statusH = 16, top = HEADER_H + gap;
@@ -219,7 +219,7 @@ export class ShopScene extends Phaser.Scene {
         valueColor: empty ? COLORS.textDim : COLORS.teal, help: ok ? c.help : 'THIS HULL HAS NO MOUNT FOR THIS DRONE', arrows: false,
       };
     });
-    items.push({ label: 'DONE', icon: META.icDone, help: 'BACK TO THE HANGAR', color: COLORS.accentLight, arrows: false });
+    items.push({ label: 'BACK TO HANGAR', icon: META.icDone, help: 'RETURN TO THE HANGAR - EVERY CHANGE IS SAVED', color: COLORS.accentLight, arrows: false });
     const start = Math.max(0, CATS.findIndex((c) => c.cat === focus));
     const iy = ly + listH + gap;
     this.info = { x: px, y: iy, w: pw, h: infoH };
@@ -243,7 +243,7 @@ export class ShopScene extends Phaser.Scene {
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.infoObjs.push(o); return o; };
     const c = CATS[i];
     if (!c) {
-      add(sectionLabel(this, x + 8, y + 7, 'DONE', w - 16, MD.content));
+      add(sectionLabel(this, x + 8, y + 7, 'BACK TO HANGAR', w - 16, MD.content));
       add(kit.text(this, x + 10, y + 21, 'Back to the hangar. Every change is saved.', { size: 's', color: COLORS.textDim, depth: MD.content }));
       const bal = energyBalance(getSave().loadout);
       add(kit.text(this, x + 10, y + 33, `ENERGY BALANCE ${bal.net >= 0 ? '+' : ''}${dec(bal.net)}/S`, { size: 's', color: bal.net < 0 ? COLORS.bad : COLORS.good, depth: MD.content }));
@@ -387,7 +387,7 @@ export class ShopScene extends Phaser.Scene {
       const verb = it.id === null ? 'REMOVE' : net > 0 ? 'BUY' : 'SWAP';
       const lost = cat === 'hull' ? this.dronesLost(it.id) : '';
       const help = net > credits ? `NEED ${fmt(net - credits)} MORE CREDITS`
-        : lost ? `${verb} ALSO SELLS YOUR ${lost} - TAP AGAIN` : `TAP AGAIN OR PRESS ENTER TO ${verb}`;
+        : lost ? `ALSO SELLS YOUR ${lost} - TAP AGAIN TO ${verb}` : `TAP AGAIN OR PRESS ENTER TO ${verb}`;
       return { ...base, value, valueColor, help };
     });
   }
@@ -457,7 +457,7 @@ export class ShopScene extends Phaser.Scene {
 
     // price line
     let price: [string, number];
-    if (it.equipped) price = [it.id === null ? 'SLOT EMPTY' : `RESALE VALUE ${fmt(equippedValue(cat))}`, COLORS.textDim];
+    if (it.equipped) price = [it.id === null ? 'EMPTY SLOT' : `RESALE VALUE ${fmt(equippedValue(cat))}`, COLORS.textDim];
     else if (it.locked) price = [unlockHint(this.unlockLevel(cat, it.id)), COLORS.bad];
     else if (!slotOk) price = ['NO MOUNT ON THIS HULL', COLORS.bad];
     else if (it.id === null) price = [`SELL FOR ${fmt(-net)}`, COLORS.good];
@@ -543,7 +543,7 @@ export class ShopScene extends Phaser.Scene {
         return [
           { label: 'DPS', cur: cur(a?.dps ?? 0), next: b?.dps ?? 0, better: 1, digits: 0 },
           { label: 'VOLLEYS/S', cur: cur(a?.rate ?? 0), next: b?.rate ?? 0, better: 0, digits: 1 },
-          { label: 'ENERGY/S', cur: null, next: 0, better: 0, digits: 0, suffix: ' FREE' },
+          { label: 'ENERGY/S', cur: null, next: 0, better: 0, digits: 0 },
         ];
       }
     }

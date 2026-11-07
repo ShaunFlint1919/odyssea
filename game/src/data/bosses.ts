@@ -135,7 +135,7 @@ export const BOSSES: BossDef[] = [
   },
   {
     // cavern hive mother: egg pods spraying rings, mandible turrets, brood maw
-    id: 'hive', name: 'Gloam Matriarch', title: 'Queen of Umbra Deep', sprite: 'boss_hive', palette: 'toxic',
+    id: 'hive', name: 'Gloam Matriarch', title: 'Mother of the Hive', sprite: 'boss_hive', palette: 'toxic',
     hp: 9950, score: 60000, credits: 1100,
     phases: [
       {
@@ -237,7 +237,7 @@ export const BOSSES: BossDef[] = [
   },
   {
     // space carrier: missile launch pods, wing plates, flank turrets, hangar maw (muzzle 2)
-    id: 'voidcarrier', name: 'Nyx Voidcarrier', title: 'Shepherd of the Rift', sprite: 'boss_voidcarrier', palette: 'steel',
+    id: 'voidcarrier', name: 'Vesper Voidcarrier', title: 'Shepherd of the Rift', sprite: 'boss_voidcarrier', palette: 'steel',
     hp: 28240, score: 170000, credits: 2800,
     phases: [
       {

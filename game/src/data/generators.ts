@@ -23,7 +23,7 @@ export const GENERATORS: GeneratorDef[] = [
     unlockLevel: 'thalassa-1',
   },
   {
-    id: 'gen_helion', name: 'Helion Heart', cost: 32000, capacity: 165, output: 46,
+    id: 'gen_helion', name: 'Stellar Heart', cost: 32000, capacity: 165, output: 46,
     desc: 'Captured Directorate heart-reactor. Runs hot, runs everything.',
     unlockLevel: 'umbra-2',
   },

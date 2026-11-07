@@ -162,7 +162,7 @@ export const RIFT_LEVELS: LevelDef[] = [
 
   level({
     planet: 'rift', index: 3, name: 'Carrier Maw', duration: 114, scrollSpeed: 74, intel: 'in_thirdway',
-    briefing: 'The Nyx Voidcarrier shepherds the gate collar. Gut its launch bays and break it.',
+    briefing: 'The Vesper Voidcarrier shepherds the gate collar. Gut its launch bays and break it.',
     waves: [
       vee(1, 'r_dart', 0.5, 7, 22), comets(1.4, 2, 0.5),
       duo(3, 'r_gunship', 0.26), shoal(3.4, 51, 5),

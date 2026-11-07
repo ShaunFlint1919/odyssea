@@ -15,7 +15,7 @@ export const SIDEKICKS: SidekickDef[] = [
     unlockLevel: 'kessra-1',
   },
   {
-    id: 'sk_orbiter', name: 'Satellite Ward', pattern: 'orbiter', cost: 7000, damage: 10, fireRate: 4,
+    id: 'sk_orbiter', name: 'Orbital Ward', pattern: 'orbiter', cost: 7000, damage: 10, fireRate: 4,
     projectile: 'pj_orb', color: 'blue',
     desc: 'Circles your hull, eating enemy bullets and grinding anything it touches.',
     unlockLevel: 'kessra-3',

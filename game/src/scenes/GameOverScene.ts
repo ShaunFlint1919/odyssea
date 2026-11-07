@@ -25,7 +25,7 @@ const TIPS = [
   'Trade-ins refund 100% of what you paid for the old part.',
   'Replay cleared missions to farm credits for upgrades.',
   'Rear guns cover your flanks: switch their mode in flight.',
-  'Sidekicks fire for free and never drain your generator.',
+  'Drones fire for free and never drain your generator.',
   'Keep moving: aimed shots are fired where you stand.',
   'Armor only repairs at the hangar or with repair pickups.',
 ];

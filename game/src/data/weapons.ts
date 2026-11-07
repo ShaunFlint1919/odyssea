@@ -6,7 +6,7 @@ import type { FrontPattern, RearPattern, WeaponDef } from '../types';
 
 export const FRONT_WEAPONS: WeaponDef[] = [
   {
-    id: 'pulse_blaster', name: 'Kestrel Pulser', slot: 'front', pattern: 'pulse', cost: 500, upgradeBase: 300,
+    id: 'pulse_blaster', name: 'Kestrel Coilgun', slot: 'front', pattern: 'pulse', cost: 500, upgradeBase: 300,
     damage: 5, fireRate: 5, energyPerShot: 2, projectile: 'pj_bolt', color: 'cyan', sfx: 'shot_pulse',
     desc: 'Reliable coil bolts. Upgrades add parallel streams and a faster cadence.',
   },
@@ -30,13 +30,13 @@ export const FRONT_WEAPONS: WeaponDef[] = [
   {
     id: 'seeker_kite', name: 'Kitehawk Seekers', slot: 'front', pattern: 'seeker', cost: 9500, upgradeBase: 3600,
     damage: 16, fireRate: 2.5, energyPerShot: 7, projectile: 'pj_missile', color: 'pink', sfx: 'shot_missile',
-    desc: 'Micro-missiles that pick their own targets. Never wastes a shot.',
+    desc: 'Micro-missiles that pick their own targets. Never waste a shot.',
     unlockLevel: 'kessra-3',
   },
   {
     id: 'lance_star', name: 'Starpiercer Lance', slot: 'front', pattern: 'lance', cost: 14000, upgradeBase: 4900,
     damage: 40, fireRate: 2.5, energyPerShot: 8, projectile: 'pj_beam', color: 'blue', sfx: 'shot_laser',
-    desc: 'Piercing beam bursts that punch through whole formations and armour.',
+    desc: 'Piercing beam bursts that punch through whole formations and armor.',
     unlockLevel: 'verdance-2',
   },
   {
@@ -48,7 +48,7 @@ export const FRONT_WEAPONS: WeaponDef[] = [
   {
     id: 'mortar_thunder', name: 'Thunderhead Mortar', slot: 'front', pattern: 'mortar', cost: 30000, upgradeBase: 9000,
     damage: 88, fireRate: 1.6, energyPerShot: 15, projectile: 'pj_bigorb', color: 'red', sfx: 'shot_heavy',
-    desc: 'Slow plasma shells with a blast radius. Flattens bunkers and crowds alike.',
+    desc: 'Slow plasma shells with a blast radius. Flatten bunkers and crowds alike.',
     unlockLevel: 'thalassa-3',
   },
 ];
