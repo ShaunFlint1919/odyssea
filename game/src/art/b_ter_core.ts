@@ -5,6 +5,8 @@
 //  Every per-pixel buffer uses the same layout: the chunk plus a margin of M px on each side,
 //  stride S = width + 2M, index(x, row) = (row + M) * S + x + M. Margins let painters sample
 //  neighbours (slopes, cast shadows, cliff faces) across chunk edges with identical results.
+//  Painters return a PLAN: a list of small Steps (fields, row-sliced pixel passes) so a chunk
+//  can be generated incrementally under a per-frame time budget (TerrainGenerator.beginChunk).
 // =====================================================================================
 import { CHUNK_H } from '../config';
 import { hash2 } from './noise';
@@ -14,12 +16,6 @@ export const CH = CHUNK_H;
 /** Margin (px) around the chunk covered by every field buffer. */
 export const MARGIN = 12;
 
-export const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
-export const smoothstep = (a: number, b: number, v: number): number => {
-  const t = clamp01((v - a) / (b - a));
-  return t * t * (3 - 2 * t);
-};
-export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 /** Linear 0..1 ramp of v between a and b (cheap smoothstep substitute for hot loops). */
 export const lin = (a: number, b: number, v: number): number => {
   const t = (v - a) / (b - a);
@@ -45,7 +41,7 @@ export function pack(hex: number): number {
 }
 
 /** Linear mix of two 0xRRGGBB colours. */
-export function mixHex(a: number, b: number, t: number): number {
+function mixHex(a: number, b: number, t: number): number {
   const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
   const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
   const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
@@ -60,11 +56,6 @@ export function mixPacked(a: number, b: number, t: number): number {
   return 0xff000000 | (bl << 16) | (g << 8) | r;
 }
 
-/** Packed ramp (dark -> light) from 0xRRGGBB stops. */
-export function ramp(...hex: number[]): Int32Array {
-  return Int32Array.from(hex.map(pack));
-}
-
 /** Packed ramp of `n` colours interpolated through the given 0xRRGGBB stops. */
 export function rampN(n: number, ...stops: number[]): Int32Array {
   const out = new Int32Array(n);
@@ -74,11 +65,6 @@ export function rampN(n: number, ...stops: number[]): Int32Array {
     out[i] = pack(mixHex(stops[k], stops[k + 1], t - k));
   }
   return out;
-}
-
-/** Derived ramp: every colour of `src` (0xRRGGBB stops) mixed toward `toward` by t. */
-export function rampToward(src: number[], toward: number, t: number): Int32Array {
-  return Int32Array.from(src.map((c) => pack(mixHex(c, toward, t))));
 }
 
 /** Ordered 4x4 Bayer thresholds in [0, 1). */
@@ -95,71 +81,88 @@ export function tone(r: Int32Array, t: number, d: number): number {
 
 // ------------------------------------------------------------------------------ scratch pool
 
-const pool: Float32Array[] = [];
-let poolIdx = 0;
+/**
+ * Scratch buffers and output image of ONE chunk job. Buffers are handed out in call order and
+ * recycled by the generator once the job's result has been taken, so concurrent jobs never
+ * share memory and sequential jobs allocate nothing.
+ */
+export class Pool {
+  private readonly f = list<Float32Array>();
+  private readonly u = list<Uint8Array>();
+  private fi = 0;
+  private ui = 0;
+  img: ImageData | null = null;
 
-const u8pool: Uint8Array[] = [];
-let u8Idx = 0;
-/** Pooled Uint8Array of at least n entries (stale content!). Reset at every chunk start. */
-export function scratchU8(n: number): Uint8Array {
-  let a = u8pool[u8Idx];
-  if (!a || a.length < n) {
-    a = new Uint8Array(n);
-    u8pool[u8Idx] = a;
-  }
-  u8Idx++;
-  return a;
-}
-
-/** Pooled Float32Array of at least n entries (stale content!). Reset at every chunk start. */
-export function scratch(n: number): Float32Array {
-  let a = pool[poolIdx];
-  if (!a || a.length < n) {
-    a = new Float32Array(n);
-    pool[poolIdx] = a;
-  }
-  poolIdx++;
-  return a;
-}
-
-// ------------------------------------------------------------------------------ chunk context
-
-/** Everything a painter needs to render one chunk. */
-export class Chunk {
-  readonly h = CH;
-  readonly M = MARGIN;
-  readonly S: number;          // stride of the margin layout
-  readonly N: number;          // entries in a margin-layout buffer
-  readonly wy0: number;        // world Y of row 0 (top row)
-  readonly img: ImageData;
-  readonly px: Int32Array;     // packed ABGR pixels of img (w x CH)
-  readonly doodads: DoodadPlacement[] = list<DoodadPlacement>();
-
-  /**
-   * `img` (w x CH) is reused between chunks of one generator: it is only copied to a canvas.
-   * `force` = JIT warm-up chunk: painters make every optional feature appear (see ensureSite).
-   */
-  constructor(readonly w: number, readonly index: number, readonly seed: number, img?: ImageData, readonly force = false) {
-    this.S = w + 2 * MARGIN;
-    this.N = this.S * (CH + 2 * MARGIN);
-    this.wy0 = (index + 1) * CH - 1;
-    this.img = img && img.width === w && img.height === CH ? img : new ImageData(w, CH);
-    this.px = new Int32Array(this.img.data.buffer);
-    poolIdx = 0;
-    u8Idx = 0;
+  /** Starts a new job: every buffer becomes available again (stale content!). */
+  reset(): void {
+    this.fi = 0;
+    this.ui = 0;
   }
 
-  /** Index of (x, row) in the margin layout. */
-  idx(x: number, r: number): number {
-    return (r + MARGIN) * this.S + x + MARGIN;
+  /** Float32Array of at least n entries (stale content). */
+  f32(n: number): Float32Array {
+    let a = this.f[this.fi];
+    if (!a || a.length < n) {
+      a = new Float32Array(n);
+      this.f[this.fi] = a;
+    }
+    this.fi++;
+    return a;
   }
 
-  /** Adds a doodad if its centre lies inside this chunk (rows 0..CH-1). */
-  add(key: string, x: number, r: number, flipX = false, scale = 1): void {
-    if (r < 0 || r >= CH || x < 0 || x >= this.w) return;
-    this.doodads.push({ key, x: Math.round(x), y: Math.round(r), flipX, scale: Math.round(scale * 100) / 100 });
+  /** Uint8Array of at least n entries (stale content). */
+  u8(n: number): Uint8Array {
+    let a = this.u[this.ui];
+    if (!a || a.length < n) {
+      a = new Uint8Array(n);
+      this.u[this.ui] = a;
+    }
+    this.ui++;
+    return a;
   }
 }
+
+// ------------------------------------------------------------------------------ steps
+
+/** One unit of incremental work: run() does some work and returns true once it is complete. */
+export interface Step {
+  run(deadline: number): boolean;
+}
+
+class OnceStep implements Step {
+  constructor(private readonly fn: () => void) {}
+  run(): boolean {
+    this.fn();
+    return true;
+  }
+}
+
+class RangeStep implements Step {
+  private cur = 0;
+  private end = -1;
+  constructor(private readonly count: () => number, private readonly batch: number,
+    private readonly fn: (a: number, b: number) => void) {}
+  run(deadline: number): boolean {
+    if (this.end < 0) this.end = this.count();
+    while (this.cur < this.end) {
+      const b = Math.min(this.end, this.cur + this.batch);
+      this.fn(this.cur, b);
+      this.cur = b;
+      if (performance.now() >= deadline) break;
+    }
+    return this.cur >= this.end;
+  }
+}
+
+/** A step that runs fn once (keep it small: a field, a site list, doodad placement...). */
+export const once = (fn: () => void): Step => new OnceStep(fn);
+
+/**
+ * A sliced step over indices [0, count) (usually rows) in batches of `batch`; the clock is
+ * checked after every batch. `count` may be a function evaluated when the step starts.
+ */
+export const range = (count: number | (() => number), batch: number, fn: (a: number, b: number) => void): Step =>
+  new RangeStep(typeof count === 'number' ? () => count : count, batch, fn);
 
 // ------------------------------------------------------------------------------ fields
 
@@ -193,7 +196,7 @@ export function field(c: Chunk, step: number, fn: (wx: number, wy: number) => nu
   const gy0 = Math.floor((c.wy0 - (CH + P - 1)) / step) - 1;
   const gy1 = Math.floor((c.wy0 + P) / step) + 2;
   const lw = gx1 - gx0 + 1, lh = gy1 - gy0 + 1;
-  const L = scratch(lw * lh);
+  const L = c.f32(lw * lh);
   for (let j = 0; j < lh; j++) {
     const wy = (gy0 + j) * step;
     const o = j * lw;
@@ -215,7 +218,7 @@ export function lattice(c: Chunk, step: number, seed: number, pad = MARGIN, cont
   const gy0 = Math.floor((c.wy0 - (CH + P - 1)) / step) - 1;
   const gy1 = Math.floor((c.wy0 + P) / step) + 2;
   const lw = gx1 - gx0 + 1, lh = gy1 - gy0 + 1;
-  const L = scratch(lw * lh);
+  const L = c.f32(lw * lh);
   for (let j = 0; j < lh; j++) {
     const o = j * lw, gy = gy0 + j;
     for (let i = 0; i < lw; i++) L[o + i] = hash2(gx0 + i, gy, seed);
@@ -229,7 +232,7 @@ function upsample(c: Chunk, step: number, L: Float32Array, lw: number, lh: numbe
   const M = c.M, S = c.S;
   const Wt = bsplineWeights(step);
   // row pass: lattice rows -> full-resolution columns
-  const T = scratch(lh * S);
+  const T = c.f32(lh * S);
   for (let xx = M - P; xx < S - M + P; xx++) {
     const x = xx - M;
     const gx = Math.floor(x / step);
@@ -242,7 +245,7 @@ function upsample(c: Chunk, step: number, L: Float32Array, lw: number, lh: numbe
     }
   }
   // column pass (two output rows per sweep when they share the same four lattice rows)
-  const D = scratch(c.N);
+  const D = c.f32(c.N);
   const x0 = M - P, x1 = S - M + P, rEnd = CH + M + P;
   const add = mid - mid * k;
   for (let rr = M - P; rr < rEnd;) {
@@ -283,7 +286,7 @@ export function grain(c: Chunk, seed: number, pad = 1): Float32Array {
     for (let k = 0; k < 65536; k++) GTILE[k] = hash2(k & 255, k >> 8, 0x51ed);
   }
   const T = GTILE;
-  const D = scratch(c.N);
+  const D = c.f32(c.N);
   const M = c.M, S = c.S, P = Math.min(pad, M);
   let blk = 1e9, ox = 0, oy = 0;
   for (let rr = M - P; rr < CH + M + P; rr++) {
@@ -299,62 +302,6 @@ export function grain(c: Chunk, seed: number, pad = 1): Float32Array {
     for (let xx = M - P; xx < S - M + P; xx++) D[o + xx] = T[base | ((xx - M + ox) & 255)];
   }
   return D;
-}
-
-export interface Cells {
-  f1: Float32Array;   // distance to the nearest feature point (px)
-  f2: Float32Array;   // distance to the second nearest
-  id: Float32Array;   // hash [0,1) of the nearest cell
-}
-
-/**
- * Cellular (Worley) noise in the margin layout, over jittered points of world cells of size
- * `cell`. Only `pad` px of margin are computed (the rest is left at 0). Optional domain warp.
- */
-export function cellular(c: Chunk, cell: number, seed: number, jitter: number, pad: number,
-  warpX?: Float32Array, warpY?: Float32Array, warpAmp = 0): Cells {
-  const M = c.M, S = c.S, w = c.w;
-  const reach = pad + warpAmp + cell;
-  const cx0 = Math.floor(-reach / cell) - 1, cx1 = Math.floor((w + reach) / cell) + 1;
-  const cy0 = Math.floor((c.wy0 - CH - reach) / cell) - 1, cy1 = Math.floor((c.wy0 + reach) / cell) + 1;
-  const nx = cx1 - cx0 + 1, ny = cy1 - cy0 + 1;
-  const PX = scratch(nx * ny), PY = scratch(nx * ny), PI = scratch(nx * ny);
-  for (let j = 0; j < ny; j++) {
-    for (let i = 0; i < nx; i++) {
-      const gx = cx0 + i, gy = cy0 + j, k = j * nx + i;
-      PX[k] = (gx + 0.5 + (hash2(gx, gy, seed) - 0.5) * jitter) * cell;
-      PY[k] = (gy + 0.5 + (hash2(gx, gy, seed + 71) - 0.5) * jitter) * cell;
-      PI[k] = hash2(gx, gy, seed + 151);
-    }
-  }
-  const f1 = scratch(c.N), f2 = scratch(c.N), id = scratch(c.N);
-  const inv = 1 / cell;
-  for (let r = -pad; r < CH + pad; r++) {
-    const wy = c.wy0 - r;
-    let i = (r + M) * S + M - pad;
-    for (let x = -pad; x < w + pad; x++, i++) {
-      let qx = x, qy = wy;
-      if (warpX && warpY) {
-        qx += (warpX[i] - 0.5) * warpAmp;
-        qy += (warpY[i] - 0.5) * warpAmp;
-      }
-      const ccx = Math.floor(qx * inv) - cx0, ccy = Math.floor(qy * inv) - cy0;
-      let d1 = 1e9, d2 = 1e9, best = 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        const row = (ccy + dy) * nx;
-        for (let dx = -1; dx <= 1; dx++) {
-          const k = row + ccx + dx;
-          const ex = PX[k] - qx, ey = PY[k] - qy;
-          const d = ex * ex + ey * ey;
-          if (d < d1) { d2 = d1; d1 = d; best = k; } else if (d < d2) d2 = d;
-        }
-      }
-      f1[i] = Math.sqrt(d1);
-      f2[i] = Math.sqrt(d2);
-      id[i] = PI[best];
-    }
-  }
-  return { f1, f2, id };
 }
 
 // ------------------------------------------------------------------------------ sites & cells
@@ -473,7 +420,7 @@ export class Meander {
   /** Per margin-layout row: centre x, half-width and dx/dy slope of the centre line. */
   rows(c: Chunk): { xc: Float32Array; hw: Float32Array; slope: Float32Array } {
     const rows = CH + 2 * c.M;
-    const xc = scratch(rows), hw = scratch(rows), slope = scratch(rows);
+    const xc = c.f32(rows), hw = c.f32(rows), slope = c.f32(rows);
     for (let rr = 0; rr < rows; rr++) {
       const wy = c.wy0 - (rr - c.M);
       xc[rr] = this.xc(wy);
@@ -522,9 +469,9 @@ export class Voronoi {
     const cy1 = Math.floor((c.wy0 + r) / cell) + 1;
     this.nx = cx1 - this.cx0 + 1;
     const ny = cy1 - this.cy0 + 1;
-    this.PX = scratch(this.nx * ny);
-    this.PY = scratch(this.nx * ny);
-    this.PI = scratch(this.nx * ny);
+    this.PX = c.f32(this.nx * ny);
+    this.PY = c.f32(this.nx * ny);
+    this.PI = c.f32(this.nx * ny);
     for (let j = 0; j < ny; j++) {
       for (let i = 0; i < this.nx; i++) {
         const gx = this.cx0 + i, gy = this.cy0 + j, k = j * this.nx + i;
