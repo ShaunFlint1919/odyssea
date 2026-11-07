@@ -174,12 +174,12 @@ export const BOSSES: BossDef[] = [
         untilHp: 0.75, move: 'anchor', speed: 18,
         attacks: [
           atk('spread5', 0.55, 100, 'eb_orb', 'white', FOR('muzzle', 0)),
-          atk('down', 1.6, 130, 'eb_needle', 'cyan', FOR('muzzle', 1)), atk('down', 1.6, 130, 'eb_needle', 'cyan', FOR('muzzle', 2)),
+          atk('down', 1.6, 130, 'eb_needle', 'pink', FOR('muzzle', 1)), atk('down', 1.6, 130, 'eb_needle', 'pink', FOR('muzzle', 2)),
         ],
       },
       {
         untilHp: 0.5, move: 'hoverSway', speed: 28,
-        attacks: [atk('ring16', 0.4, 85, 'eb_ring', 'white', FOR('core', 0)), atk('aimed', 1.2, 140, 'eb_orb', 'cyan', FOR('muzzle', 0))],
+        attacks: [atk('ring16', 0.4, 85, 'eb_ring', 'white', FOR('core', 0)), atk('aimed', 1.2, 140, 'eb_orb', 'pink', FOR('muzzle', 0))],
         spawn: { enemy: 'c_comet', every: 5 },
       },
       {
@@ -190,15 +190,15 @@ export const BOSSES: BossDef[] = [
       {
         untilHp: 0, move: 'charge', speed: 60,
         attacks: [
-          atk('ring16', 0.6, 95, 'eb_bigorb', 'yellow', FOR('core', 0)), atk('spread5', 0.8, 120, 'eb_orb', 'cyan', FOR('muzzle', 0)),
+          atk('ring16', 0.6, 95, 'eb_bigorb', 'yellow', FOR('core', 0)), atk('spread5', 0.8, 120, 'eb_orb', 'pink', FOR('muzzle', 0)),
           atk('laser', 0.3, 260, 'eb_laser', 'white', FOR('muzzle', 0)),
         ],
         spawn: { enemy: 'c_comet', every: 3 },
       },
     ],
     parts: [
-      { sprite: 'part_turret', offset: FOR('turret', 2), hp: 540, attack: atk('flak', 0.35, 85, 'eb_orb', 'cyan') },
-      { sprite: 'part_turret', offset: FOR('turret', 3), hp: 540, attack: atk('flak', 0.35, 85, 'eb_orb', 'cyan') },
+      { sprite: 'part_turret', offset: FOR('turret', 2), hp: 540, attack: atk('flak', 0.35, 85, 'eb_orb', 'violet') },
+      { sprite: 'part_turret', offset: FOR('turret', 3), hp: 540, attack: atk('flak', 0.35, 85, 'eb_orb', 'violet') },
       { sprite: 'part_turret', offset: FOR('turret', 0), hp: 440, attack: atk('aimed', 0.8, 130, 'eb_needle', 'white') },
       { sprite: 'part_turret', offset: FOR('turret', 1), hp: 440, attack: atk('aimed', 0.8, 130, 'eb_needle', 'white') },
       { sprite: 'part_core', offset: FOR('core', 0), hp: 0 },
@@ -285,7 +285,7 @@ export const BOSSES: BossDef[] = [
         untilHp: 0.75, move: 'hoverSway', speed: 28,
         attacks: [
           atk('spread5', 0.8, 120, 'eb_orb', 'orange', ARC('muzzle', 2)),
-          atk('down', 2, 150, 'eb_needle', 'cyan', ARC('muzzle', 0)), atk('down', 2, 150, 'eb_needle', 'cyan', ARC('muzzle', 1)),
+          atk('down', 2, 150, 'eb_needle', 'red', ARC('muzzle', 0)), atk('down', 2, 150, 'eb_needle', 'red', ARC('muzzle', 1)),
         ],
       },
       {
@@ -304,7 +304,7 @@ export const BOSSES: BossDef[] = [
       {
         untilHp: 0, move: 'charge', speed: 65,
         attacks: [
-          atk('ring16', 0.55, 105, 'eb_orb', 'pink', ARC('core', 0)), atk('spiral', 8, 115, 'eb_dot', 'cyan', ARC('core', 0)),
+          atk('ring16', 0.55, 105, 'eb_orb', 'pink', ARC('core', 0)), atk('spiral', 8, 115, 'eb_dot', 'red', ARC('core', 0)),
           atk('flak', 0.45, 100, 'eb_orb', 'orange', ARC('muzzle', 2)), atk('spread5', 0.75, 130, 'eb_ring', 'yellow', ARC('muzzle', 0)),
         ],
         spawn: { enemy: 'a_hornet', every: 3 },

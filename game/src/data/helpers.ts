@@ -100,17 +100,18 @@ export const PLANET_PALETTES: Record<string, Palette[]> = {
 
 /**
  * Enemy bullet colours that stay readable on each biome's terrain (no orange on sand,
- * no green on canopy, no blue on water, no red/orange on lava, no white/blue on snow).
+ * no green on canopy, no blue on water, no red/orange on lava, no white/blue on snow) and
+ * against the player's own fire: never cyan, the colour of the starter gun's dense stream.
  */
 export const BIOME_BULLET_COLORS: Record<Biome, ShotColor[]> = {
   desert: ['pink', 'violet', 'red'],
   jungle: ['red', 'pink', 'orange'],
   ocean: ['orange', 'red', 'yellow'],
   cavern: ['orange', 'yellow', 'pink'],
-  lava: ['white', 'cyan', 'violet', 'yellow'],
+  lava: ['white', 'violet', 'yellow', 'pink'],
   ice: ['red', 'orange', 'pink', 'violet'],
   space: ['red', 'pink', 'orange', 'yellow'],
-  techno: ['orange', 'yellow', 'pink', 'cyan'],
+  techno: ['orange', 'yellow', 'pink', 'red'],
 };
 
 /** Sprites a level-2 mid-boss may be built on. */

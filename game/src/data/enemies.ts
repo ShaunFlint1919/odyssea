@@ -85,16 +85,16 @@ function mk(tier: number, id: string, name: string, sprite: EnemySprite, palette
 const K = 0;
 const KESSRA: EnemyDef[] = [
   mk(K, 'k_mite', 'Dust Mite', 'en_drone', 'cobalt', { hp: 4, speed: 80, move: 'sine' }),
-  mk(K, 'k_dart', 'Sand Dart', 'en_dart', 'cobalt', { hp: 5, speed: 115, move: 'straight', fire: 'aimed', rate: 0.3, bs: 90, b: 'eb_dot', c: 'pink' }),
-  mk(K, 'k_wasp', 'Dune Wasp', 'en_wasp', 'steel', { hp: 6, speed: 105, move: 'zigzag', fire: 'burst', rate: 0.22, bs: 95, b: 'eb_dot', c: 'violet' }),
-  mk(K, 'k_hornet', 'Scorch Hornet', 'en_hornet', 'crimson', { hp: 10, speed: 80, move: 'straight', fire: 'spread3', rate: 0.35, bs: 85, b: 'eb_orb', c: 'pink' }),
+  mk(K, 'k_dart', 'Sand Dart', 'en_dart', 'cobalt', { hp: 5, speed: 115, move: 'straight', fire: 'aimed', rate: 0.4, bs: 95, b: 'eb_dot', c: 'pink' }),
+  mk(K, 'k_wasp', 'Dune Wasp', 'en_wasp', 'steel', { hp: 6, speed: 105, move: 'zigzag', fire: 'burst', rate: 0.28, bs: 95, b: 'eb_dot', c: 'violet' }),
+  mk(K, 'k_hornet', 'Scorch Hornet', 'en_hornet', 'crimson', { hp: 8, speed: 80, move: 'straight', fire: 'spread3', rate: 0.42, bs: 90, b: 'eb_orb', c: 'pink' }),
   mk(K, 'k_diver', 'Sandsnap Diver', 'en_kamikaze', 'crimson', { hp: 5, speed: 150, move: 'dive' }),
-  mk(K, 'k_turret', 'Dune Turret', 'gr_turret', 'steel', { hp: 30, speed: 0, move: 'ground', fire: 'aimed', rate: 0.4, bs: 90, b: 'eb_orb', c: 'pink' }),
-  mk(K, 'k_tank', 'Sandrunner Tank', 'gr_tank', 'cobalt', { hp: 36, speed: 20, move: 'groundMove', fire: 'aimed', rate: 0.35, bs: 95, b: 'eb_orb', c: 'violet' }),
-  mk(K, 'k_bunker', 'Mesa Bunker', 'gr_bunker', 'steel', { hp: 160, speed: 0, move: 'ground', fire: 'ring8', rate: 0.3, bs: 75, b: 'eb_orb', c: 'violet', drops: [{ kind: 'armor', chance: 0.25 }] }),
-  mk(K, 'k_relay', 'Relay Dish', 'gr_radar', 'crimson', { hp: 8, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
-  mk(K, 'k_loot', 'Prospector Disc', 'en_saucer', 'crimson', { hp: 10, speed: 70, move: 'strafe', drops: LOOT_POWER_ARMOR, loot: true }),
-  mk(K, 'k_frigate', 'Sirocco Frigate', 'en_frigate', 'cobalt', { hp: 800, speed: 26, move: 'hover', fire: 'spread5', rate: 0.45, bs: 85, b: 'eb_orb', c: 'pink', credits: 220, drops: MIDBOSS_DROP }),
+  mk(K, 'k_turret', 'Dune Turret', 'gr_turret', 'steel', { hp: 30, speed: 0, move: 'ground', fire: 'aimed', rate: 0.5, bs: 95, b: 'eb_orb', c: 'pink' }),
+  mk(K, 'k_tank', 'Sandrunner Tank', 'gr_tank', 'cobalt', { hp: 36, speed: 20, move: 'groundMove', fire: 'aimed', rate: 0.45, bs: 100, b: 'eb_orb', c: 'violet' }),
+  mk(K, 'k_bunker', 'Mesa Bunker', 'gr_bunker', 'steel', { hp: 160, speed: 0, move: 'ground', fire: 'ring8', rate: 0.35, bs: 75, b: 'eb_orb', c: 'violet', drops: [{ kind: 'armor', chance: 0.25 }] }),
+  mk(K, 'k_relay', 'Relay Dish', 'gr_radar', 'crimson', { hp: 6, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
+  mk(K, 'k_loot', 'Prospector Disc', 'en_saucer', 'crimson', { hp: 6, speed: 70, move: 'strafe', drops: LOOT_POWER_ARMOR, loot: true }),
+  mk(K, 'k_frigate', 'Sirocco Frigate', 'en_frigate', 'cobalt', { hp: 800, speed: 26, move: 'hover', fire: 'spread5', rate: 0.55, bs: 90, b: 'eb_orb', c: 'pink', credits: 220, drops: MIDBOSS_DROP }),
 ];
 
 // ------------------------------------------------------------ 2. VERDANCE (jungle) emerald / toxic
@@ -154,12 +154,12 @@ const UMBRA: EnemyDef[] = [
 const C = 4;
 const CINDER: EnemyDef[] = [
   mk(C, 'c_mite', 'Spark Mite', 'en_drone', 'toxic', { hp: 7, speed: 100, move: 'sine' }),
-  mk(C, 'c_dart', 'Ember Dart', 'en_dart', 'cobalt', { hp: 9, speed: 150, move: 'straight', fire: 'aimed', rate: 0.5, bs: 125, b: 'eb_dot', c: 'cyan' }),
+  mk(C, 'c_dart', 'Ember Dart', 'en_dart', 'cobalt', { hp: 9, speed: 150, move: 'straight', fire: 'aimed', rate: 0.5, bs: 125, b: 'eb_dot', c: 'pink' }),
   mk(C, 'c_hornet', 'Magma Hornet', 'en_hornet', 'steel', { hp: 12, speed: 100, move: 'straight', fire: 'spread3', rate: 0.5, bs: 115, b: 'eb_orb', c: 'white' }),
   mk(C, 'c_comet', 'Cinder Comet', 'en_kamikaze', 'toxic', { hp: 9, speed: 120, move: 'chase' }),
-  mk(C, 'c_bomber', 'Slag Bomber', 'en_bomber', 'steel', { hp: 240, speed: 34, move: 'straight', fire: 'flak', rate: 0.4, bs: 90, b: 'eb_orb', c: 'cyan', drops: [{ kind: 'power', chance: 0.2 }] }),
+  mk(C, 'c_bomber', 'Slag Bomber', 'en_bomber', 'steel', { hp: 240, speed: 34, move: 'straight', fire: 'flak', rate: 0.4, bs: 90, b: 'eb_orb', c: 'violet', drops: [{ kind: 'power', chance: 0.2 }] }),
   mk(C, 'c_gunship', 'Pyre Gunship', 'en_gunship', 'cobalt', { hp: 290, speed: 40, move: 'hover', fire: 'spread5', rate: 0.55, bs: 110, b: 'eb_orb', c: 'white', drops: [{ kind: 'shield', chance: 0.25 }] }),
-  mk(C, 'c_tank', 'Basalt Tank', 'gr_tank', 'steel', { hp: 58, speed: 22, move: 'groundMove', fire: 'burst', rate: 0.45, bs: 115, b: 'eb_orb', c: 'cyan' }),
+  mk(C, 'c_tank', 'Basalt Tank', 'gr_tank', 'steel', { hp: 58, speed: 22, move: 'groundMove', fire: 'burst', rate: 0.45, bs: 115, b: 'eb_orb', c: 'pink' }),
   mk(C, 'c_twin', 'Obsidian Twin', 'gr_twin', 'cobalt', { hp: 70, speed: 0, move: 'ground', fire: 'spread3', rate: 0.45, bs: 115, b: 'eb_orb', c: 'violet' }),
   mk(C, 'c_bunker', 'Caldera Bunker', 'gr_bunker', 'steel', { hp: 260, speed: 0, move: 'ground', fire: 'ring16', rate: 0.28, bs: 85, b: 'eb_orb', c: 'white', drops: [{ kind: 'armor', chance: 0.25 }] }),
   mk(C, 'c_silo', 'Eruptor Silo', 'gr_silo', 'toxic', { hp: 76, speed: 0, move: 'ground', fire: 'missile', rate: 0.3, bs: 80, b: 'eb_missile', c: 'yellow' }),
@@ -222,7 +222,7 @@ const AXIOM: EnemyDef[] = [
   mk(A, 'a_gunship', 'Directive Gunship', 'en_gunship', 'violet', { hp: 450, speed: 40, move: 'hover', fire: 'ring16', rate: 0.5, bs: 105, b: 'eb_ring', c: 'yellow', drops: [{ kind: 'shield', chance: 0.25 }] }),
   mk(A, 'a_turret', 'Citadel Turret', 'gr_turret', 'crimson', { hp: 70, speed: 0, move: 'ground', fire: 'burst', rate: 0.7, bs: 140, b: 'eb_orb', c: 'orange' }),
   mk(A, 'a_rampart', 'Rampart Twin', 'gr_twin', 'violet', { hp: 90, speed: 0, move: 'ground', fire: 'spread5', rate: 0.55, bs: 125, b: 'eb_orb', c: 'yellow' }),
-  mk(A, 'a_tank', 'Enforcer Tank', 'gr_tank', 'toxic', { hp: 80, speed: 24, move: 'groundMove', fire: 'burst', rate: 0.6, bs: 135, b: 'eb_orb', c: 'cyan' }),
+  mk(A, 'a_tank', 'Enforcer Tank', 'gr_tank', 'toxic', { hp: 80, speed: 24, move: 'groundMove', fire: 'burst', rate: 0.6, bs: 135, b: 'eb_orb', c: 'red' }),
   mk(A, 'a_bunker', 'Core Bunker', 'gr_bunker', 'toxic', { hp: 400, speed: 0, move: 'ground', fire: 'ring16', rate: 0.4, bs: 95, b: 'eb_ring', c: 'pink', drops: [{ kind: 'armor', chance: 0.25 }] }),
   mk(A, 'a_silo', 'Purge Silo', 'gr_silo', 'violet', { hp: 90, speed: 0, move: 'ground', fire: 'missile', rate: 0.4, bs: 90, b: 'eb_missile', c: 'orange' }),
   mk(A, 'a_relay', 'Uplink Node', 'gr_radar', 'toxic', { hp: 14, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
