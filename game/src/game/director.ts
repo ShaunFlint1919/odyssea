@@ -103,7 +103,9 @@ export class Director {
     w.services.banner('WARNING', def.name.toUpperCase(), 2200);
     w.services.sfx('warning');
     this.anchor = PLAY_W / 2;
-    this.push(w.time + 1.2, def, 'hover', PLAY_W / 2, 0, 1, true);
+    // the mid-boss keeps its own pattern ('hover' for air capital ships, the sea / ground
+    // pattern for surface ones); isMidboss extends its stay (movement.ts)
+    this.push(w.time + 1.2, def, def.move, PLAY_W / 2, 0, 1, true);
   }
 
   /** Expand one wave into spawn jobs (with its mirrored copy). */

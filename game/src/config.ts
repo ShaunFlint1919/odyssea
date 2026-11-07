@@ -41,9 +41,9 @@ export const DEPTH = {
   groundFx: 18,
   pickups: 20,
   air: 30,           // air enemies
+  playerShots: 36,   // below enemy bullets: enemy bullets must stay the most readable thing
   enemyBullets: 40,
   player: 50,
-  playerShots: 45,
   fx: 60,
   clouds: 70,
   hud: 100,

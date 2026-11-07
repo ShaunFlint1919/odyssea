@@ -263,8 +263,40 @@ export class ShopScene extends Phaser.Scene {
     const desc = this.describe(c.cat, id);
     const name = id === null ? 'EMPTY SLOT' : equippedName(l, c.cat);
     add(kit.text(this, x + 10, y + 20, kit.fit(name, w - 20, 'm'), { size: 'm', color: id === null ? COLORS.textDim : COLORS.text, depth: MD.content }));
-    const lines = wrapLines(desc, Math.floor((w - 20) / 6), Math.max(1, Math.floor((h - 34) / 9)));
+    const stat = h >= 66 ? this.summary(c.cat, id) : '';
+    const lines = wrapLines(desc, Math.floor((w - 20) / 6), Math.max(1, Math.min(stat ? 2 : 4, Math.floor((h - 34) / 9))));
     lines.forEach((ln, k) => add(kit.text(this, x + 10, y + 33 + k * 9, ln, { size: 's', color: COLORS.textDim, depth: MD.content })));
+    if (stat) add(kit.text(this, x + 10, y + 33 + lines.length * 9 + 3, stat, { size: 's', color: COLORS.teal, depth: MD.content }));
+  }
+
+  /** One-line key numbers of the item equipped in a category (category page). */
+  private summary(cat: ShopCategory, id: string | null): string {
+    const l = getSave().loadout;
+    if (id === null) return '';
+    switch (cat) {
+      case 'hull': {
+        const hd = findHull(id);
+        return hd ? `ARMOR ${hd.armor}  SPEED ${hd.speed}  MOUNTS ${hd.sidekickSlots}` : '';
+      }
+      case 'front': case 'rear': {
+        const wd = findWeapon(id);
+        if (!wd) return '';
+        const st = weaponStats(wd, cat === 'front' ? l.frontPower : l.rearPower);
+        return `P${st.power}  ${dec(st.dps, 0)} DPS  ${dec(st.energy)} ENERGY/S`;
+      }
+      case 'shield': {
+        const sd = findShield(id);
+        return sd ? `CAPACITY ${sd.capacity}  REGEN ${dec(sd.regen)}/S` : '';
+      }
+      case 'generator': {
+        const gd = findGenerator(id);
+        return gd ? `OUTPUT ${dec(gd.output)}/S  CAPACITY ${gd.capacity}` : '';
+      }
+      default: {
+        const kd = findSidekick(id);
+        return kd ? `${dec(sidekickStats(kd).dps, 0)} DPS  NO ENERGY USED` : '';
+      }
+    }
   }
 
   private describe(cat: ShopCategory, id: string | null): string {

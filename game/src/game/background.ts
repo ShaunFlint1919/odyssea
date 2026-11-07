@@ -16,6 +16,9 @@ import { mulberry32 } from '../art/noise';
 import { TEX_PX } from './tex';
 
 const CLOUD_SPEED = 1.6;
+/** The haze sits above the enemy bullets (DEPTH.clouds): keep it light so bullets stay readable. */
+const CLOUD_ALPHA_MAX = 0.3;
+const CLOUD_COUNT = 5;
 const STAR_LAYERS: { n: number; speed: number; alpha: number; scale: number; tints: number[] }[] = [
   { n: 46, speed: 1.35, alpha: 0.55, scale: 0.5, tints: [0x8090c0, 0xa0b0e0, 0x7070a0] },
   { n: 18, speed: 2.4, alpha: 0.9, scale: 1, tints: [0xffffff, 0xd8e8ff, 0xfff0d0] },
@@ -65,12 +68,12 @@ export class Background {
     while (this.needMore() && guard++ < nSlots) this.generateNext();
     // clouds / haze
     const style = this.gen.cloudStyle();
-    this.cloudAlpha = style ? style.alpha : 0;
+    this.cloudAlpha = style ? Math.min(style.alpha, CLOUD_ALPHA_MAX) : 0;
     if (style) {
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < CLOUD_COUNT; i++) {
         const key = CLOUD_SPRITES[i % CLOUD_SPRITES.length];
         if (!scene.textures.exists(key)) break;
-        const img = scene.add.image(0, 0, key).setDepth(DEPTH.clouds).setTint(style.tint).setAlpha(style.alpha);
+        const img = scene.add.image(0, 0, key).setDepth(DEPTH.clouds).setTint(style.tint).setAlpha(this.cloudAlpha);
         const c: Cloud = { img, speedMul: CLOUD_SPEED * (0.9 + this.rng() * 0.25) };
         this.placeCloud(c, this.rng() * (H + 200) - 100);
         this.clouds.push(c);
@@ -138,8 +141,8 @@ export class Background {
   private placeCloud(c: Cloud, y: number): void {
     const r = this.rng;
     const key = CLOUD_SPRITES[(r() * CLOUD_SPRITES.length) | 0];
-    c.img.setTexture(key).setPosition(r() * PLAY_W, y).setScale(1.4 + r() * 1.6).setFlipX(r() < 0.5)
-      .setAlpha(this.cloudAlpha * (0.6 + r() * 0.4));
+    c.img.setTexture(key).setPosition(r() * PLAY_W, y).setScale(1.3 + r() * 1.2).setFlipX(r() < 0.5)
+      .setAlpha(this.cloudAlpha * (0.7 + r() * 0.3));
   }
 
   private layout(): void {

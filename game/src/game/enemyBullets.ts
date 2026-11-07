@@ -41,6 +41,9 @@ const FLAK_FUSE = 0.85;
 export const BULLET_ART_ANGLE = Math.PI / 2;
 
 const ELONGATED: Record<string, boolean> = { eb_needle: true, eb_missile: true };
+const SPRITE_NAMES = Object.keys(ENEMY_BULLET_SPRITES);
+/** Flak shells are drawn this much larger than their fragments. */
+const FLAK_SHELL_SCALE = 1.35;
 
 class Laser {
   active = false;
@@ -75,6 +78,8 @@ export class EnemyBullets {
   private readonly spd = new Float32Array(MAX);
   private readonly kind = new Uint8Array(MAX);
   private readonly color = new Uint8Array(MAX);
+  /** Index of the bullet sprite in SPRITE_NAMES (flak fragments reuse the shell's sprite). */
+  private readonly sprite = new Uint8Array(MAX);
   private readonly rotates = new Uint8Array(MAX);
   private readonly imgs: Phaser.GameObjects.Image[] = [];
   private readonly act = new Int32Array(MAX);
@@ -142,9 +147,11 @@ export class EnemyBullets {
     this.hp[i] = kind === KIND_MISSILE ? 3 * this.w.diff.hp : 0;
     this.kind[i] = kind;
     this.color[i] = Math.max(0, SHOT_COLORS.indexOf(color));
+    this.sprite[i] = Math.max(0, SPRITE_NAMES.indexOf(spr));
     this.rotates[i] = ELONGATED[spr] ? 1 : 0;
     const img = this.imgs[i];
-    img.setTexture(this.key(spr, color)).setPosition(x, y).setVisible(true).setAlpha(1).setScale(1);
+    img.setTexture(this.key(spr, color)).setPosition(x, y).setVisible(true).setAlpha(1)
+      .setScale(kind === KIND_FLAK ? FLAK_SHELL_SCALE : 1);
     img.rotation = this.rotates[i] ? angle - BULLET_ART_ANGLE : 0;
     if (kind === KIND_MISSILE && this.missileCount < MAX_MISSILES) this.missiles[this.missileCount++] = i;
     return i;
@@ -172,7 +179,8 @@ export class EnemyBullets {
     const color = SHOT_COLORS[this.color[i]];
     const sp = this.spd[i] * 1.35 + 20;
     const ph = this.w.fxRng() * Math.PI;
-    for (let k = 0; k < 6; k++) this.fire(x, y, ph + (k * Math.PI) / 3, sp, 'eb_dot', color, KIND_PLAIN);
+    const spr = SPRITE_NAMES[this.sprite[i]];
+    for (let k = 0; k < 6; k++) this.fire(x, y, ph + (k * Math.PI) / 3, sp, spr, color, KIND_PLAIN);
     this.w.fx.blast(x, y, 's', 0.6);
     this.w.fx.glow(x, y, SHOT_RGB[color].glow, 0.8, 140);
   }

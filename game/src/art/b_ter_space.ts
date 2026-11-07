@@ -147,7 +147,9 @@ function paintPlatform(c: Chunk, cls: Uint8Array, st: Site, MID: Float32Array, D
         if (lmx === mw - 3 && lmy === 2) col = (id & 1) ? LIGHT_R : LIGHT_T;
       } else {
         cls[o] = K_ROCK;
-        vor.at(x, wy);
+        vor.qx = x;
+        vor.qy = wy;
+        vor.run();
         let t = 0.42 + (vr - vl) * 2.4 + (v < 0.1 ? -0.12 : v * 0.22) + (DET[i + S + 1] - DET[i - S - 1]) * 2 + (g - 0.5) * 0.12;
         const ridge = MID[i] - 0.5;
         if (ridge > 0 && ridge < 0.025) t += 0.14;

@@ -71,6 +71,12 @@ export function initMove(e: Enemy, w: World): void {
       e.vy = w.scrollSpeed;
       break;
     case 'groundMove': {
+      if (e.isMidboss) {
+        // capital ship (sea / ground mid-boss): steams slowly against the scroll, guns to the player
+        e.mh = -HALF_PI;
+        e.targetRot = e.rot = 0;
+        break;
+      }
       const side = e.x < PLAY_W * 0.32 ? 1 : e.x > PLAY_W * 0.68 ? -1 : 0;
       e.mh = side > 0 ? 0.28 : side < 0 ? Math.PI - 0.28 : HALF_PI;
       e.targetRot = e.rot = e.mh - HALF_PI;
@@ -224,7 +230,7 @@ export function stepMove(e: Enemy, w: World, dt: number): void {
       e.y += e.vy * dt;
       break;
     case 'groundMove': {
-      if ((e.x < e.radius + 6 && Math.cos(e.mh) < 0) || (e.x > PLAY_W - e.radius - 6 && Math.cos(e.mh) > 0)) e.ms = 1;
+      if (!e.isMidboss && ((e.x < e.radius + 6 && Math.cos(e.mh) < 0) || (e.x > PLAY_W - e.radius - 6 && Math.cos(e.mh) > 0))) e.ms = 1;
       if (e.ms === 1) {
         const d = HALF_PI - e.mh;
         const step = 1.2 * dt;
@@ -234,7 +240,7 @@ export function stepMove(e: Enemy, w: World, dt: number): void {
       e.vy = Math.sin(e.mh) * s + w.scrollSpeed;
       e.x += e.vx * dt;
       e.y += e.vy * dt;
-      e.targetRot = e.mh - HALF_PI;
+      e.targetRot = e.isMidboss ? 0 : e.mh - HALF_PI;
       break;
     }
     case 'drift':

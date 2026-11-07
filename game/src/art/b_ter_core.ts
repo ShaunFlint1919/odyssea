@@ -465,10 +465,13 @@ export class Meander {
 
 /**
  * Per-pixel Voronoi evaluator over jittered world-cell points (no allocation per query).
- * After at(x, wy): f1/f2 = distances to the nearest / second nearest point, (dx, dy) = pixel
- * minus nearest point in WORLD units (dy grows upward), id = hash of the nearest cell.
+ * Usage in hot loops: set qx / qy (world coords) then call run() — passing doubles through
+ * fields avoids boxing them as call arguments. Results: f1/f2 = distances to the nearest /
+ * second nearest point, (dx, dy) = query minus nearest point in WORLD units (dy grows upward),
+ * id = hash of the nearest cell.
  */
 export class Voronoi {
+  qx = 0.5; qy = 0.5;
   f1 = 0.5; f2 = 0.5; dx = 0.5; dy = 0.5; id = 0.5;
   private readonly PX: Float32Array;
   private readonly PY: Float32Array;
@@ -501,8 +504,16 @@ export class Voronoi {
     this.inv = 1 / cell;
   }
 
-  /** Evaluates the diagram at world (x, wy). */
+  /** Evaluates the diagram at world (x, wy) (convenience; prefer qx/qy + run() in hot loops). */
   at(x: number, wy: number): void {
+    this.qx = x;
+    this.qy = wy;
+    this.run();
+  }
+
+  /** Evaluates the diagram at (qx, qy). */
+  run(): void {
+    const x = this.qx, wy = this.qy;
     const ccx = Math.floor(x * this.inv) - this.cx0, ccy = Math.floor(wy * this.inv) - this.cy0;
     const PX = this.PX, PY = this.PY, nx = this.nx;
     let d1 = 1e9, d2 = 1e9, best = 0;

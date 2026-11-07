@@ -89,7 +89,9 @@ function paintMain(c: Chunk, cls: Uint8Array, R: Float32Array, ROUGH: Float32Arr
         // raised rock top: chunky boulders (Voronoi) lit from the top-left, large ridges and
         // gullies, dark crevices, lit north-west rim and dark south-east rim
         cls[o] = K_WALL;
-        vor.at(x + (DET[i] - 0.5) * 6, wy + (ROUGH[i] - 0.5) * 6);
+        vor.qx = x + (DET[i] - 0.5) * 6;
+        vor.qy = wy + (ROUGH[i] - 0.5) * 6;
+        vor.run();
         const rad = vor.f1 + 4;
         const light = (vor.dy - vor.dx) / rad;
         let t = 0.4 + light * 0.28 + (vor.id - 0.5) * 0.24 + (DET[i + S + 1] - DET[i - S - 1]) * 1.6 + (g - 0.5) * 0.1;

@@ -474,7 +474,10 @@ export class MusicManager {
   readonly fading: SongPlayer[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
   private paused = false;
+  private lastTick = -1;
   started = 0;
+  /** Longest wall-clock gap between two scheduler ticks (ms): main-thread stalls. */
+  maxTickGap = 0;
 
   constructor(private g: Graph, private ctx: AudioContext) {}
 
@@ -515,6 +518,9 @@ export class MusicManager {
   tick(): void {
     const ctx = this.ctx;
     if (ctx.state !== 'running') return;
+    const wall = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (this.lastTick >= 0) this.maxTickGap = Math.max(this.maxTickGap, wall - this.lastTick);
+    this.lastTick = wall;
     const now = ctx.currentTime;
     const horizon = now + LOOKAHEAD;
     this.current?.scheduleUntil(horizon, now);
@@ -556,5 +562,6 @@ export class MusicManager {
       clearInterval(this.timer);
       this.timer = null;
     }
+    this.lastTick = -1;
   }
 }

@@ -203,12 +203,6 @@ export class DigitRow {
     }
   }
 
-  /** Total width of the digits currently shown. */
-  get shownWidth(): number {
-    const len = Math.max(1, this.lastLen);
-    return len * this.opts.advance + this.groupGaps(len) * (this.opts.group ?? 0);
-  }
-
   private groupGaps(len: number): number { return this.opts.group ? ((len - 1) / 3) | 0 : 0; }
 
   /** Shows `value` (clamped to the digit count). Int32 math only: no boxed doubles. */

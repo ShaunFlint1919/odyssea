@@ -54,7 +54,6 @@ export class Banner {
   private lastShine = -2;
   private lastOpen = -1;
   private lastAlpha = -1;
-  private lastBlink = -1;
   private lastSubA = -1;
 
   constructor(scene: Phaser.Scene, root: Phaser.GameObjects.Container, partsKey: string, keyPrefix: string, L: HudLayout, private readonly fonts: HudFonts) {
@@ -130,7 +129,7 @@ export class Banner {
     this.stripeB.setY(top + this.bandH + 1).setVisible(this.warn);
     this.shineWide.setVisible(false);
     this.shineCore.setVisible(false);
-    this.lastStripe = this.lastWipe = this.lastOpen = this.lastAlpha = this.lastBlink = this.lastSubA = -1;
+    this.lastStripe = this.lastWipe = this.lastOpen = this.lastAlpha = this.lastSubA = -1;
     this.lastShine = -2;
     this.c.setVisible(true);
     this.apply();

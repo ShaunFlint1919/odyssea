@@ -11,6 +11,7 @@ import { ENEMY_SPRITES, enemyKey, shadowKey } from '../art/keys';
 import { enemyAnimKey, turretTopKey } from '../art/enemies';
 import type { EnemyDef, EnemyLayer, MovePattern } from '../types';
 import { getSave } from '../state/save';
+import { ENEMIES, ENEMY_MUZZLES } from '../data';
 import type { LaserOwner } from './enemyBullets';
 import { FireState, updateFire, type FireSpec } from './firePatterns';
 import { exitsUp, initMove, stepMove } from './movement';
@@ -27,15 +28,13 @@ const FLASH_GAP = 0.05;
 const HEAD_TIP: Record<string, number> = { gr_turret: 9, gr_twin: 12, gr_tank: 11 };
 /** Lateral barrel offsets of multi-barrel heads (volleys alternate between them). */
 const HEAD_BARRELS: Record<string, number[]> = { gr_twin: [-4, 4] };
-/** Built-in gun muzzles of big hulls, offsets from the sprite centre (+y = down, nose). Index 0 = main gun. */
-const BODY_MUZZLES: Record<string, [number, number][]> = {
-  en_frigate: [[0, 25], [-19, 17], [19, 17]],
-  en_carrier: [[-16, 15], [16, 15]],
-  en_gunship: [[-13, 18], [13, 18]],
-  sea_destroyer: [[0, 16]],
-};
 const MAX_LIFE = 70;
 const CONTACT_COOLDOWN = 0.5;
+/** Carrier hangar launch cadence (s) and the cap of live enemies above which launches pause. */
+const BAY_INTERVAL = 3.4;
+const BAY_ENEMY_CAP = 22;
+/** Patterns a launched fighter may use (they start inside the screen, mid-height). */
+const LAUNCH_MOVES: Record<string, boolean> = { straight: true, sine: true, dive: true, swoopL: true, swoopR: true, zigzag: true, chase: true, circle: true };
 
 export class Enemy implements LaserOwner, FireSpec {
   serial = 0;
@@ -87,7 +86,11 @@ export class Enemy implements LaserOwner, FireSpec {
   mzY = 0;
   headTip = 0;
   barrels: number[] | null = null;
+  /** Built-in hull guns (ENEMY_MUZZLES), round robin. */
   muzzles: [number, number][] | null = null;
+  /** Hangar bays (ENEMY_MUZZLES) launching fighters, and the launch timer. */
+  bays: [number, number][] | null = null;
+  bayT = 0;
   hasShadow = false;
   shadowAnimated = false;
   hasHead = false;
@@ -250,7 +253,10 @@ export class Enemies {
     e.headRot = 0;
     e.headTip = HEAD_TIP[def.sprite] ?? e.radius * 0.7;
     e.barrels = HEAD_BARRELS[def.sprite] ?? null;
-    e.muzzles = BODY_MUZZLES[def.sprite] ?? null;
+    const mz = (ENEMY_MUZZLES as Record<string, { guns: [number, number][]; bays?: [number, number][] } | undefined>)[def.sprite];
+    e.muzzles = mz ? mz.guns : null;
+    e.bays = mz?.bays ?? null;
+    e.bayT = BAY_INTERVAL * 0.5;
     e.shot = 0;
     if (e.hasHead) e.head.setTexture(hk).clearTint().setVisible(true).setPosition(x, y).setRotation(0);
     else e.head.setVisible(false);
@@ -260,6 +266,36 @@ export class Enemies {
     w.stats.spawned++;
     if (e.isMidboss) this.midboss = e;
     return e;
+  }
+
+  private readonly launchCache = new Map<string, EnemyDef | null>();
+
+  /** Cheapest small air enemy of the same planet (id prefix, e.g. 'v_') to launch from a carrier. */
+  private launchDef(carrier: EnemyDef): EnemyDef | null {
+    let d = this.launchCache.get(carrier.id);
+    if (d !== undefined) return d;
+    const us = carrier.id.indexOf('_');
+    const prefix = us > 0 ? carrier.id.slice(0, us + 1) : '';
+    d = null;
+    for (const c of ENEMIES) {
+      if (!c.id.startsWith(prefix) || c.layer !== 'air' || c.id === carrier.id || c.sprite.startsWith('hz_')) continue;
+      if (!LAUNCH_MOVES[c.move] || c.hp > 40) continue;
+      if (!d || c.hp < d.hp) d = c;
+    }
+    this.launchCache.set(carrier.id, d);
+    return d;
+  }
+
+  /** Launch fighters from every hangar bay of a carrier. */
+  private launch(e: Enemy): void {
+    const def = this.launchDef(e.def);
+    if (!def || !e.bays || this.list.length >= BAY_ENEMY_CAP) return;
+    const c = Math.cos(e.rot), s = Math.sin(e.rot);
+    for (let i = 0; i < e.bays.length; i++) {
+      const [ox, oy] = e.bays[i];
+      const m = this.spawn(def, e.x + ox * c - oy * s, e.y + ox * s + oy * c, def.move, ox < 0 ? -1 : 1);
+      if (m) this.w.fx.glow(m.x, m.y, COLORS.accentLight, 0.8, 160);
+    }
   }
 
   /** Remove without a kill (left the screen). */
@@ -436,6 +472,14 @@ export class Enemies {
         const armed = shipOk && e.entered && e.y > 6 && e.y < H - 36 && e.x > 4 && e.x < PLAY_W - 4;
         e.aimMuzzle(e.shot);
         if (updateFire(w, e.fs, e, e.mzX, e.mzY, dt, armed, e)) e.shot++;
+      }
+      // carriers launch fighters from their hangar bays while on station
+      if (e.bays && shipOk && e.entered && e.y > 10 && e.y < H * 0.6 && (e.move !== 'hover' || e.ms === 1)) {
+        e.bayT -= dt;
+        if (e.bayT <= 0) {
+          e.bayT = BAY_INTERVAL;
+          this.launch(e);
+        }
       }
       if (e.contactCd > 0) e.contactCd -= dt;
       // hit flash

@@ -1,9 +1,10 @@
 // =====================================================================================
-//  HUD ART — composes, ONCE per HUD instance, (1) the static right-side panel as a single
-//  56 x H canvas texture (plates, LCD windows, legends, unlit LEDs / pips / lamps, icons) and
-//  (2) an atlas of every dynamic part (lit gauge fills, white masks, pips, lamps, digits,
-//  boss bar, banner bands, hazard stripes). Art from the art module (ui_icon_*, ui_bar_frame,
-//  fx_warning) is copied in when present; procedural fallbacks are drawn otherwise.
+//  HUD ART — composes, once per game height (the controller keeps the result for the next
+//  levels), (1) the static right-side panel as a single opaque 56 x H canvas texture (plates,
+//  LCD windows, legends, unlit LEDs / pips / lamps, icons) and (2) an atlas of every dynamic
+//  part (lit gauge fills, white masks, pips, lamps, digits, boss bar, banner bands, hazard
+//  stripes). Art from the art module (ui_icon_*, ui_bar_frame, ui_scanlines, fx_warning) is
+//  copied in when present; procedural fallbacks are drawn otherwise.
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS } from '../../config';
@@ -33,11 +34,8 @@ export const PAL = {
   lcdScan: '#041a14',
   lcdGhost: '#072a20',
   lcdShadow: '#010806',
-  legend: '#aaa4c4',
   magenta: hex(COLORS.accent),
   magentaDim: '#7a2a9a',
-  gold: hex(COLORS.gold),
-  text: hex(COLORS.text),
   plateBody: ['#3b3654', '#2a2640'] as [string, string],
   plateHi: '#5a537c',
   plateLo: '#131019',

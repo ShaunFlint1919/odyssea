@@ -28,39 +28,54 @@ const DOME = new Float32Array(257).map((_, k) => Math.sqrt(Math.max(0, 1 - k / 2
 // splat clip: shading reads H at +1 px, cast shadows read up to 6 px up-left
 const CLIP_LO = 7, CLIP_HI = 2;
 
-/** Splats one rounded dome into the height / id buffers (max blend). */
-function dome(c: Chunk, H: Float32Array, ID: Float32Array, DET: Float32Array, wx: number, cr: number,
-  R: number, base: number, amp: number, id: number): void {
+/** Dome record layout in the dome list: x, row, radius, base height, amplitude, crown id. */
+const DSTRIDE = 6;
+
+/**
+ * Splats every dome of the list into the height / id buffers (max blend). One call per chunk:
+ * dome parameters travel through a typed array instead of (boxed) call arguments.
+ */
+function splatDomes(c: Chunk, H: Float32Array, ID: Float32Array, DET: Float32Array, D: Float32Array, n: number): void {
   const M = c.M, S = c.S, W = c.w;
-  const ra = Math.max(-CLIP_LO, Math.floor(cr - R)), rb = Math.min(CH + CLIP_HI - 1, Math.ceil(cr + R));
-  const xa = Math.max(-CLIP_LO, Math.floor(wx - R)), xb = Math.min(W + CLIP_HI - 1, Math.ceil(wx + R));
-  if (ra > rb || xa > xb) return;
-  const inv = 256 / (R * R);
-  for (let r = ra; r <= rb; r++) {
-    const dy = r - cr;
-    let i = (r + M) * S + xa + M;
-    for (let x = xa; x <= xb; x++, i++) {
-      const dx = x - wx;
-      const q = (dx * dx + dy * dy) * inv * (0.86 + DET[i] * 0.28);
-      if (q >= 256) continue;
-      const h = base + amp * DOME[q | 0];
-      if (h > H[i]) { H[i] = h; ID[i] = id; }
+  for (let k = 0; k < n; k++) {
+    const o = k * DSTRIDE;
+    const wx = D[o], cr = D[o + 1], R = D[o + 2], base = D[o + 3], amp = D[o + 4], id = D[o + 5];
+    const ra = Math.max(-CLIP_LO, Math.floor(cr - R)), rb = Math.min(CH + CLIP_HI - 1, Math.ceil(cr + R));
+    const xa = Math.max(-CLIP_LO, Math.floor(wx - R)), xb = Math.min(W + CLIP_HI - 1, Math.ceil(wx + R));
+    if (ra > rb || xa > xb) continue;
+    const inv = 256 / (R * R);
+    for (let r = ra; r <= rb; r++) {
+      const dy = r - cr;
+      let i = (r + M) * S + xa + M;
+      for (let x = xa; x <= xb; x++, i++) {
+        const dx = x - wx;
+        const q = (dx * dx + dy * dy) * inv * (0.86 + DET[i] * 0.28);
+        if (q >= 256) continue;
+        const h = base + amp * DOME[q | 0];
+        if (h > H[i]) { H[i] = h; ID[i] = id; }
+      }
     }
   }
 }
 
-/** One tree crown = a rounded cluster of leaf clumps (central clump + ring of clumps). */
-function crown(c: Chunk, H: Float32Array, ID: Float32Array, DET: Float32Array, wx: number, wy: number,
-  R: number, base: number, id: number, hseed: number): void {
-  const cr = c.wy0 - wy;
-  const n = R > 11 ? 6 : 4;
+/**
+ * Appends the domes of one tree crown (central clump + ring of clumps) to the dome list.
+ * Returns the new dome count.
+ */
+function crownDomes(D: Float32Array, n: number, wx: number, cr: number, R: number, base: number, id: number, hseed: number): number {
+  const ring = R > 11 ? 6 : 4;
   const a0 = hseed * 6.283;
-  for (let k = 0; k < n; k++) {
-    const a = a0 + (k / n) * 6.283;
+  for (let k = 0; k < ring; k++) {
+    const a = a0 + (k / ring) * 6.283;
     const dist = R * (0.5 + 0.12 * Math.sin(a * 3 + hseed * 9));
-    dome(c, H, ID, DET, wx + Math.cos(a) * dist, cr + Math.sin(a) * dist, R * 0.52, base + R * 0.25, R * 0.42, id);
+    const o = n * DSTRIDE;
+    D[o] = wx + Math.cos(a) * dist; D[o + 1] = cr + Math.sin(a) * dist; D[o + 2] = R * 0.52;
+    D[o + 3] = base + R * 0.25; D[o + 4] = R * 0.42; D[o + 5] = id;
+    n++;
   }
-  dome(c, H, ID, DET, wx, cr, R * 0.62, base + R * 0.3, R * 0.5, id);
+  const o = n * DSTRIDE;
+  D[o] = wx; D[o + 1] = cr; D[o + 2] = R * 0.62; D[o + 3] = base + R * 0.3; D[o + 4] = R * 0.5; D[o + 5] = id;
+  return n + 1;
 }
 
 /** Paints one jungle chunk. */
@@ -92,6 +107,8 @@ export function paintJungle(c: Chunk): void {
     const h = flow.hw(wy);
     return h > 0.5 && Math.abs(wx - flow.xc(wy)) < h + pad;
   };
+  const DL = scratch(16384 * DSTRIDE);
+  let nd = 0;
   for (const [cell, rMin, rVar, base, prob, salt] of [[SMALL, 7.5, 4, 0, 1, 11], [BIG, 13, 6, 6, 0.55, 23]]) {
     const reach = CLIP_LO + rMin + rVar + cell;
     const cy0 = Math.floor((c.wy0 - CH - reach) / cell), cy1 = Math.floor((c.wy0 + reach) / cell);
@@ -104,10 +121,11 @@ export function paintJungle(c: Chunk): void {
         if (clearing(wx, wy) > 0.66 - (base > 0 ? 0.06 : 0)) continue;
         if (inRiver(wx, wy, base > 0 ? 6 : 1)) continue;
         const R = rMin + rVar * hash2(cx, cy, s + salt + 3);
-        crown(c, H, ID, DET, wx, wy, R, base, 0.001 + hash2(cx, cy, s + salt + 4) * 0.998, hash2(cx, cy, s + salt + 5));
+        if (nd < 16384 - 8) nd = crownDomes(DL, nd, wx, c.wy0 - wy, R, base, 0.001 + hash2(cx, cy, s + salt + 4) * 0.998, hash2(cx, cy, s + salt + 5));
       }
     }
   }
+  splatDomes(c, H, ID, DET, DL, nd);
 
   // --- main pass
   const px = c.px, cls = scratchU8(W * CH);
@@ -208,16 +226,16 @@ function placeJungleDoodads(c: Chunk, cls: Uint8Array, H: Float32Array, ruins: S
   const W = c.w, M = c.M, S = c.S;
   const at = (x: number, r: number) => cls[(Math.max(0, Math.min(CH - 1, r | 0))) * W + Math.max(0, Math.min(W - 1, x | 0))];
   for (let k = 0; k < ruins.length; k++) c.add('dd_jungle_ruin', ruins[k].wx, ruins[k].r);
-  eachCell(c, 34, 701, (x, r, h1, h2) => {
+  eachCell(c, 40, 701, (x, r, h1, h2) => {
     const kind = at(x, r);
-    if (kind === K_GROUND && farFromDoodads(c, x, r, 18)) {
+    if (kind === K_GROUND && farFromDoodads(c, x, r, 20)) {
       const nearCanopy = at(x - 10, r) === K_CANOPY || at(x + 10, r) === K_CANOPY || at(x, r - 10) === K_CANOPY || at(x, r + 10) === K_CANOPY;
-      if (nearCanopy && h1 < 0.4) c.add(h2 < 0.35 ? 'dd_tree_big' : 'dd_tree_small', x, r, h2 < 0.5);
-      else if (h1 < 0.55) c.add('dd_fern', x, r, h2 < 0.5, 0.85 + h2 * 0.3);
-      else if (h1 < 0.75) c.add('dd_flower', x, r, h2 < 0.5);
-    } else if (kind === K_BANK && h1 < 0.5 && farFromDoodads(c, x, r, 16)) {
+      if (nearCanopy && h1 < 0.3) c.add(h2 < 0.35 ? 'dd_tree_big' : 'dd_tree_small', x, r, h2 < 0.5);
+      else if (h1 < 0.24) c.add('dd_fern', x, r, h2 < 0.5, 0.85 + h2 * 0.3);
+      else if (h1 < 0.34) c.add('dd_flower', x, r, h2 < 0.5);
+    } else if (kind === K_BANK && h1 < 0.3 && farFromDoodads(c, x, r, 18)) {
       c.add('dd_fern', x, r, h2 < 0.5, 0.8);
-    } else if (kind === K_CANOPY && h1 < 0.1 && farFromDoodads(c, x, r, 30)) {
+    } else if (kind === K_CANOPY && h1 < 0.16 && farFromDoodads(c, x, r, 30)) {
       const i = (Math.round(r) + M) * S + Math.round(x) + M;
       if (H[i] > 9) c.add('dd_tree_big', x, r, h2 < 0.5);
     }

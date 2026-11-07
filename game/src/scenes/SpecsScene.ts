@@ -29,7 +29,7 @@ export class SpecsScene extends Phaser.Scene {
     const leave = () => kit.goto(this, SCENES.Hangar);
     const back = () => { audio.sfx('ui_back'); leave(); };
     header(this, 'SHIP SPECS', { onBack: back, credits: save.credits });
-    const status = kit.statusBar(this, 'NOMINAL VALUES: EVERY SHOT HITS, GUNS FIRING NON-STOP');
+    const status = kit.statusBar(this, 'NOMINAL: EVERY SHOT HITS, GUNS FIRE NONSTOP');
     kit.onBack(this, back);
 
     // ------------------------------------------------------------ vertical layout

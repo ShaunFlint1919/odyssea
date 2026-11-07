@@ -113,7 +113,7 @@ function prime(l: Live): void {
 function onGesture(): void {
   audio.unlock();
   const l = st.live;
-  if ((l && l.ctx.state === 'running') || (!l && !audioContextCtor())) disarm();
+  if ((l && l.ctx.state === 'running') || (!l && (!audioContextCtor() || st.failures >= 3))) disarm();
 }
 
 function arm(): void {
@@ -239,6 +239,8 @@ export interface AudioState {
 
 export interface MusicStats extends PlayerStats {
   id: number;
+  /** Longest gap between scheduler ticks so far (ms); > 250 means main-thread stalls. */
+  maxTickGapMs: number;
   track: MusicTrack;
   stepDur: number;
   bpm: number;
@@ -274,7 +276,7 @@ export const audioDebug = {
     const l = st.live;
     const p = l?.music.current;
     if (!l || !p) return null;
-    return { ...p.stats, id: p.id, track: p.track, stepDur: p.song.stepDur, bpm: p.song.bpm, loopSeconds: p.song.loopSeconds, time: l.ctx.currentTime };
+    return { ...p.stats, id: p.id, maxTickGapMs: Math.round(l.music.maxTickGap), track: p.track, stepDur: p.song.stepDur, bpm: p.song.bpm, loopSeconds: p.song.loopSeconds, time: l.ctx.currentTime };
   },
   /** Song metadata (name, bpm, loop length) — works without WebAudio. */
   songInfo(track: MusicTrack): { name: string; bpm: number; loopSeconds: number; patterns: string[] } {

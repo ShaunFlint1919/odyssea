@@ -93,7 +93,9 @@ function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEA
         cls[o] = lv < 7 ? K_EDGE : K_ROCK;
         continue;
       }
-      vor.at(x + (MID[i] - 0.5) * 18, wy + (MID[i + wo] - 0.5) * 18);
+      vor.qx = x + (MID[i] - 0.5) * 18;
+      vor.qy = wy + (MID[i + wo] - 0.5) * 18;
+      vor.run();
       const gap = vor.f2 - vor.f1;
       const light = (vor.dy - vor.dx) / (vor.f1 + 6);
       let t = 0.46 + (vor.id - 0.5) * 0.32 + light * 0.2 + (DET[i + S + 1] - DET[i - S - 1]) * 1.3 + (g - 0.5) * 0.1;

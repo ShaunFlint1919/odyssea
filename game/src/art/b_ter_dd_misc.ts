@@ -238,28 +238,31 @@ function frozenWreck(): Spr {
 }
 
 function pine(): Spr {
-  const s = new Spr(26, 28);
-  const cx = 11, cy = 11;
-  const layer = (r: number, pts: number, rot: number, bias: number) => {
+  const s = new Spr(28, 30);
+  const cx = 12, cy = 12;
+  // three star-shaped branch tiers, each darker at its rim and lit on the north-west side,
+  // with snow resting on the lit branch tips
+  const tier = (r: number, ri: number, pts: number, rot: number, bias: number, seed: number) => {
     const poly: number[] = [];
     for (let k = 0; k < pts * 2; k++) {
       const a = (k / (pts * 2)) * Math.PI * 2 + rot;
-      const rr = k % 2 === 0 ? r : r * 0.55;
+      const rr = k % 2 === 0 ? r : ri;
       poly.push(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
     }
     s.poly(poly, (x, y) => {
-      const dx = x - cx, dy = y - cy;
-      const lit = -(dx * 0.6 + dy * 0.8) / (r + 1);
-      const tip = Math.hypot(dx, dy) / r;
-      const snowy = lit > 0.3 && tip > 0.45 && hash2(x, y, 301) > 0.35;
-      return snowy ? pick(SNOW, 0.4 + lit * 0.6, x, y) : pick(PINE, 0.38 + bias + lit * 0.7 + (hash2(x, y, 302) - 0.5) * 0.22, x, y);
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy, d = Math.hypot(dx, dy);
+      const lit = -(dx * 0.6 + dy * 0.8) / (d + 0.5);
+      const edge = d / r;
+      if (lit > 0.25 && edge > 0.62 && hash2(x, y, seed) > 0.3) return pick(SNOW, 0.35 + lit * 0.55, x, y);
+      return pick(PINE, 0.3 + bias + lit * 0.32 - edge * 0.18 + (hash2(x, y, seed + 1) - 0.5) * 0.2, x, y);
     });
   };
-  layer(10, 8, 0.1, -0.1);
-  layer(7, 7, 0.4, 0.05);
-  layer(4, 6, 0.2, 0.2);
-  s.set(cx, cy, SNOW[4]);
-  s.outline(0x040a06, 200);
+  tier(11.5, 6.5, 9, 0.12, -0.05, 301);
+  tier(8, 4.6, 8, 0.45, 0.12, 303);
+  tier(4.6, 2.6, 6, 0.2, 0.3, 305);
+  s.set(cx, cy, SNOW[3]);
+  s.set(cx - 1, cy - 1, SNOW[4]);
+  s.outline(0x030805, 220);
   s.longShadow(4, 6, 0.3);
   return s;
 }

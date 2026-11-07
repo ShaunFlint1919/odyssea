@@ -57,7 +57,10 @@ export class BossBar {
       .setTint(0xfff0c8).setAlpha(0.85);
     const fillImg = scene.add.image(b.x + 2, barY + 2, partsKey, PART.bossFill).setOrigin(0).setScrollFactor(0);
     this.flash = scene.add.image(b.x + 2, barY + 2, partsKey, PART.bossWhite).setOrigin(0).setScrollFactor(0).setVisible(false);
-    this.c.add([this.nameImg, frame, ghostImg, fillImg, this.flash]);
+    // magenta diamond end-caps riveted on the frame ends
+    const capL = scene.add.image(b.x - 3, barY, partsKey, PART.bossCap).setOrigin(0).setScrollFactor(0);
+    const capR = scene.add.image(b.x + b.w - 4, barY, partsKey, PART.bossCap).setOrigin(0).setScrollFactor(0);
+    this.c.add([this.nameImg, frame, ghostImg, fillImg, this.flash, capL, capR]);
     this.ghost = new HCrop(ghostImg, BOSS_W, BOSS_H);
     this.fill = new HCrop(fillImg, BOSS_W, BOSS_H);
   }
