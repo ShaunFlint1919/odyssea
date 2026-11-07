@@ -33,21 +33,21 @@ export class SpecsScene extends Phaser.Scene {
     kit.onBack(this, back);
 
     // ------------------------------------------------------------ vertical layout
+    // Panels grow a little on tall screens (capped), the rest becomes even gaps; the back
+    // button is anchored above the status bar.
     const gap = 4;
-    const base = { cards: 30, hull: 112, defense: 70, arms: 84, energy: 74, done: 24 };
-    const fixed = HEADER_H + gap + Object.values(base).reduce((a, b) => a + b, 0) + 6 * gap + 16 + gap;
-    const spare = Math.max(0, H - fixed);
-    const showDone = H - fixed >= -24;
-    const grow = Math.min(spare, 150);
-    const hs = {
-      cards: base.cards + Math.round(grow * 0.08),
-      hull: base.hull + Math.round(grow * 0.36),
-      defense: base.defense + Math.round(grow * 0.16),
-      arms: base.arms + Math.round(grow * 0.2),
-      energy: base.energy + Math.round(grow * 0.2),
-    };
-    const extraGap = spare > 150 ? Math.floor((spare - 150) / 7) : 0;
-    const g = gap + extraGap;
+    const base = { cards: 30, hull: 112, defense: 70, arms: 84, energy: 74 };
+    const doneH = 24;
+    const fixed = HEADER_H + gap + Object.values(base).reduce((a, b) => a + b, 0) + 5 * gap + doneH + gap + 16 + gap;
+    let rest = Math.max(0, H - fixed);
+    const hs = { ...base };
+    const caps: [keyof typeof base, number][] = [['hull', 40], ['arms', 16], ['energy', 8], ['defense', 10], ['cards', 6]];
+    for (const [k, cap] of caps) {
+      const add = Math.min(cap, rest);
+      hs[k] += add;
+      rest -= add;
+    }
+    const g = gap + Math.min(14, Math.floor(rest / 6));
     const px = 4, pw = W - 8;
     let y = HEADER_H + g;
 
@@ -61,8 +61,9 @@ export class SpecsScene extends Phaser.Scene {
     y += hs.arms + g;
     const bal = this.energyPanel(px, y, pw, hs.energy);
     y += hs.energy + g;
-    if (showDone && y + base.done <= H - 18) {
-      kit.button(this, px, y, pw, base.done, 'BACK TO HANGAR', leave, { size: 's', color: COLORS.teal, depth: MD.content });
+    const by = Math.max(y, H - 16 - gap - doneH);
+    if (by + doneH <= H - 17) {
+      kit.button(this, px, by, pw, doneH, 'BACK TO HANGAR', leave, { size: 's', color: COLORS.teal, depth: MD.content });
     }
     const kb = this.input.keyboard;
     const onKey = (e: KeyboardEvent) => {
@@ -179,11 +180,12 @@ export class SpecsScene extends Phaser.Scene {
         rx -= Math.max(vt.width, kit.measure(this, lab, 's')) + 10;
       }
     };
-    block(y + 16, 'ui_icon_shield', upper(sh?.name ?? l.shield), 'CAPACITY', sh?.capacity ?? 0, max.shield, 0x16307a, COLORS.shield, [
+    const off = Math.max(0, Math.floor((half - 26) / 2));
+    block(y + 16 + off, 'ui_icon_shield', upper(sh?.name ?? l.shield), 'CAPACITY', sh?.capacity ?? 0, max.shield, 0x16307a, COLORS.shield, [
       ['REGEN', `${dec(sh?.regen ?? 0)}/S`, COLORS.text],
       ['DRAIN', `${dec(sh ? sh.regen * sh.energyPerPoint : 0)}/S`, COLORS.warn],
     ]);
-    block(y + 16 + half, 'ui_icon_generator', upper(gen?.name ?? l.generator), 'CAPACITY', gen?.capacity ?? 0, max.genCap, 0x6a5010, COLORS.energy, [
+    block(y + 16 + half + off, 'ui_icon_generator', upper(gen?.name ?? l.generator), 'CAPACITY', gen?.capacity ?? 0, max.genCap, 0x6a5010, COLORS.energy, [
       ['OUTPUT', `${dec(gen?.output ?? 0)}/S`, COLORS.good],
     ]);
   }
