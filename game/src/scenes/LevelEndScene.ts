@@ -38,6 +38,7 @@ const NOTICE_CHARS = 38;
 export class LevelEndScene extends Phaser.Scene {
   private seq: Sequence | null = null;
   private target: string = SCENES.Hangar;
+  private campaignDone = false;
   private continueReady = false;
   private status!: StatusBarApi;
 
@@ -53,9 +54,12 @@ export class LevelEndScene extends Phaser.Scene {
     const result = normalizeResult(raw);
     const applied = applyOnce(raw, real);
     const info = levelInfo(result.levelId);
-    const campaignDone = real && result.completed && isCampaignComplete();
+    // the campaign is won by THIS run only on the first clear of the final level (replays farm)
+    const campaignDone = real && result.completed && !applied.completedBefore && isCampaignComplete();
     const planetDone = result.bossDefeated || isPlanetFinale(info);
-    this.target = planetDone || campaignDone ? SCENES.Map : SCENES.Hangar;
+    // the star chart only when this run opened new routes (or won the campaign)
+    this.campaignDone = campaignDone;
+    this.target = campaignDone || (planetDone && applied.unlocked.length > 0) ? SCENES.Map : SCENES.Hangar;
 
     fadeIn(this, 220);
     const { width, height } = this.scale.gameSize;
@@ -71,7 +75,7 @@ export class LevelEndScene extends Phaser.Scene {
 
     // ---- tally board
     const ratio = result.spawned > 0 ? Math.min(1, result.kills / result.spawned) : 1;
-    const bonus = Math.max(0, applied.creditsAfter - applied.creditsBefore - result.creditsEarned);
+    const bonus = Math.max(0, Math.round(applied.bonus));
     const rows: BoardRow[] = [
       { label: 'ENEMIES DESTROYED', value: result.kills, format: (n) => `${fmtInt(n)} / ${fmtInt(result.spawned)}` },
       { label: 'KILL RATIO', value: Math.round(ratio * 100), format: (n) => `${n}%` },
@@ -338,7 +342,8 @@ export class LevelEndScene extends Phaser.Scene {
   private showContinue(): void {
     const toMap = this.target === SCENES.Map;
     const b = bottomButton(this, toMap ? 'STAR CHART' : 'CONTINUE', () => this.leave());
-    this.status.setText(toMap ? 'New routes are open on the star chart.' : 'Return to the hangar: repair and upgrade.');
+    this.status.setText(this.campaignDone ? 'Every world is free. Replay any mission for credits.'
+      : toMap ? 'New routes are open on the star chart.' : 'Return to the hangar: repair and upgrade.');
     b.container.setAlpha(0);
     b.container.y += 6;
     this.tweens.add({ targets: b.container, alpha: 1, y: b.container.y - 6, duration: 180, ease: 'Quad.easeOut' });
