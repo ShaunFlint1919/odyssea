@@ -2,7 +2,8 @@
 
 ## Mode d'emploi (pour toi, Shaun)
 
-1. Ouvre une **nouvelle session Claude Code** sur le dépôt `ShaunFlint1919/odyssea`.
+1. Ouvre une **nouvelle session Claude Code** sur le dépôt du jeu (`ShaunFlint1919/odyssea`, ou
+   son nouveau nom si tu l'as renommé, ex. `nova-corsair`, ou le dépôt de sauvegarde).
 2. Copie **tout le bloc** entre `===== DÉBUT DU PROMPT =====` et `===== FIN DU PROMPT =====`.
 3. Colle-le dans le message, puis **ajoute tes images de référence** dans ce même message
    (captures d'écran de jeu, de menus, de boutique…).
@@ -10,8 +11,9 @@
    - **Boucle autonome** : commence le message par `/loop` (sans intervalle). Claude fait une
      itération complète, pousse sur GitHub, puis programme lui-même l'itération suivante, jusqu'à
      ce que la « Definition of Done » soit atteinte.
-   - **Mode intensif multi-agents** : ajoute le mot `ultracode` dans le message (Claude orchestre
-     plusieurs agents en parallèle à chaque itération ; plus rapide, plus coûteux).
+   - **Mode intensif multi-agents** : le prompt demande déjà à Claude de déployer le maximum
+     d'agents en parallèle ; ajoute en plus le mot `ultracode` pour qu'il orchestre des workflows
+     à chaque itération (plus rapide, plus coûteux).
    - Les deux se combinent : `/loop ultracode` + le prompt.
 5. Pour récupérer l'APK : onglet **Actions** du dépôt GitHub → workflow **Android APK** → dernier
    run vert → section **Artifacts** → `nova-corsair-debug-apk`.
@@ -34,8 +36,10 @@ Réponds-moi en français.
 </mission>
 
 <contexte_projet>
-- Dépôt : ShaunFlint1919/odyssea. Le jeu est dans le dossier `game/`. La racine du dépôt contient
-  un site web sans rapport (cabinet de kiné « Odyssea Lymphea ») : n'y touche JAMAIS.
+- Dépôt : ShaunFlint1919/odyssea (il a pu être renommé, ex. `nova-corsair` ; une copie de
+  sauvegarde peut exister dans un autre dépôt). Le dépôt est entièrement dédié au jeu : l'ancien
+  site web a été supprimé. Le jeu est dans le dossier `game/`, les workflows CI dans
+  `.github/workflows/`.
 - Si `game/` n'existe pas sur ta branche, récupère-le d'abord :
   `git fetch origin ccr-47cc43a7-n24a5r && git merge --no-edit origin/ccr-47cc43a7-n24a5r`
   (ou depuis `main` si cette branche y a été fusionnée).
@@ -135,9 +139,16 @@ mets à jour PROGRESS.md pour qu'une nouvelle session reprenne exactement là.
    scorecard le plus bas ; (d) items non cochés de la ROADMAP (milestone le plus bas d'abord) ;
    (e) polish. Écris le plan de l'itération (3-6 lignes) avant de coder.
 4. IMPLÉMENTER : changements ciblés et propres, code TypeScript strict, pas de TODO laissés, pas
-   d'allocation dans les boucles chaudes, pools pour tout ce qui est fréquent. Pour un gros
-   chantier, découpe et parallélise (agents / workflow si `ultracode`) en donnant à chaque agent
-   des fichiers disjoints et les contrats à respecter.
+   d'allocation dans les boucles chaudes, pools pour tout ce qui est fréquent.
+   DÉPLOIE LE MAXIMUM D'AGENTS : je t'autorise explicitement à orchestrer des workflows
+   multi-agents et des sous-agents en arrière-plan à chaque itération. Découpe le travail en
+   périmètres de FICHIERS DISJOINTS (ex. un agent par planète pour les niveaux, un par boss, un
+   par biome de terrain, un par scène de menu, un pour l'audio, un pour Android/CI, un relecteur
+   adverse par domaine), donne à chacun les contrats à respecter, son port de serveur de dev et
+   l'interdiction de toucher aux fichiers des autres et de lancer des commandes git qui modifient
+   l'état. Le nombre d'agents simultanés d'un workflow est plafonné par les CPU de la machine
+   (CPU - 2) : pour aller au-delà, lance plusieurs sous-agents en arrière-plan en parallèle.
+   Toi, tu restes l'intégrateur : tu fusionnes, vérifies et commites.
 5. VÉRIFIER : relance typecheck, tests, build, smoke, captures ; compare AVANT/APRÈS sur les
    captures ; joue au moins un niveau complet en Playwright (god=0 et god=1). Fais une relecture
    critique adverse de ton diff (bugs, perf mobile, lisibilité, originalité). Une itération qui
@@ -186,7 +197,7 @@ Tu considères le projet terminé (et tu arrêtes la boucle : ScheduleWakeup sto
 
 <regles>
 - Originalité absolue (voir plus haut). Aucun asset téléchargé d'Internet.
-- Ne touche jamais au site web à la racine du dépôt ni à la branche main.
+- Ne pousse jamais directement sur la branche main (travaille sur ta branche de session).
 - Ne mets jamais de secret dans le code ou la CI ; la signature release passe par les secrets
   GitHub ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
 - Petits commits fréquents ; jamais de force-push ; jamais de test désactivé pour « passer au vert ».

@@ -5,9 +5,11 @@
 //   frames: 1 = show every frame of sprite sheets separately
 //   terrain=desert&chunks=3 : render terrain chunks of a biome instead of textures
 //   font=1 : render sample text with every bitmap font
+//   only=fonts,ui,planets : run only these art generators (isolates you from modules other
+//          people are editing). Modules: fonts player projectiles pickups fx ui planets enemies
+//          bosses doodads. Every module is loaded dynamically: a broken module is reported on
+//          the canvas (and as a console warning) instead of breaking the whole gallery.
 import Phaser from 'phaser';
-import { generateAllTextures } from './art';
-import { TerrainGenerator } from './art/terrain';
 import { FONT } from './art/keys';
 import { PLAY_W, CHUNK_H } from './config';
 import type { Biome } from './types';
@@ -21,14 +23,61 @@ const terrain = q.get('terrain') as Biome | null;
 const chunks = Number(q.get('chunks') ?? 3);
 const font = q.get('font') === '1';
 const width = Number(q.get('w') ?? 1280);
+const only = (q.get('only') ?? '').split(',').filter(Boolean);
+
+type Gen = (scene: Phaser.Scene) => void;
+const ART_MODULES: Record<string, [() => Promise<Record<string, unknown>>, string]> = {
+  fonts: [() => import('./art/fonts'), 'generateFonts'],
+  player: [() => import('./art/player'), 'generatePlayerArt'],
+  projectiles: [() => import('./art/projectiles'), 'generateProjectileArt'],
+  pickups: [() => import('./art/pickups'), 'generatePickupArt'],
+  fx: [() => import('./art/fx'), 'generateFxArt'],
+  ui: [() => import('./art/ui'), 'generateUiArt'],
+  planets: [() => import('./art/planets'), 'generatePlanetArt'],
+  enemies: [() => import('./art/enemies'), 'generateEnemyArt'],
+  bosses: [() => import('./art/bosses'), 'generateBossArt'],
+  doodads: [() => import('./art/doodads'), 'generateDoodadArt'],
+};
+
+/** Runs the selected art generators; returns human-readable failures. */
+async function generateSelected(scene: Phaser.Scene): Promise<string[]> {
+  const failures: string[] = [];
+  const names = Object.keys(ART_MODULES).filter((n) => only.length === 0 || only.includes(n));
+  for (const name of names) {
+    const [load, fn] = ART_MODULES[name];
+    try {
+      const mod = await load();
+      (mod[fn] as Gen)(scene);
+    } catch (e) {
+      const msg = `[gallery] art module '${name}' failed (maybe being edited by someone else): ${String(e)}`;
+      console.warn(msg);
+      failures.push(msg);
+    }
+  }
+  if (only.length === 0 || only.includes('fx')) {
+    try {
+      const fx = await import('./art/fx');
+      fx.registerAnimations(scene);
+    } catch (e) {
+      failures.push(`[gallery] registerAnimations failed: ${String(e)}`);
+    }
+  }
+  return failures;
+}
 
 class GalleryScene extends Phaser.Scene {
   constructor() { super('Gallery'); }
   create(): void {
     this.cameras.main.setBackgroundColor(bg);
-    generateAllTextures(this);
+    void this.build();
+  }
+
+  private async build(): Promise<void> {
+    const failures = await generateSelected(this);
     const label = (x: number, y: number, t: string) => this.add.text(x, y, t, { fontFamily: 'monospace', fontSize: '10px', color: '#9a96aa' });
+    failures.forEach((f, i) => this.add.text(8, 4 + i * 12, f.slice(0, 200), { fontFamily: 'monospace', fontSize: '10px', color: '#ff6060' }).setDepth(1000));
     if (terrain) {
+      const { TerrainGenerator } = await import('./art/terrain');
       const gen = new TerrainGenerator(terrain, 1234, PLAY_W);
       for (let i = 0; i < chunks; i++) {
         const c = gen.chunk(i);
