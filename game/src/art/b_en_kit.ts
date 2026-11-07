@@ -3,12 +3,12 @@
 //
 //  Sprites are composed on a char grid (one char per pixel, the alphabet of pixel.ts
 //  maps: '.' transparent, '1'..'5' palette ramp, letters = COMMON_COLORS + EN_COLORS).
-//  Shapes are boolean masks (ellipses, polygons, capsules, polar shapes) that are shaded
+//  Shapes are boolean masks (ellipses, polygons, capsules, predicates) that are shaded
 //  with a bevel / dome height model lit from the TOP-LEFT, then detailed with stamps,
 //  cast shadows and a 1px dark outline. The resulting PixelMap is palette independent:
 //  it is rendered once per Palette with rampColors().
 // =====================================================================================
-import { bayer, type ColorMap, type PixelMap } from './pixel';
+import type { ColorMap, PixelMap } from './pixel';
 
 export type Mask = Uint8Array;
 
@@ -25,11 +25,10 @@ export const EN_COLORS: ColorMap = {
   Y: '#fff4b0',  // hot white-yellow (tiny glow cores only)
   p: '#3a0c20',  // deep red-black (eye sockets, hot vents)
   n: '#151a2a',  // navy shadow (dark recesses, slits)
-  s: '#b8c4d8',  // pale steel (foam / sensor glints)
 };
 
 /** Material chains (dark -> light) used by darken()/lighten(). */
-const CHAINS = ['12345', 'KgGhH', 'dcCq', 'peEyY', 'prR', 'ktT', 'kmM'];
+const CHAINS = ['12345', 'KgGhH', 'dcCq', 'peEyY', 'rR', 'tT', 'mM'];
 const CHAIN_OF = new Map<string, [string, number]>();
 for (const c of CHAINS) for (let i = 0; i < c.length; i++) if (!CHAIN_OF.has(c[i])) CHAIN_OF.set(c[i], [c, i]);
 
@@ -53,14 +52,9 @@ export interface ShadeOpts {
   /** Tone gain on slopes facing the light (default 2.4) / facing away (default 2). */
   hi?: number;
   lo?: number;
-  /** Ordered dithering between tones (large surfaces only). */
-  dither?: boolean;
   /** Linear tone gradients (+tone per px to the right / downwards). */
   gx?: number;
   gy?: number;
-  /** Specular: where dot(N, L) >= spec the pixel becomes specCh. */
-  spec?: number;
-  specCh?: string;
   /** Extra per-pixel tone offset. */
   bias?: (x: number, y: number) => number;
   /** Explicit height field (0..1 per pixel) replacing the bevel model. */
@@ -77,13 +71,13 @@ export class Grid {
     this.px = new Array<string>(w * h).fill('.');
   }
 
-  /** Horizontal centre (symmetry axis) in continuous coordinates. */
-  get cx(): number { return this.w / 2; }
-  get cy(): number { return this.h / 2; }
-
   inside(x: number, y: number): boolean { return x >= 0 && y >= 0 && x < this.w && y < this.h; }
-  get(x: number, y: number): string { return this.inside(x, y) ? this.px[y * this.w + x] : '.'; }
+  get(x: number, y: number): string {
+    x = Math.floor(x); y = Math.floor(y);
+    return this.inside(x, y) ? this.px[y * this.w + x] : '.';
+  }
   set(x: number, y: number, ch: string): this {
+    x = Math.floor(x); y = Math.floor(y);
     if (this.inside(x, y)) this.px[y * this.w + x] = ch;
     return this;
   }
@@ -131,8 +125,9 @@ export class Grid {
   /** Axis-aligned rectangle in pixel coordinates (x, y = top-left pixel). */
   rect(x: number, y: number, w: number, h: number): Mask {
     const m = this.empty();
-    for (let j = Math.max(0, y); j < Math.min(this.h, y + h); j++) {
-      for (let i = Math.max(0, x); i < Math.min(this.w, x + w); i++) m[j * this.w + i] = 1;
+    const x0 = Math.round(x), y0 = Math.round(y), x1 = x0 + Math.round(w), y1 = y0 + Math.round(h);
+    for (let j = Math.max(0, y0); j < Math.min(this.h, y1); j++) {
+      for (let i = Math.max(0, x0); i < Math.min(this.w, x1); i++) m[j * this.w + i] = 1;
     }
     return m;
   }
@@ -167,18 +162,6 @@ export class Grid {
       const e2 = 2 * err;
       if (e2 >= dy) { err += dy; x += sx; }
       if (e2 <= dx) { err += dx; y += sy; }
-    }
-    return m;
-  }
-
-  /** Mask from a predicate on polar coordinates around (cx, cy) (angle: 0 = right, +PI/2 = down). */
-  polar(cx: number, cy: number, fn: (r: number, a: number) => boolean): Mask {
-    const m = this.empty();
-    for (let y = 0; y < this.h; y++) {
-      for (let x = 0; x < this.w; x++) {
-        const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
-        if (fn(Math.hypot(dx, dy), Math.atan2(dy, dx))) m[y * this.w + x] = 1;
-      }
     }
     return m;
   }
@@ -220,12 +203,6 @@ export class Grid {
   mirror(a: Mask): Mask {
     const m = this.empty();
     for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) m[y * this.w + x] = a[y * this.w + (this.w - 1 - x)];
-    return m;
-  }
-  /** Mirror across the horizontal axis. */
-  flipY(a: Mask): Mask {
-    const m = this.empty();
-    for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) m[y * this.w + x] = a[(this.h - 1 - y) * this.w + x];
     return m;
   }
   /** Union with its mirror image (left/right symmetric). */
@@ -293,16 +270,6 @@ export class Grid {
     }
     return m;
   }
-  /** Keep only pixels with y in [y0, y1] and x in [x0, x1]. */
-  clip(a: Mask, x0: number, y0: number, x1: number, y1: number): Mask {
-    return this.and(a, this.where((x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1));
-  }
-  count(a: Mask): number {
-    let n = 0;
-    for (let i = 0; i < a.length; i++) n += a[i];
-    return n;
-  }
-
   private nb(m: Mask, x: number, y: number, diag: boolean): boolean {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
@@ -376,17 +343,14 @@ export class Grid {
         if (!m[i]) continue;
         const gx = (hAt(x + 1, y) - hAt(x - 1, y)) * 0.5 * slope;
         const gy = (hAt(x, y + 1) - hAt(x, y - 1)) * 0.5 * slope;
-        const nl = Math.hypot(gx, gy, 1);
+        const nl = Math.sqrt(gx * gx + gy * gy + 1);
         const dot = (-gx * LX - gy * LY + LZ) / nl;
         const lit = dot - LZ;
         let t = base + lit * (lit > 0 ? hi : lo);
         if (o.gx) t += o.gx * (x + 0.5 - w / 2);
         if (o.gy) t += o.gy * (y + 0.5 - h / 2);
         if (o.bias) t += o.bias(x, y);
-        const q = o.dither ? Math.floor(t + bayer(x, y)) : Math.round(t);
-        let ch = ramp[Math.max(0, Math.min(ramp.length - 1, q))];
-        if (o.spec !== undefined && dot >= o.spec) ch = o.specCh ?? ramp[ramp.length - 1];
-        this.px[i] = ch;
+        this.px[i] = rampChar(t, ramp);
       }
     }
     return this;
@@ -417,14 +381,6 @@ export class Grid {
     return this;
   }
 
-  /** Stamp at (x, y) and mirrored on the other side of the vertical axis. */
-  stampSym(rows: string[], x: number, y: number): this {
-    this.stamp(rows, x, y);
-    const wRow = rows.reduce((a, r) => Math.max(a, r.length), 0);
-    const mirrored = rows.map((r) => r.padEnd(wRow, '.').split('').reverse().join(''));
-    return this.stamp(mirrored, this.w - x - wRow, y);
-  }
-
   /** Plot single pixels: pts = flat [x0, y0, x1, y1, ...]. */
   plot(pts: number[], ch: string): this {
     for (let i = 0; i + 1 < pts.length; i += 2) this.set(pts[i], pts[i + 1], ch);
@@ -435,16 +391,6 @@ export class Grid {
     for (let i = 0; i + 1 < pts.length; i += 2) {
       this.set(pts[i], pts[i + 1], ch);
       this.set(this.w - 1 - pts[i], pts[i + 1], ch);
-    }
-    return this;
-  }
-
-  /** Concentric glow: outer -> inner chars on shrinking circles (e.g. 'eEy'). */
-  glow(cx: number, cy: number, r: number, chars: string, step = 1): this {
-    for (let k = 0; k < chars.length; k++) {
-      const rr = r - k * step;
-      if (rr <= 0) break;
-      this.fill(this.circle(cx, cy, rr), chars[k]);
     }
     return this;
   }
@@ -461,25 +407,6 @@ export class Grid {
     return this;
   }
 
-  /** Copy the left half onto the right half (mirror), keeping the left untouched. */
-  mirrorLeft(): this {
-    for (let y = 0; y < this.h; y++) {
-      for (let x = 0; x < Math.floor(this.w / 2); x++) this.px[y * this.w + (this.w - 1 - x)] = this.px[y * this.w + x];
-    }
-    return this;
-  }
-
-  /** Paste another grid at (x, y) ('.' skipped). */
-  paste(src: Grid, x: number, y: number): this {
-    for (let j = 0; j < src.h; j++) {
-      for (let i = 0; i < src.w; i++) {
-        const ch = src.px[j * src.w + i];
-        if (ch !== '.') this.set(x + i, y + j, ch);
-      }
-    }
-    return this;
-  }
-
   toMap(): PixelMap {
     const out: PixelMap = [];
     for (let y = 0; y < this.h; y++) out.push(this.px.slice(y * this.w, (y + 1) * this.w).join(''));
@@ -488,7 +415,7 @@ export class Grid {
 }
 
 /** Chamfer (1, sqrt2) distance from each mask pixel to the nearest pixel outside the mask. */
-export function distanceInside(m: Mask, w: number, h: number): Float32Array {
+function distanceInside(m: Mask, w: number, h: number): Float32Array {
   const INF = 1e9;
   const d = new Float32Array(w * h);
   for (let i = 0; i < d.length; i++) d[i] = m[i] ? INF : 0;
@@ -511,12 +438,7 @@ export function distanceInside(m: Mask, w: number, h: number): Float32Array {
   return d;
 }
 
-/** Points evenly spread on a circle (angle 0 = right, +PI/2 = down), rounded to pixels. */
-export function ringPoints(cx: number, cy: number, r: number, n: number, phase = 0): number[] {
-  const out: number[] = [];
-  for (let i = 0; i < n; i++) {
-    const a = phase + (i / n) * Math.PI * 2;
-    out.push(Math.floor(cx + Math.cos(a) * r), Math.floor(cy + Math.sin(a) * r));
-  }
-  return out;
+/** Quantise a tone (0 = darkest) onto a ramp of chars (default palette ramp '12345'). */
+export function rampChar(t: number, ramp = '12345'): string {
+  return ramp[Math.max(0, Math.min(ramp.length - 1, Math.round(t)))];
 }

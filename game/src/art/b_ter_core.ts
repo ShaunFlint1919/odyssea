@@ -12,7 +12,7 @@ import type { DoodadPlacement } from './terrain';
 
 export const CH = CHUNK_H;
 /** Margin (px) around the chunk covered by every field buffer. */
-export const MARGIN = 14;
+export const MARGIN = 12;
 
 export const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
 export const smoothstep = (a: number, b: number, v: number): number => {
@@ -20,12 +20,28 @@ export const smoothstep = (a: number, b: number, v: number): number => {
   return t * t * (3 - 2 * t);
 };
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+/** Linear 0..1 ramp of v between a and b (cheap smoothstep substitute for hot loops). */
+export const lin = (a: number, b: number, v: number): number => {
+  const t = (v - a) / (b - a);
+  return t < 0 ? 0 : t > 1 ? 1 : t;
+};
+
+/** Darkens a packed colour (channel multipliers /256) and adds a blue bias — cast shadows. */
+export function shade(col: number, mr: number, mg: number, mb: number, addB: number): number {
+  const r = col & 255, g = (col >> 8) & 255, b = (col >> 16) & 255;
+  let nb = ((b * mb) >> 8) + addB;
+  if (nb > 255) nb = 255;
+  return 0xff000000 | (nb << 16) | (((g * mg) >> 8) << 8) | ((r * mr) >> 8);
+}
 
 // ------------------------------------------------------------------------------ colours
 
-/** 0xRRGGBB -> opaque packed little-endian ABGR (for Uint32Array views over ImageData). */
+/**
+ * 0xRRGGBB -> opaque packed little-endian ABGR as a SIGNED int32 (for Int32Array views over
+ * ImageData; signed values stay small integers in V8 instead of heap numbers).
+ */
 export function pack(hex: number): number {
-  return (0xff000000 | ((hex & 0xff) << 16) | (hex & 0xff00) | ((hex >> 16) & 0xff)) >>> 0;
+  return 0xff000000 | ((hex & 0xff) << 16) | (hex & 0xff00) | ((hex >> 16) & 0xff);
 }
 
 /** Linear mix of two 0xRRGGBB colours. */
@@ -41,17 +57,17 @@ export function mixPacked(a: number, b: number, t: number): number {
   const ar = a & 255, ag = (a >> 8) & 255, ab = (a >> 16) & 255;
   const br = b & 255, bg = (b >> 8) & 255, bb = (b >> 16) & 255;
   const r = (ar + (br - ar) * t) | 0, g = (ag + (bg - ag) * t) | 0, bl = (ab + (bb - ab) * t) | 0;
-  return (0xff000000 | (bl << 16) | (g << 8) | r) >>> 0;
+  return 0xff000000 | (bl << 16) | (g << 8) | r;
 }
 
 /** Packed ramp (dark -> light) from 0xRRGGBB stops. */
-export function ramp(...hex: number[]): Uint32Array {
-  return Uint32Array.from(hex.map(pack));
+export function ramp(...hex: number[]): Int32Array {
+  return Int32Array.from(hex.map(pack));
 }
 
 /** Packed ramp of `n` colours interpolated through the given 0xRRGGBB stops. */
-export function rampN(n: number, ...stops: number[]): Uint32Array {
-  const out = new Uint32Array(n);
+export function rampN(n: number, ...stops: number[]): Int32Array {
+  const out = new Int32Array(n);
   for (let i = 0; i < n; i++) {
     const t = (i / (n - 1)) * (stops.length - 1);
     const k = Math.min(stops.length - 2, Math.floor(t));
@@ -61,8 +77,8 @@ export function rampN(n: number, ...stops: number[]): Uint32Array {
 }
 
 /** Derived ramp: every colour of `src` (0xRRGGBB stops) mixed toward `toward` by t. */
-export function rampToward(src: number[], toward: number, t: number): Uint32Array {
-  return Uint32Array.from(src.map((c) => pack(mixHex(c, toward, t))));
+export function rampToward(src: number[], toward: number, t: number): Int32Array {
+  return Int32Array.from(src.map((c) => pack(mixHex(c, toward, t))));
 }
 
 /** Ordered 4x4 Bayer thresholds in [0, 1). */
@@ -71,7 +87,7 @@ const B4 = new Float32Array([0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 
 export const bayer4 = (x: number, wy: number): number => B4[((wy & 3) << 2) | (x & 3)];
 
 /** Pick a dithered colour from a ramp: t in [0,1] (tone), d in [0,1) (dither threshold). */
-export function tone(r: Uint32Array, t: number, d: number): number {
+export function tone(r: Int32Array, t: number, d: number): number {
   const n = r.length;
   const k = Math.floor(t * (n - 1) + d);
   return r[k < 0 ? 0 : k >= n ? n - 1 : k];
@@ -81,6 +97,19 @@ export function tone(r: Uint32Array, t: number, d: number): number {
 
 const pool: Float32Array[] = [];
 let poolIdx = 0;
+
+const u8pool: Uint8Array[] = [];
+let u8Idx = 0;
+/** Pooled Uint8Array of at least n entries (stale content!). Reset at every chunk start. */
+export function scratchU8(n: number): Uint8Array {
+  let a = u8pool[u8Idx];
+  if (!a || a.length < n) {
+    a = new Uint8Array(n);
+    u8pool[u8Idx] = a;
+  }
+  u8Idx++;
+  return a;
+}
 
 /** Pooled Float32Array of at least n entries (stale content!). Reset at every chunk start. */
 export function scratch(n: number): Float32Array {
@@ -103,16 +132,18 @@ export class Chunk {
   readonly N: number;          // entries in a margin-layout buffer
   readonly wy0: number;        // world Y of row 0 (top row)
   readonly img: ImageData;
-  readonly px: Uint32Array;    // packed ABGR pixels of img (w x CH)
-  readonly doodads: DoodadPlacement[] = [];
+  readonly px: Int32Array;     // packed ABGR pixels of img (w x CH)
+  readonly doodads: DoodadPlacement[] = list<DoodadPlacement>();
 
-  constructor(readonly w: number, readonly index: number, readonly seed: number) {
+  /** `img` (w x CH) is reused between chunks of one generator: it is only copied to a canvas. */
+  constructor(readonly w: number, readonly index: number, readonly seed: number, img?: ImageData) {
     this.S = w + 2 * MARGIN;
     this.N = this.S * (CH + 2 * MARGIN);
     this.wy0 = (index + 1) * CH - 1;
-    this.img = new ImageData(w, CH);
-    this.px = new Uint32Array(this.img.data.buffer);
+    this.img = img && img.width === w && img.height === CH ? img : new ImageData(w, CH);
+    this.px = new Int32Array(this.img.data.buffer);
     poolIdx = 0;
+    u8Idx = 0;
   }
 
   /** Index of (x, row) in the margin layout. */
@@ -123,10 +154,7 @@ export class Chunk {
   /** Adds a doodad if its centre lies inside this chunk (rows 0..CH-1). */
   add(key: string, x: number, r: number, flipX = false, scale = 1): void {
     if (r < 0 || r >= CH || x < 0 || x >= this.w) return;
-    const d: DoodadPlacement = { key, x: Math.round(x), y: Math.round(r) };
-    if (flipX) d.flipX = true;
-    if (scale !== 1) d.scale = scale;
-    this.doodads.push(d);
+    this.doodads.push({ key, x: Math.round(x), y: Math.round(r), flipX, scale: Math.round(scale * 100) / 100 });
   }
 }
 
@@ -149,17 +177,18 @@ function bsplineWeights(step: number): Float32Array {
 }
 
 /**
- * Samples fn(worldX, worldY) on a world-aligned lattice of spacing `step` (power of two) and
- * upsamples it with a smooth cubic B-spline into a margin-layout buffer. Because the lattice is
- * world-aligned, the result is identical across chunk edges (seamless).
+ * Samples fn(worldX, worldY) on a world-aligned lattice of integer spacing `step` and upsamples
+ * it with a smooth cubic B-spline into a margin-layout buffer. Because the lattice is
+ * world-aligned, the result is identical across chunk edges (seamless). Only `pad` px of the
+ * margin are filled (the rest of the buffer is stale).
  */
-export function field(c: Chunk, step: number, fn: (wx: number, wy: number) => number): Float32Array {
-  const M = c.M, S = c.S, w = c.w;
-  const gx0 = Math.floor(-M / step) - 1;
-  const gx1 = Math.floor((w + M - 1) / step) + 2;
-  const wyTop = c.wy0 + M, wyBot = c.wy0 - (CH + M - 1);
-  const gy0 = Math.floor(wyBot / step) - 1;
-  const gy1 = Math.floor(wyTop / step) + 2;
+export function field(c: Chunk, step: number, fn: (wx: number, wy: number) => number, pad = MARGIN): Float32Array {
+  const M = c.M, w = c.w;
+  const P = Math.min(pad, M);
+  const gx0 = Math.floor(-P / step) - 1;
+  const gx1 = Math.floor((w + P - 1) / step) + 2;
+  const gy0 = Math.floor((c.wy0 - (CH + P - 1)) / step) - 1;
+  const gy1 = Math.floor((c.wy0 + P) / step) + 2;
   const lw = gx1 - gx0 + 1, lh = gy1 - gy0 + 1;
   const L = scratch(lw * lh);
   for (let j = 0; j < lh; j++) {
@@ -167,14 +196,42 @@ export function field(c: Chunk, step: number, fn: (wx: number, wy: number) => nu
     const o = j * lw;
     for (let i = 0; i < lw; i++) L[o + i] = fn((gx0 + i) * step, wy);
   }
+  return upsample(c, step, L, lw, lh, gx0, gy0, P, 0.5, 1);
+}
+
+/**
+ * Cheap smooth noise in [0,1): random lattice values (hash2) at spacing `step` upsampled with a
+ * cubic B-spline (C2 smooth, no lattice artefacts). Feature size ~ step..2*step. `contrast`
+ * stretches the values around 0.5 (B-spline averaging narrows the distribution).
+ */
+export function lattice(c: Chunk, step: number, seed: number, pad = MARGIN, contrast = 1.35): Float32Array {
+  const M = c.M, w = c.w;
+  const P = Math.min(pad, M);
+  const gx0 = Math.floor(-P / step) - 1;
+  const gx1 = Math.floor((w + P - 1) / step) + 2;
+  const gy0 = Math.floor((c.wy0 - (CH + P - 1)) / step) - 1;
+  const gy1 = Math.floor((c.wy0 + P) / step) + 2;
+  const lw = gx1 - gx0 + 1, lh = gy1 - gy0 + 1;
+  const L = scratch(lw * lh);
+  for (let j = 0; j < lh; j++) {
+    const o = j * lw, gy = gy0 + j;
+    for (let i = 0; i < lw; i++) L[o + i] = hash2(gx0 + i, gy, seed);
+  }
+  return upsample(c, step, L, lw, lh, gx0, gy0, P, 0.5, contrast);
+}
+
+/** Separable cubic B-spline upsampling of a lattice into the margin layout (out = mid + (v - mid) * k). */
+function upsample(c: Chunk, step: number, L: Float32Array, lw: number, lh: number, gx0: number, gy0: number,
+  P: number, mid: number, k: number): Float32Array {
+  const M = c.M, S = c.S;
   const Wt = bsplineWeights(step);
   // row pass: lattice rows -> full-resolution columns
   const T = scratch(lh * S);
-  for (let xx = 0; xx < S; xx++) {
+  for (let xx = M - P; xx < S - M + P; xx++) {
     const x = xx - M;
     const gx = Math.floor(x / step);
-    const k = (x - gx * step) * 4;
-    const w0 = Wt[k], w1 = Wt[k + 1], w2 = Wt[k + 2], w3 = Wt[k + 3];
+    const q = (x - gx * step) * 4;
+    const w0 = Wt[q], w1 = Wt[q + 1], w2 = Wt[q + 2], w3 = Wt[q + 3];
     const base = gx - 1 - gx0;
     for (let j = 0; j < lh; j++) {
       const o = j * lw + base;
@@ -183,27 +240,28 @@ export function field(c: Chunk, step: number, fn: (wx: number, wy: number) => nu
   }
   // column pass
   const D = scratch(c.N);
-  const rows = CH + 2 * M;
-  for (let rr = 0; rr < rows; rr++) {
+  const x0 = M - P, x1 = S - M + P;
+  const add = mid - mid * k;
+  for (let rr = M - P; rr < CH + M + P; rr++) {
     const wy = c.wy0 - (rr - M);
     const gy = Math.floor(wy / step);
-    const k = (wy - gy * step) * 4;
-    const w0 = Wt[k], w1 = Wt[k + 1], w2 = Wt[k + 2], w3 = Wt[k + 3];
+    const q = (wy - gy * step) * 4;
+    const w0 = Wt[q] * k, w1 = Wt[q + 1] * k, w2 = Wt[q + 2] * k, w3 = Wt[q + 3] * k;
     const o0 = (gy - 1 - gy0) * S, o1 = o0 + S, o2 = o1 + S, o3 = o2 + S;
     const out = rr * S;
-    for (let xx = 0; xx < S; xx++) D[out + xx] = w0 * T[o0 + xx] + w1 * T[o1 + xx] + w2 * T[o2 + xx] + w3 * T[o3 + xx];
+    for (let xx = x0; xx < x1; xx++) D[out + xx] = add + w0 * T[o0 + xx] + w1 * T[o1 + xx] + w2 * T[o2 + xx] + w3 * T[o3 + xx];
   }
   return D;
 }
 
 /** Per-pixel hash grain in [0,1) for the margin layout (world-seeded, seamless). */
-export function grain(c: Chunk, seed: number): Float32Array {
+export function grain(c: Chunk, seed: number, pad = 1): Float32Array {
   const D = scratch(c.N);
-  const M = c.M, S = c.S, rows = CH + 2 * M;
-  for (let rr = 0; rr < rows; rr++) {
+  const M = c.M, S = c.S, P = Math.min(pad, M);
+  for (let rr = M - P; rr < CH + M + P; rr++) {
     const wy = c.wy0 - (rr - M);
     const o = rr * S;
-    for (let xx = 0; xx < S; xx++) D[o + xx] = hash2(xx - M, wy, seed);
+    for (let xx = M - P; xx < S - M + P; xx++) D[o + xx] = hash2(xx - M, wy, seed);
   }
   return D;
 }
@@ -266,12 +324,28 @@ export function cellular(c: Chunk, cell: number, seed: number, jitter: number, p
 
 // ------------------------------------------------------------------------------ sites & cells
 
-/** A deterministic world-space feature (oasis, ruin, island, platform...). */
-export interface Site {
-  wx: number;   // world x
-  wy: number;   // world y
-  r: number;    // chunk row of the centre (may be outside 0..CH-1)
-  h1: number; h2: number; h3: number; h4: number; // hashes in [0,1)
+/**
+ * An array that is already in the generic (object) elements kind, so empty and filled lists
+ * share one hidden class (avoids V8 deopts when hot loops see both).
+ */
+export function list<T>(): T[] {
+  const a = [null] as unknown as T[];
+  a.length = 0;
+  return a;
+}
+
+/**
+ * A deterministic world-space feature (oasis, ruin, island, platform...). Fields start as
+ * doubles so the hidden class never changes representation (keeps optimised code stable).
+ */
+export class Site {
+  wx = 0.5;   // world x
+  wy = 0.5;   // world y
+  r = 0.5;    // chunk row of the centre (may be outside 0..CH-1)
+  h1 = 0.5; h2 = 0.5; h3 = 0.5; h4 = 0.5; // hashes in [0,1)
+  constructor(wx: number, wy: number, r: number, h1: number, h2: number, h3: number, h4: number) {
+    this.wx = wx; this.wy = wy; this.r = r; this.h1 = h1; this.h2 = h2; this.h3 = h3; this.h4 = h4;
+  }
 }
 
 /**
@@ -280,7 +354,7 @@ export interface Site {
  * x is chosen in [xMin, w - xMin].
  */
 export function sites(c: Chunk, band: number, salt: number, prob: number, reach: number, xMin: number): Site[] {
-  const out: Site[] = [];
+  const out = list<Site>();
   const lo = Math.floor((c.wy0 - CH - reach) / band), hi = Math.floor((c.wy0 + reach) / band);
   for (let b = lo; b <= hi; b++) {
     if (b < 0) continue;
@@ -290,7 +364,7 @@ export function sites(c: Chunk, band: number, salt: number, prob: number, reach:
     const wy = (b + 0.2 + 0.6 * h2) * band;
     const r = c.wy0 - wy;
     if (r < -reach || r > CH + reach) continue;
-    out.push({ wx, wy, r, h1, h2, h3: hash2(b, 37, c.seed + salt), h4: hash2(b, 41, c.seed + salt) });
+    out.push(new Site(wx, wy, r, h1, h2, hash2(b, 37, c.seed + salt), hash2(b, 41, c.seed + salt)));
   }
   return out;
 }
@@ -316,30 +390,127 @@ export function eachCell(c: Chunk, cell: number, salt: number, cb: (x: number, r
 
 /** True when (x, r) is at least `d` px away from every doodad already placed in the chunk. */
 export function farFromDoodads(c: Chunk, x: number, r: number, d: number): boolean {
-  const d2 = d * d;
-  for (const o of c.doodads) {
-    const dx = o.x - x, dy = o.y - r;
+  const d2 = d * d, list = c.doodads;
+  for (let k = 0; k < list.length; k++) {
+    const dx = list[k].x - x, dy = list[k].y - r;
     if (dx * dx + dy * dy < d2) return false;
   }
   return true;
 }
 
-/** Row-wise smooth 1D meander: fills centre x and half-width per margin-layout row. */
-export function meander(c: Chunk, seed: number, opts: {
+export interface MeanderOpts {
   amp: number; wave: number; wave2: number; amp2: number; width: number; widthVar: number; widthWave: number;
   gateWave?: number; gateLo?: number; gateHi?: number; centre?: number;
-}, noise: (x: number, y: number, s: number) => number): { xc: Float32Array; hw: Float32Array; slope: Float32Array } {
-  const rows = CH + 2 * c.M;
-  const xc = scratch(rows), hw = scratch(rows), slope = scratch(rows);
-  const centre = opts.centre ?? 0.5;
-  const at = (wy: number) => c.w * centre + opts.amp * (noise(wy / opts.wave, 3.7, seed) * 2 - 1) + opts.amp2 * (noise(wy / opts.wave2, 8.3, seed) * 2 - 1);
-  for (let rr = 0; rr < rows; rr++) {
-    const wy = c.wy0 - (rr - c.M);
-    xc[rr] = at(wy);
-    slope[rr] = (at(wy + 1) - at(wy - 1)) * 0.5;
-    let width = opts.width + opts.widthVar * (noise(wy / opts.widthWave, 5.1, seed) * 2 - 1);
-    if (opts.gateWave) width *= smoothstep(opts.gateLo ?? 0.4, opts.gateHi ?? 0.55, noise(wy / opts.gateWave, 1.9, seed));
-    hw[rr] = width;
+}
+
+/**
+ * A smooth meandering band (river, canyon, lava flow...) defined in world space:
+ * centre x and half-width are pure functions of worldY, so every chunk agrees.
+ */
+export class Meander {
+  constructor(readonly w: number, readonly seed: number, readonly o: MeanderOpts,
+    readonly noise: (x: number, y: number, s: number) => number) {}
+
+  /** Centre x at world y. */
+  xc(wy: number): number {
+    const o = this.o;
+    return this.w * (o.centre ?? 0.5) + o.amp * (this.noise(wy / o.wave, 3.7, this.seed) * 2 - 1)
+      + o.amp2 * (this.noise(wy / o.wave2, 8.3, this.seed) * 2 - 1);
   }
-  return { xc, hw, slope };
+
+  /** Half-width at world y (0 where the band is gated off). */
+  hw(wy: number): number {
+    const o = this.o;
+    let width = o.width + o.widthVar * (this.noise(wy / o.widthWave, 5.1, this.seed) * 2 - 1);
+    if (o.gateWave) {
+      const g = this.noise(wy / o.gateWave, 1.9, this.seed);
+      const lo = o.gateLo ?? 0.4, hi = o.gateHi ?? 0.55;
+      width *= g <= lo ? 0 : g >= hi ? 1 : Math.sqrt((g - lo) / (hi - lo));
+    }
+    return width;
+  }
+
+  /** Per margin-layout row: centre x, half-width and dx/dy slope of the centre line. */
+  rows(c: Chunk): { xc: Float32Array; hw: Float32Array; slope: Float32Array } {
+    const rows = CH + 2 * c.M;
+    const xc = scratch(rows), hw = scratch(rows), slope = scratch(rows);
+    for (let rr = 0; rr < rows; rr++) {
+      const wy = c.wy0 - (rr - c.M);
+      xc[rr] = this.xc(wy);
+      slope[rr] = (this.xc(wy + 1) - this.xc(wy - 1)) * 0.5;
+      hw[rr] = this.hw(wy);
+    }
+    return { xc, hw, slope };
+  }
+
+  /** True when the band comes within `pad` px of the world rectangle [x0,x1] x [wyLo,wyHi]. */
+  hits(x0: number, x1: number, wyLo: number, wyHi: number, pad: number): boolean {
+    for (let wy = wyLo; wy <= wyHi; wy += 6) {
+      const h = this.hw(wy);
+      if (h < 0.5) continue;
+      const x = this.xc(wy);
+      if (x + h + pad > x0 && x - h - pad < x1) return true;
+    }
+    return false;
+  }
+}
+
+/**
+ * Per-pixel Voronoi evaluator over jittered world-cell points (no allocation per query).
+ * After at(x, wy): f1/f2 = distances to the nearest / second nearest point, (dx, dy) = pixel
+ * minus nearest point in WORLD units (dy grows upward), id = hash of the nearest cell.
+ */
+export class Voronoi {
+  f1 = 0.5; f2 = 0.5; dx = 0.5; dy = 0.5; id = 0.5;
+  private readonly PX: Float32Array;
+  private readonly PY: Float32Array;
+  private readonly PI: Float32Array;
+  private readonly nx: number;
+  private readonly cx0: number;
+  private readonly cy0: number;
+  private readonly inv: number;
+
+  /** `reach` = how many px outside the chunk will be queried (margins, warps). */
+  constructor(c: Chunk, readonly cell: number, seed: number, jitter: number, reach: number) {
+    const r = reach + cell;
+    this.cx0 = Math.floor(-r / cell) - 1;
+    const cx1 = Math.floor((c.w + r) / cell) + 1;
+    this.cy0 = Math.floor((c.wy0 - CH - r) / cell) - 1;
+    const cy1 = Math.floor((c.wy0 + r) / cell) + 1;
+    this.nx = cx1 - this.cx0 + 1;
+    const ny = cy1 - this.cy0 + 1;
+    this.PX = scratch(this.nx * ny);
+    this.PY = scratch(this.nx * ny);
+    this.PI = scratch(this.nx * ny);
+    for (let j = 0; j < ny; j++) {
+      for (let i = 0; i < this.nx; i++) {
+        const gx = this.cx0 + i, gy = this.cy0 + j, k = j * this.nx + i;
+        this.PX[k] = (gx + 0.5 + (hash2(gx, gy, seed) - 0.5) * jitter) * cell;
+        this.PY[k] = (gy + 0.5 + (hash2(gx, gy, seed + 71) - 0.5) * jitter) * cell;
+        this.PI[k] = hash2(gx, gy, seed + 151);
+      }
+    }
+    this.inv = 1 / cell;
+  }
+
+  /** Evaluates the diagram at world (x, wy). */
+  at(x: number, wy: number): void {
+    const ccx = Math.floor(x * this.inv) - this.cx0, ccy = Math.floor(wy * this.inv) - this.cy0;
+    const PX = this.PX, PY = this.PY, nx = this.nx;
+    let d1 = 1e9, d2 = 1e9, best = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      const row = (ccy + dy) * nx + ccx;
+      for (let dx = -1; dx <= 1; dx++) {
+        const k = row + dx;
+        const ex = x - PX[k], ey = wy - PY[k];
+        const d = ex * ex + ey * ey;
+        if (d < d1) { d2 = d1; d1 = d; best = k; } else if (d < d2) d2 = d;
+      }
+    }
+    this.f1 = Math.sqrt(d1);
+    this.f2 = Math.sqrt(d2);
+    this.dx = x - PX[best];
+    this.dy = wy - PY[best];
+    this.id = this.PI[best];
+  }
 }

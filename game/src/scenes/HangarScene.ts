@@ -1,15 +1,227 @@
 import Phaser from 'phaser';
-import { SCENES, W, H } from '../config';
-import { markSceneReady } from '../debug';
+import { COLORS, SCENES } from '../config';
+import { markSceneReady, setHookState } from '../debug';
+import { audio } from '../audio';
+import { getSave, saveNow } from '../state/save';
+import { loadoutValue } from '../state/economy';
+import { isCompleted } from '../state/progress';
+import * as kit from '../ui/kit';
+import { META, ensureMetaArt, iconOr } from '../ui/meta/art';
+import { HEADER_H, MD, backdrop, badge, header, scanlines, sectionLabel } from '../ui/meta/chrome';
+import {
+  campaignProgress, dec, findLevel, findShield, findWeapon, fmt, nextMissionId, planetOfLevel, signed, unreadIntelCount, upper, wrapLines,
+} from '../ui/meta/common';
+import { ShipBay } from '../ui/meta/shipBay';
+import { energyBalance, totalDps } from '../ui/meta/stats';
+import { BIOME_TINT, planetTexture } from '../ui/meta/planets';
 
-// STUB — to be implemented by the UI module owner (see docs/ARCHITECTURE.md).
+/** Main between-missions menu: ship bay, next mission, launch / upgrade / map / specs / comms / options / quit. */
 export class HangarScene extends Phaser.Scene {
+  private list?: kit.MenuList;
+  private dialogOpen = false;
+
   constructor() {
     super(SCENES.Hangar);
   }
 
   create(): void {
-    this.add.text(W / 2, H / 2, 'Hangar', { fontFamily: 'monospace', fontSize: '16px', color: '#ffffff' }).setOrigin(0.5);
-    markSceneReady(SCENES.Hangar);
+    kit.fadeIn(this);
+    audio.music('hangar');
+    ensureMetaArt(this);
+    this.dialogOpen = false;
+    const { width: W, height: H } = this.scale.gameSize;
+    const save = getSave();
+    const loadout = save.loadout;
+
+    backdrop(this);
+    header(this, 'HANGAR', { credits: save.credits });
+
+    // ------------------------------------------------------------ layout (adapts to H)
+    const rowH = H >= 660 ? 26 : H >= 560 ? 24 : 22;
+    const menuH = 7 * rowH + 12;
+    const missionH = H >= 640 ? 64 : 56;
+    const statusH = 16;
+    const gap = H >= 600 ? 5 : 4;
+    const top = HEADER_H + gap;
+    const bottom = H - statusH - gap;
+    const bayH = bottom - top - menuH - missionH - 2 * gap;
+    const px = 4, pw = W - 8;
+
+    // ------------------------------------------------------------ ship bay
+    kit.panel(this, px, top, pw, bayH, 'raised').setDepth(MD.panel);
+    const infoH = 22;
+    const chips = bayH >= 250;
+    const chipsH = chips ? 38 : 0;
+    const screenH = bayH - 10 - infoH - chipsH;
+    const bayScale = screenH >= 290 ? 4 : screenH >= 150 ? 3 : 2;
+    new ShipBay(this, { x: px + 5, y: top + 5, w: pw - 10, h: screenH, depth: MD.content, scale: bayScale, tag: 'BAY 07' }, loadout);
+
+    let iy = top + 5 + screenH + 4;
+    if (chips) {
+      this.loadoutChips(px + 5, iy, pw - 10);
+      iy += chipsH;
+    }
+    // value plates
+    const plateW = Math.floor((pw - 14) / 2);
+    kit.panel(this, px + 5, iy, plateW, infoH - 2, 'inset').setDepth(MD.content);
+    kit.panel(this, px + 9 + plateW, iy, plateW, infoH - 2, 'inset').setDepth(MD.content);
+    kit.text(this, px + 12, iy + 10, 'SHIP VALUE', { size: 's', color: COLORS.textDim, originY: 0.5, depth: MD.content });
+    const valX = px + 5 + plateW - 7;
+    kit.text(this, valX, iy + 10, fmt(loadoutValue()), { size: 'm', color: COLORS.gold, originX: 1, originY: 0.5, depth: MD.content });
+    if (this.textures.exists('ui_icon_credits')) {
+      const vt = kit.measure(this, fmt(loadoutValue()), 'm');
+      this.add.image(valX - vt - 3, iy + 10, 'ui_icon_credits').setOrigin(1, 0.5).setDepth(MD.content);
+    }
+    kit.text(this, px + 16 + plateW, iy + 10, 'FIREPOWER', { size: 's', color: COLORS.textDim, originY: 0.5, depth: MD.content });
+    kit.text(this, px + 9 + 2 * plateW - 7, iy + 10, `${dec(totalDps(loadout), 0)} DPS`, { size: 'm', color: COLORS.teal, originX: 1, originY: 0.5, depth: MD.content });
+
+    // ------------------------------------------------------------ next mission
+    const my = top + bayH + gap;
+    this.missionPanel(px, my, pw, missionH);
+
+    // ------------------------------------------------------------ menu
+    const ly = my + missionH + gap;
+    kit.panel(this, px, ly, pw, menuH, 'raised').setDepth(MD.panel);
+    scanlines(this, px + 3, ly + 3, pw - 6, menuH - 6, MD.panel, 0.35);
+    const missionId = nextMissionId();
+    const mission = findLevel(missionId);
+    const planet = planetOfLevel(missionId);
+    const { done, total } = campaignProgress();
+    const unread = unreadIntelCount();
+    const bal = energyBalance(loadout);
+    const items: kit.MenuItem[] = [
+      {
+        label: 'LAUNCH MISSION', icon: META.icLaunch, color: COLORS.teal,
+        value: mission && planet ? `${upper(planet.name).split(' ')[0]} ${mission.index}` : undefined, valueColor: COLORS.accentLight,
+        disabled: !mission,
+        help: mission ? `LAUNCH "${upper(mission.name)}" - ARMOR AND SHIELD FULLY REPAIRED` : 'NO MISSION DATA AVAILABLE',
+      },
+      { label: 'UPGRADE SHIP', icon: META.icUpgrade, help: 'BUY OR TRADE HULLS, GUNS, SHIELDS, GENERATORS AND DRONES' },
+      {
+        label: 'GALAXY MAP', icon: META.icMap, value: total ? `${done}/${total}` : undefined, valueColor: COLORS.textDim,
+        help: 'PICK YOUR NEXT TARGET OR REPLAY CLEARED MISSIONS FOR CREDITS',
+      },
+      {
+        label: 'SHIP SPECS', icon: META.icSpecs, value: `${signed(bal.net)} EN/S`, valueColor: bal.net < 0 ? COLORS.bad : COLORS.good,
+        help: bal.net < 0 ? 'WARNING: GUNS + SHIELD DRAIN MORE THAN THE GENERATOR MAKES' : 'FULL STATS OF YOUR LOADOUT AND ITS ENERGY BALANCE',
+      },
+      {
+        label: 'COMMS', icon: iconOr(this, 'ui_icon_intel', META.icComms),
+        value: unread === 0 && save.intel.length ? `${save.intel.length} MSG` : undefined, valueColor: COLORS.textDim,
+        help: unread ? `${unread} UNREAD TRANSMISSION${unread > 1 ? 'S' : ''} RECOVERED IN THE FIELD` : 'READ THE TRANSMISSIONS YOU HAVE RECOVERED',
+      },
+      { label: 'OPTIONS', icon: META.icOptions, help: 'SOUND, CONTROLS, DISPLAY AND DIFFICULTY SETTINGS' },
+      { label: 'SAVE & QUIT', icon: META.icQuit, help: 'SAVE YOUR PROGRESS AND RETURN TO THE TITLE SCREEN' },
+    ];
+    const status = kit.statusBar(this, items[0].help ?? '');
+    const listX = px + 20, listW = pw - 28;
+    this.list = new kit.MenuList(this, {
+      x: listX, y: ly + 6, width: listW, items, rowHeight: rowH, size: 'm', depth: MD.content,
+      onFocus: (i, it) => { status.setText(it.help ?? ''); setHookState({ menu: i }); },
+      onSelect: (i) => this.activate(i, missionId),
+      onDisabled: (_i, it) => status.setText(it.help ?? ''),
+    });
+    if (unread > 0) badge(this, listX + listW - 18, ly + 6 + 4 * rowH + rowH / 2, unread, MD.float);
+
+    kit.onBack(this, () => this.askQuit());
+    markSceneReady(SCENES.Hangar, {
+      credits: save.credits, level: missionId, menu: 0, value: loadoutValue(), unread, items: items.map((i) => i.label),
+    });
+  }
+
+  /** Two rows of small read-outs: front / rear guns, shield, generator. */
+  private loadoutChips(x: number, y: number, w: number): void {
+    const l = getSave().loadout;
+    const cw = Math.floor((w - 4) / 2);
+    const front = findWeapon(l.front);
+    const rear = findWeapon(l.rear);
+    const shield = findShield(l.shield);
+    const chip = (cx: number, cy: number, icon: string, label: string, name: string, extra: string, extraColor: number) => {
+      kit.panel(this, cx, cy, cw, 17, 'inset').setDepth(MD.content);
+      if (this.textures.exists(icon)) this.add.image(cx + 10, cy + 8, icon).setDepth(MD.content).setScale(0.75);
+      kit.text(this, cx + 20, cy + 5, label, { size: 's', color: COLORS.textDim, depth: MD.content });
+      const ex = extra ? kit.measure(this, extra, 's') + 6 : 0;
+      const lx = cx + 20 + kit.measure(this, label, 's') + 5;
+      kit.text(this, lx, cy + 5, kit.fit(name, cw - (lx - cx) - ex - 6, 's'), { size: 's', color: COLORS.text, depth: MD.content });
+      if (extra) kit.text(this, cx + cw - 5, cy + 5, extra, { size: 's', color: extraColor, originX: 1, depth: MD.content });
+    };
+    chip(x, y, 'ui_icon_front', 'FRONT', upper(front?.name ?? l.front), `P${l.frontPower}`, COLORS.teal);
+    chip(x + cw + 4, y, 'ui_icon_rear', 'REAR', rear ? upper(rear.name) : 'NONE', rear ? `P${l.rearPower}` : '', COLORS.teal);
+    chip(x, y + 19, 'ui_icon_shield', 'SHLD', upper(shield?.name ?? l.shield), '', COLORS.teal);
+    const bal = energyBalance(l);
+    chip(x + cw + 4, y + 19, 'ui_icon_generator', 'GEN', `${dec(bal.output)}/S`, signed(bal.net), bal.net < 0 ? COLORS.bad : COLORS.good);
+  }
+
+  /** "Next mission" panel: planet globe, level name, briefing. */
+  private missionPanel(x: number, y: number, w: number, h: number): void {
+    kit.panel(this, x, y, w, h, 'raised').setDepth(MD.panel);
+    const id = nextMissionId();
+    const lv = findLevel(id);
+    const planet = planetOfLevel(id);
+    const gx = x + 30, gy = y + h / 2;
+    const tint = planet ? BIOME_TINT[planet.biome] ?? COLORS.teal : COLORS.teal;
+    this.add.image(gx, gy, META.glow).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.45).setDisplaySize(64, 64).setDepth(MD.content);
+    if (planet) {
+      const img = this.add.image(gx, gy, planetTexture(this, planet.biome, 48)).setDepth(MD.content);
+      this.tweens.add({ targets: img, y: gy - 1.5, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    } else {
+      const g = this.add.graphics().setDepth(MD.content);
+      g.fillStyle(tint, 0.8).fillCircle(gx, gy, 18);
+      g.fillStyle(0x000000, 0.35).fillCircle(gx + 5, gy + 4, 16);
+    }
+    const tx = x + 62;
+    const tw = w - 62 - 8;
+    const where = planet && lv ? `${upper(planet.name)} ${lv.index}/${planet.levels.length}` : '';
+    sectionLabel(this, tx - 2, y + 6, 'NEXT MISSION', tw - kit.measure(this, where, 's') - 6, MD.content);
+    if (where) kit.text(this, x + w - 8, y + 6, where, { size: 's', color: COLORS.teal, originX: 1, depth: MD.content });
+    if (!lv) {
+      const all = campaignProgress();
+      const msg = all.total > 0 && all.done >= all.total ? 'CAMPAIGN COMPLETE' : 'NO MISSION DATA';
+      kit.text(this, tx, y + 19, msg, { size: 'm', color: COLORS.gold, depth: MD.content });
+      kit.text(this, tx, y + 33, 'Replay any cleared mission from the galaxy map.', { size: 's', color: COLORS.textDim, maxWidth: tw, depth: MD.content });
+      return;
+    }
+    const replay = isCompleted(lv.id);
+    kit.text(this, tx, y + 18, kit.fit(upper(lv.name), tw - (replay ? 54 : 0), 'm'), { size: 'm', color: COLORS.text, depth: MD.content });
+    if (replay) kit.text(this, x + w - 8, y + 19, 'REPLAY', { size: 's', color: COLORS.gold, originX: 1, depth: MD.content });
+    const maxLines = h >= 64 ? 3 : 2;
+    const lines = wrapLines(lv.briefing, Math.floor(tw / 6), maxLines);
+    lines.forEach((ln, i) => kit.text(this, tx, y + 31 + i * 9, ln, { size: 's', color: COLORS.textDim, depth: MD.content }));
+  }
+
+  private activate(i: number, missionId: string | null): void {
+    if (this.dialogOpen) return;
+    switch (i) {
+      case 0:
+        if (!missionId) return;
+        saveNow();
+        kit.goto(this, SCENES.Game, { levelId: missionId });
+        break;
+      case 1: kit.goto(this, SCENES.Shop, {}); break;
+      case 2: kit.goto(this, SCENES.Map); break;
+      case 3: kit.goto(this, SCENES.Specs); break;
+      case 4: kit.goto(this, SCENES.Intel, { from: SCENES.Hangar }); break;
+      case 5: kit.goto(this, SCENES.Options, { from: SCENES.Hangar }); break;
+      case 6:
+        saveNow();
+        kit.goto(this, SCENES.Title);
+        break;
+      default: break;
+    }
+  }
+
+  private askQuit(): void {
+    if (this.dialogOpen) return;
+    this.dialogOpen = true;
+    audio.sfx('ui_back');
+    this.list?.setEnabled(false);
+    kit.confirm(this, 'RETURN TO THE TITLE SCREEN?\nYOUR PROGRESS IS SAVED.', (yes) => {
+      this.dialogOpen = false;
+      this.list?.setEnabled(true);
+      if (yes) {
+        saveNow();
+        kit.goto(this, SCENES.Title);
+      }
+    });
   }
 }
