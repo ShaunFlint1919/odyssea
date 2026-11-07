@@ -58,6 +58,12 @@ Réponds-moi en français.
   scènes + une partie en god mode, échoue sur toute erreur console) · `npm run screens` (captures
   dans `game/screens/`) · `node tools/gallery-shot.mjs screens/x.png "filter=en_&scale=3"` (galerie
   de textures ; aussi `terrain=<biome>&chunks=3`, `font=1`).
+- Tests de jeu automatisés : `?bot=1` active un pilote automatique (vise, esquive, ramasse ;
+  métriques dans `window.__NC_RUN__` : bossKillTime, damageTaken, kills/spawned, creditsEarned…)
+  et `node tools/playtest.mjs --levels kessra --loadout start|ref [--god]` rejoue des niveaux et
+  imprime durée des combats, dégâts subis et crédits (voir `docs/BALANCE.md` §10).
+- Backlog connu : `game/docs/REVIEW_*.md` (relectures adverses gameplay, état, perf, plateforme,
+  originalité) — vérifie ce qui y reste ouvert avant de choisir tes chantiers.
 - Paramètres d'URL de debug : `?scene=Game&level=kessra-1&god=1&t=40&max=1&mute=1&speed=2&fps=1`
   (`scene` = Title, Map, Hangar, Shop, Specs, Options, Intel, Game…). `window.__NC__` expose
   l'état (scène prête, erreurs, `state.levelTime`, `state.fps`…) pour les scripts Playwright.
@@ -160,7 +166,11 @@ mets à jour PROGRESS.md pour qu'une nouvelle session reprenne exactement là.
 6. LIVRER : commit(s) clairs en anglais (`feat:`, `fix:`, `perf:`, `art:`, `content:`…), push sur
    ta branche de session (jamais sur main, jamais de force-push). Vérifie que `Game CI` et
    `Android APK` passent ; s'ils échouent, corrige en priorité à l'itération suivante (ou tout de
-   suite si c'est rapide). Ne crée pas de pull request sauf si je le demande.
+   suite si c'est rapide). Attention : un commit qui ne touche que `game/docs/`, des `.md`, ou qui
+   contient `[skip ci]` ne déclenche PAS les workflows — lance-les alors avec `workflow_dispatch`
+   (outil MCP GitHub `actions_run_trigger`, méthode `run_workflow`, sur ta branche).
+   L'APK debug se télécharge dans l'artefact `nova-corsair-<version>-build<N>-debug.apk`.
+   Ne crée pas de pull request sauf si je le demande.
 7. JOURNALISER : ajoute en tête de `game/docs/PROGRESS.md` une entrée : n° d'itération, date,
    scorecard (avant → après), ce qui a changé, preuves (commandes, captures regardées, run CI),
    problèmes connus, prochain chantier prévu. Coche dans ROADMAP.md uniquement ce qui est vérifié.

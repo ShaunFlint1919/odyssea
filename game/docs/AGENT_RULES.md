@@ -16,9 +16,9 @@ brief explicitly says so.
 
 Do NOT modify these contract files: `src/types.ts`, `src/config.ts`, `src/debug.ts`, `src/main.ts`,
 `src/art/keys.ts`, `src/art/pixel.ts`, `src/art/palettes.ts`, `src/art/noise.ts`,
-`src/art/index.ts`, `src/game/contracts.ts`, `src/game/arsenal/api.ts`, `src/ui/kit.ts` (API part,
-see its header), `src/scenes/BootScene.ts`, `src/gallery.ts`, `gallery.html`,
-`tools/gallery-shot.mjs`. If a contract lacks something, work around it INSIDE your own files and
+`src/art/index.ts`, `src/game/contracts.ts`, `src/scenes/BootScene.ts`, `src/gallery.ts`,
+`gallery.html`, `tools/gallery-shot.mjs`. `src/game/arsenal/api.ts` and `src/ui/kit.ts` may only
+receive ADDITIVE, backwards-compatible changes (new optional fields / options / exports). If a contract lacks something, work around it INSIDE your own files and
 report it under CONTRACT ISSUES.
 
 Keep the exported names and signatures of the stub files you own EXACTLY (others code against
