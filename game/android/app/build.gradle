@@ -1,0 +1,118 @@
+apply plugin: 'com.android.application'
+
+// ---------------------------------------------------------------------------------------------
+// Versioning (see game/README.md, "Publish a version")
+//   versionName = "version" of game/package.json, the single source of truth (CI also checks that a
+//                 v* tag matches it). Debug builds get a "-dev.<versionCode>" suffix.
+//   versionCode = ANDROID_VERSION_CODE when set (manual builds), else GITHUB_RUN_NUMBER of the
+//                 "Android APK" workflow (monotonic, as Play requires), else 1 for local builds.
+// ---------------------------------------------------------------------------------------------
+def packageJsonFile = rootProject.file('../package.json')
+def appVersionName = packageJsonFile.exists() ? String.valueOf(new groovy.json.JsonSlurper().parse(packageJsonFile).version ?: '') : ''
+if (!(appVersionName ==~ /\d+\.\d+\.\d+([-+][0-9A-Za-z.+-]+)?/)) {
+    throw new GradleException("game/package.json must hold a semver \"version\" (x.y.z), found '${appVersionName}'")
+}
+
+def envInt = { String name ->
+    def value = System.getenv(name)?.trim()
+    return (value && value.isInteger() && value.toInteger() > 0) ? value.toInteger() : null
+}
+def appVersionCode = envInt('ANDROID_VERSION_CODE') ?: envInt('GITHUB_RUN_NUMBER') ?: 1
+
+// ---------------------------------------------------------------------------------------------
+// Signing
+//   release: applied only when ALL four variables are set (GitHub secrets, decoded by the
+//            "Android APK" workflow; see README). Otherwise the release outputs are unsigned.
+//   debug:   the shared, committed debug.keystore (well-known "android" passwords). CI runners are
+//            ephemeral, so the default ~/.android/debug.keystore would change on every run and each
+//            new debug APK would refuse to install over the previous one.
+// ---------------------------------------------------------------------------------------------
+def releaseKeystorePath = System.getenv('ANDROID_KEYSTORE_PATH')
+def releaseKeystorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD')
+def hasReleaseSigning = [releaseKeystorePath, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword].every { it != null && !it.trim().isEmpty() }
+def sharedDebugKeystore = file('debug.keystore')
+
+android {
+    namespace = "com.shaunflint.novacorsair"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.shaunflint.novacorsair"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode appVersionCode
+        versionName appVersionName
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (sharedDebugKeystore.exists()) {
+            debug {
+                storeFile sharedDebugKeystore
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+            }
+        }
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            // Installs next to the release / Play Store build (own package, own save data), shown as
+            // "Nova Corsair Dev" (src/debug/res/values/strings.xml).
+            applicationIdSuffix '.debug'
+            versionNameSuffix "-dev.${appVersionCode}"
+        }
+        release {
+            // R8: shrink AndroidX, keep the reflective Capacitor / Cordova runtime (proguard-rules.pro).
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release resource shrinking (shrinkResources): keep what is only looked up by name at runtime.
+     xml/config is the Cordova config written by `npx cap sync`, read through getIdentifier().
+     The build does not package this file. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@xml/config" />

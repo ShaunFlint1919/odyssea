@@ -1,0 +1,17 @@
+node_modules/
+dist/
+screens/
+test-results/
+*.log
+.DS_Store
+# Android build outputs (the android/ project itself is committed)
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/release/
+*.keystore
+*.jks
+# agent scratch scripts
+tools/tmp-*
+tests/tmp-*

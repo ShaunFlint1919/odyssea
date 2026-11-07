@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nova Corsair palette (see COLORS in src/config.ts). nc_background = COLORS.bg. -->
+    <color name="nc_background">#05040A</color>
+    <color name="nc_panel">#232030</color>
+    <color name="nc_teal">#2EE6C8</color>
+    <color name="nc_magenta">#D04CFF</color>
+    <!-- AppCompat theme colours (override the Capacitor library defaults). -->
+    <color name="colorPrimary">#232030</color>
+    <color name="colorPrimaryDark">#05040A</color>
+    <color name="colorAccent">#2EE6C8</color>
+</resources>

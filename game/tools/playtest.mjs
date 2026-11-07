@@ -1,0 +1,548 @@
+#!/usr/bin/env node
+// =====================================================================================
+//  PLAYTEST — headless balance runner (owner: balance / content, docs/BALANCE.md §10).
+//  Starts its own Vite dev server (--port, default 5211) and plays a list of levels in
+//  Chromium (360x640) with `?scene=Game&level=<id>&mute=1&speed=<n>[&bot=1][&god=1][&t=<s>]`:
+//   - autopilot: the in-game bot (`?bot=1`, src/game/bot.ts) when it exists. Its metrics come
+//     from window.__NC_RUN__ (bossKillTime = boss entrance -> kill, midbossKillTime,
+//     damageTaken / armorDamage / hitsTaken / wouldDie, kills, spawned, creditsEarned,
+//     volleys / starved ...), which survives the switch to LevelEnd / GameOver;
+//   - fallback (no bot file, or --driver): god mode + a built-in aim driver that steers the
+//     ship under the boss / mid-boss / nearest enemy by overriding the scene's controls.
+//  An in-page recorder also samples the scene every 50 ms (level clock): boss fight start
+//  (end of its invulnerable entrance) and death, the front power when each fight starts,
+//  mid-boss spawn / kill / escape. "eff" = landed DPS / nominal single-target DPS of the kit
+//  at that power (src/data/progression.ts), the uptime calibrated in src/data/balance.ts.
+//  Loadouts are injected by writing the save (localStorage 'nova-corsair.save.v1', see
+//  src/state/save.ts) before the page loads:
+//    --loadout start          the campaign start loadout (START_LOADOUT)
+//    --loadout ref            the reference player's loadout BEFORE that level
+//                             (referenceLoadout() of src/data/index.ts)
+//    --loadout '{"front":"lance_star","frontPower":3}'   JSON patch over START_LOADOUT
+//    --set front=prism_shatter,frontPower=4,sidekickL=sk_shard   patch applied last
+//  Examples:
+//    node tools/playtest.mjs --levels kessra-1,kessra-2,kessra-3 --loadout start --speed 2
+//    node tools/playtest.mjs --levels thalassa-3,rift-3,axiom-3 --loadout ref --god
+//    node tools/playtest.mjs --levels rift --loadout ref --skip --bonus auto --god   (fights only)
+//    node tools/playtest.mjs --model          (prints the reference progression, no browser)
+// =====================================================================================
+import { existsSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'vite';
+import { chromium } from 'playwright';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const SAVE_KEY = 'nova-corsair.save.v1';
+const PLANET_IDS = ['kessra', 'verdance', 'thalassa', 'umbra', 'cinder', 'glacia', 'rift', 'axiom'];
+
+// ------------------------------------------------------------------------------ options
+
+const HELP = `node tools/playtest.mjs [options]
+  --levels <ids>      comma list of level ids or planet ids (planet = its 3 levels); default kessra-1,kessra-2,kessra-3
+  --loadout <spec>    start | ref | <JSON patch over the start loadout>           (default ref)
+  --set k=v,...       loadout fields patched last (front, frontPower, rear, rearPower, hull, shield, generator, sidekickL, sidekickR)
+  --speed <n>         gameplay time scale (default 3)
+  --god               god mode (forced when the fallback driver is used)
+  --driver            use the built-in aim driver even if the in-game bot exists
+  --max               also pass &max=1 (999999 credits, every level unlocked)
+  --difficulty <d>    easy | normal | hard (default normal)
+  --seed <n>          RNG seed (default: the level seed); --runs <n> repeats with seed+1, seed+2 ...
+  --runs <n>          runs per level (default 1)
+  --timeout <s>       real seconds per run before giving up (default 900)
+  --port <n>          dev server port (default 5211)
+  --json <file>       also write the raw results as JSON
+  --skip              jump straight to the fight: &t=<duration> on boss levels, &t=<mid-boss time - 1> on
+                      mid-boss levels (no waves, so no in-level pickups: combine with --bonus)
+  --bonus <n|auto>    extra front power added to the loadout (emulates in-level 'power' pickups; auto =
+                      round(POWER_COLLECT x expected power drops before the fight))
+  --model             print the reference progression table (src/data/progression.ts) and exit
+  --verbose           print progress while a run is going`;
+
+function parseArgs(argv) {
+  const o = {
+    port: 5211, levels: 'kessra-1,kessra-2,kessra-3', loadout: 'ref', set: '', speed: 3, god: false, driver: false,
+    max: false, difficulty: 'normal', seed: null, runs: 1, timeout: 900, json: '', model: false, verbose: false,
+    skip: false, bonus: '0',
+  };
+  for (let i = 0; i < argv.length; i++) {
+    let a = argv[i];
+    let v = null;
+    const eq = a.indexOf('=');
+    if (a.startsWith('--') && eq > 0) { v = a.slice(eq + 1); a = a.slice(0, eq); }
+    const val = () => (v !== null ? v : argv[++i]);
+    switch (a) {
+      case '--port': o.port = Number(val()); break;
+      case '--levels': o.levels = String(val()); break;
+      case '--loadout': o.loadout = String(val()); break;
+      case '--set': o.set = String(val()); break;
+      case '--speed': o.speed = Number(val()); break;
+      case '--god': o.god = true; break;
+      case '--driver': o.driver = true; break;
+      case '--max': o.max = true; break;
+      case '--difficulty': o.difficulty = String(val()); break;
+      case '--seed': o.seed = Number(val()); break;
+      case '--runs': o.runs = Math.max(1, Number(val()) | 0); break;
+      case '--timeout': o.timeout = Number(val()); break;
+      case '--json': o.json = String(val()); break;
+      case '--model': o.model = true; break;
+      case '--skip': o.skip = true; break;
+      case '--bonus': o.bonus = String(val()); break;
+      case '--verbose': o.verbose = true; break;
+      case '--help': case '-h': console.log(HELP); process.exit(0); break;
+      default: throw new Error(`unknown option ${a} (see --help)`);
+    }
+  }
+  if (!Number.isInteger(o.port) || o.port <= 0) throw new Error(`invalid --port ${o.port}`);
+  if (!(o.speed > 0)) throw new Error(`invalid --speed ${o.speed}`);
+  return o;
+}
+
+function expandLevels(spec) {
+  const out = [];
+  for (const part of spec.split(',').map((s) => s.trim()).filter(Boolean)) {
+    if (PLANET_IDS.includes(part)) out.push(`${part}-1`, `${part}-2`, `${part}-3`);
+    else out.push(part);
+  }
+  return out;
+}
+
+/** "front=lance_star,frontPower=3,rear=null" -> partial loadout. */
+function parseSet(spec) {
+  const patch = {};
+  for (const kv of spec.split(',').map((s) => s.trim()).filter(Boolean)) {
+    const [k, raw] = kv.split('=');
+    if (!k || raw === undefined) throw new Error(`bad --set entry "${kv}"`);
+    patch[k] = raw === 'null' || raw === 'none' ? null : /Power$/.test(k) ? Number(raw) : raw;
+  }
+  return patch;
+}
+
+// ------------------------------------------------------------------------------ in-page code
+
+/**
+ * Init script (runs before the game): writes the save, then records the Game scene through
+ * window.__NC__ (archives the last Game hook state when a result scene replaces it) and a
+ * 50 ms sampler of the scene internals (boss / mid-boss timings, ship damage).
+ */
+function initScript({ saveKey, saveJson }) {
+  try {
+    if (saveJson) localStorage.setItem(saveKey, saveJson);
+  } catch { /* storage blocked: the game falls back to a fresh save */ }
+  const rec = {
+    lastGame: null, bossEnterT: null, bossFightT: null, bossDeadT: null, bossMaxHp: null, bossPower: null, midPower: null,
+    midSpawnT: null, midEndT: null, midKilled: null, midHp: null, midMaxHp: null, midName: null,
+    damage: 0, hits: 0, lastHull: null, levelTime: 0, phase: '', frontPower: null, deathT: null, driver: false, err: '',
+  };
+  window.__PT__ = rec;
+  let hooks;
+  Object.defineProperty(window, '__NC__', {
+    configurable: true,
+    get() { return hooks; },
+    set(h) {
+      hooks = h;
+      let cur = h.state;
+      Object.defineProperty(h, 'state', {
+        configurable: true,
+        enumerable: true,
+        get() { return cur; },
+        set(v) {
+          if (cur && typeof cur === 'object' && 'levelTime' in cur) rec.lastGame = { ...cur };
+          cur = v;
+        },
+      });
+    },
+  });
+  let midRef = null, midSerial = -1;
+  const sample = () => {
+    try {
+      const h = hooks;
+      if (!h || !h.game || h.scene !== 'Game') return;
+      const sc = h.game.scene.getScene('Game');
+      const w = sc && sc.w;
+      if (!w || !sc.ship) return;
+      const t = w.time;
+      rec.levelTime = t;
+      rec.phase = sc.flow ? sc.flow.phase : '';
+      if (sc.arsenal) rec.frontPower = sc.arsenal.frontPower;
+      const b = w.boss;
+      if (b) {
+        if (b.state === 'enter' && rec.bossEnterT === null) rec.bossEnterT = t;
+        if (b.state === 'fight' && rec.bossFightT === null) { rec.bossFightT = t; rec.bossMaxHp = b.maxHp; rec.bossPower = rec.frontPower; }
+        if ((b.state === 'dying' || b.state === 'dead') && rec.bossDeadT === null) rec.bossDeadT = t;
+      }
+      const m = w.enemies ? w.enemies.midboss : null;
+      if (m && m.active && midRef === null) {
+        midRef = m;
+        midSerial = m.serial;
+        rec.midSpawnT = t;
+        rec.midMaxHp = m.maxHp;
+        rec.midPower = rec.frontPower;
+        rec.midName = m.def ? m.def.name : '';
+      }
+      if (midRef !== null && rec.midEndT === null) {
+        if (!midRef.active || midRef.serial !== midSerial) {
+          rec.midEndT = t;
+          rec.midKilled = midRef.serial !== midSerial ? (rec.midHp !== null && rec.midHp < rec.midMaxHp * 0.12) : midRef.hp <= 0;
+        } else {
+          rec.midHp = midRef.hp;
+        }
+      }
+      if (!sc.ship.alive && rec.deathT === null) rec.deathT = t;
+      if (w.stats) { rec.kills = w.stats.kills; rec.spawned = w.stats.spawned; rec.credits = w.stats.credits; }
+      // the gameplay RunMetrics (src/game/world.ts), when this build has them
+      if (w.metrics && typeof w.metrics === 'object') rec.metrics = { ...w.metrics };
+      // count the hits the ship takes (also "would-be" hits in god mode): wrap Ship.hit once
+      if (!sc.ship.__ptWrapped) {
+        const ship = sc.ship;
+        const orig = ship.hit.bind(ship);
+        ship.hit = (amount, hx, hy) => {
+          if (ship.hittable && amount > 0) { rec.damage += amount; rec.hits++; }
+          orig(amount, hx, hy);
+        };
+        ship.__ptWrapped = true;
+      }
+    } catch (e) {
+      rec.err = String(e && e.message ? e.message : e);
+    }
+  };
+  setInterval(sample, 50);
+}
+
+/**
+ * Fallback aim driver: overrides the Game scene's controls so the ship stays low on the
+ * playfield, keeps firing and slides under the boss, the mid-boss, else the most urgent
+ * enemy above it (no dodging: use it with god mode).
+ */
+function installDriver() {
+  const rec = window.__PT__;
+  const sc = window.__NC__.game.scene.getScene('Game');
+  if (!sc || !sc.controls || !sc.ship || !sc.w) throw new Error('Game scene internals not found');
+  const ctl = sc.controls;
+  const orig = ctl.update.bind(ctl);
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  ctl.update = () => {
+    const s = orig();
+    const w = sc.w, ship = sc.ship;
+    const H = sc.scale ? sc.scale.height : 568;
+    let tx = 132;
+    const ty = H * 0.8;
+    const boss = w.boss;
+    const mid = w.enemies.midboss;
+    if (boss && (boss.state === 'fight' || boss.state === 'enter')) tx = boss.x;
+    else if (mid && mid.active && mid.y > 0) tx = mid.x;
+    else {
+      let best = null, bestScore = -1e9;
+      for (const e of w.enemies.list) {
+        if (!e.active || !e.entered || e.y < 4 || e.y > ship.y - 30) continue;
+        const score = e.y - Math.abs(e.x - ship.x) * 0.8;
+        if (score > bestScore) { bestScore = score; best = e; }
+      }
+      if (best) tx = best.x;
+    }
+    s.moveX = clamp((tx - ship.x) / 8, -1, 1);
+    s.moveY = clamp((ty - ship.y) / 8, -1, 1);
+    s.dragDX = 0;
+    s.dragDY = 0;
+    s.firing = true;
+    return s;
+  };
+  rec.driver = true;
+  return true;
+}
+
+/** Snapshot read by node while a run is going. */
+function readRun() {
+  const h = window.__NC__;
+  const rec = window.__PT__ || {};
+  const live = h && h.scene === 'Game' ? { ...h.state } : null;
+  const run = window.__NC_RUN__ ? { ...window.__NC_RUN__ } : null;
+  return { scene: h ? h.scene : '', ready: h ? h.ready : false, live, run, rec: { ...rec }, errors: h ? h.errors.slice(0, 5) : [] };
+}
+
+// ------------------------------------------------------------------------------ nominal DPS
+
+/** Nominal single-target DPS of a loadout with its front gun at `power` (src/data/progression.ts). */
+function nominalAt(data, lo, power) {
+  if (typeof data.targetDps !== 'function') return 0;
+  const front = data.targetDps(data.getWeapon(lo.front), power);
+  const side = [lo.sidekickL, lo.sidekickR].reduce((a, id) => a + (id ? data.sidekickDps(data.getSidekick(id)) : 0), 0);
+  const rear = lo.rear ? (data.REAR_ON_TARGET ?? 0.3) * data.dpsAtPower(data.getWeapon(lo.rear), lo.rearPower) : 0;
+  return front + side + rear;
+}
+
+// ------------------------------------------------------------------------------ runs
+
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const fmt = (v, d = 1) => (v === null || v === undefined ? '-' : typeof v === 'number' ? v.toFixed(d) : String(v));
+
+async function runOne(browser, baseUrl, levelId, save, o, useBot, seed) {
+  const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
+  const pageErrors = [];
+  try {
+    await ctx.addInitScript(initScript, { saveKey: SAVE_KEY, saveJson: save ? JSON.stringify(save) : '' });
+    const page = await ctx.newPage();
+    page.on('pageerror', (e) => pageErrors.push(String(e && e.message ? e.message : e).split('\n')[0]));
+    const god = o.god || !useBot;
+    const q = new URLSearchParams({ scene: 'Game', level: levelId, mute: '1', speed: String(o.speed) });
+    if (useBot) q.set('bot', '1');
+    if (god) q.set('god', '1');
+    if (o.max) q.set('max', '1');
+    if (seed !== null) q.set('seed', String(seed));
+    if (o.startT !== undefined && o.startT !== null) q.set('t', String(o.startT));
+    const url = `${baseUrl}?${q.toString()}`;
+    await page.goto(url, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.__NC__ && window.__NC__.ready && window.__NC__.scene === 'Game', null, { timeout: 120000 });
+    if (!useBot) await page.evaluate(installDriver);
+    const t0 = Date.now();
+    let snap = null;
+    let lastLog = 0;
+    for (;;) {
+      await page.waitForTimeout(500);
+      snap = await page.evaluate(readRun);
+      const done = snap.scene !== 'Game' || (snap.live && snap.live.done);
+      if (done) {
+        await page.waitForTimeout(300);
+        snap = await page.evaluate(readRun);
+        break;
+      }
+      const el = (Date.now() - t0) / 1000;
+      if (o.verbose && el - lastLog >= 15) {
+        lastLog = el;
+        const r = snap.rec;
+        console.log(`  .. ${levelId} t=${fmt(r.levelTime)} phase=${r.phase} power=${r.frontPower} bossHp=${snap.live ? snap.live.bossHp : '-'} (${el.toFixed(0)} s real)`);
+      }
+      if (el > o.timeout) {
+        snap.timedOut = true;
+        break;
+      }
+    }
+    return summarize(levelId, snap, useBot, god, seed, pageErrors);
+  } finally {
+    await ctx.close();
+  }
+}
+
+/** One result row from the recorder (+ the bot's own metrics when it provides them). */
+function summarize(levelId, snap, useBot, god, seed, pageErrors) {
+  const rec = snap.rec || {};
+  // metrics: the bot's final snapshot (window.__NC_RUN__), else the live / archived hook state
+  const st = { ...(rec.lastGame || {}), ...(snap.live || {}), ...(snap.run || {}) };
+  const pick = (...keys) => {
+    for (const k of keys) {
+      const v = num(st[k]);
+      if (v !== null) return v;
+    }
+    return null;
+  };
+  const m = rec.metrics || null;
+  const mv = (k) => (m && num(m[k]) !== null && m[k] >= 0 ? m[k] : null);
+  // fight = from the end of the boss's (invulnerable) entrance to its death (recorder)
+  const fight = rec.bossFightT !== null && rec.bossDeadT !== null ? rec.bossDeadT - rec.bossFightT : null;
+  const midKill = rec.midSpawnT !== null && rec.midEndT !== null && rec.midKilled ? rec.midEndT - rec.midSpawnT : null;
+  const mBoss = mv('bossStartT') !== null && mv('bossKillT') !== null ? m.bossKillT - m.bossStartT : null;
+  const mMid = mv('midbossStartT') !== null && mv('midbossKillT') !== null ? m.midbossKillT - m.midbossStartT : null;
+  const bossHp = num(rec.bossMaxHp);
+  return {
+    level: levelId,
+    mode: useBot ? (god ? 'bot+god' : 'bot') : 'driver+god',
+    seed,
+    completed: st.completed === true || rec.phase === 'clear' || rec.phase === 'done',
+    timedOut: !!snap.timedOut,
+    died: rec.deathT !== null,
+    wouldDie: pick('wouldDie') ?? (m && num(m.wouldDie) !== null ? m.wouldDie : null),
+    firstDeathT: pick('firstDeathT'),
+    time: num(rec.levelTime),
+    bossAt: rec.bossFightT,
+    bossKill: pick('bossKillTime') ?? mBoss,
+    fight,
+    bossHp,
+    landed: fight && bossHp ? bossHp / fight : null,
+    midKill: pick('midbossKillTime') ?? mMid ?? midKill,
+    midEscaped: st.midbossEscaped === true || (rec.midEndT !== null && rec.midKilled === false),
+    midHp: rec.midMaxHp,
+    kills: pick('kills') ?? num(rec.kills),
+    spawned: pick('spawned') ?? num(rec.spawned),
+    credits: pick('creditsEarned') ?? num(rec.credits) ?? pick('credits'),
+    damage: pick('damageTaken') ?? (m && num(m.damageTaken) !== null ? m.damageTaken : rec.damage),
+    armorDamage: pick('armorDamage') ?? (m && num(m.armorDamage) !== null ? m.armorDamage : null),
+    hits: pick('hitsTaken') ?? (m && num(m.hitsTaken) !== null ? m.hitsTaken : rec.hits),
+    starved: pick('starved'),
+    volleys: pick('volleys'),
+    pickups: pick('pickups'),
+    frontPower: rec.frontPower,
+    bossPower: rec.bossPower,
+    midPower: rec.midPower,
+    errors: [...(snap.errors || []), ...pageErrors, ...(rec.err ? [`recorder: ${rec.err}`] : [])],
+  };
+}
+
+function printTable(rows) {
+  const head = ['level', 'mode', 'result', 'time', 'boss@', 'bossKill', 'fight', 'landed', 'pow@boss', 'eff', 'midKill', 'pow@mid', 'midEff',
+    'kills/spawned', 'credits', 'dmg', 'armor', 'hits', 'wouldDie', 'starved', 'pow'];
+  const lines = rows.map((r) => [
+    r.level,
+    r.mode,
+    r.timedOut ? 'TIMEOUT' : r.died ? 'DEATH' : r.completed ? 'clear' : 'fail',
+    fmt(r.time),
+    fmt(r.bossAt),
+    r.bossKill !== null ? `${fmt(r.bossKill)} s` : '-',
+    r.fight !== null ? `${fmt(r.fight)} s` : '-',
+    r.landed !== null ? `${fmt(r.landed, 0)}/s` : '-',
+    fmt(r.bossPower, 0),
+    r.eff !== undefined && r.eff !== null ? fmt(r.eff, 2) : '-',
+    r.midKill !== null ? `${fmt(r.midKill)} s` : r.midEscaped ? 'escaped' : '-',
+    fmt(r.midPower, 0),
+    r.midEff !== undefined && r.midEff !== null ? fmt(r.midEff, 2) : '-',
+    r.kills !== null && r.spawned !== null ? `${r.kills}/${r.spawned} (${Math.round((100 * r.kills) / Math.max(1, r.spawned))}%)` : '-',
+    fmt(r.credits, 0),
+    fmt(r.damage, 0),
+    fmt(r.armorDamage, 0),
+    fmt(r.hits, 0),
+    r.wouldDie !== null ? `${r.wouldDie}${r.firstDeathT !== null ? ` @${fmt(r.firstDeathT, 0)}` : ''}` : '-',
+    r.starved !== null && r.volleys ? `${Math.round((100 * r.starved) / Math.max(1, r.volleys + r.starved))}%` : '-',
+    fmt(r.frontPower, 0),
+  ]);
+  const widths = head.map((h, i) => Math.max(h.length, ...lines.map((l) => String(l[i]).length)));
+  const line = (cells) => cells.map((c, i) => String(c).padEnd(widths[i])).join('  ');
+  console.log(line(head));
+  console.log(widths.map((w) => '-'.repeat(w)).join('  '));
+  for (const l of lines) console.log(line(l));
+  console.log('bossKill = bot metric (boss entrance -> kill); fight = end of the entrance -> death; landed = boss hp / fight;');
+  console.log('pow@boss / pow@mid = front power when the fight starts; eff / midEff = landed DPS / nominal single-target DPS of the kit');
+  console.log('dmg / armor / hits = raw damage taken / part that reached the armor / hit count (god: would-be); starved = volleys skipped for energy');
+  for (const r of rows) for (const e of r.errors) console.log(`  ! ${r.level}: ${e}`);
+}
+
+// ------------------------------------------------------------------------------ model table
+
+function printModel(data) {
+  if (typeof data.referenceProgression !== 'function') {
+    console.log('src/data has no referenceProgression() yet');
+    return;
+  }
+  const steps = data.referenceProgression();
+  const head = ['level', 'value', 'income', 'hull', 'front', 'drones L/R', 'rear', 'gen', 'shield', 'DPS', 'e/s use/out',
+    'boss: pow', 'dps', 'hp', 'TTK', 'mid: pow', 'dps', 'hp', 'TTK'];
+  const rows = steps.map((s) => [
+    s.levelId,
+    String(Math.round(s.value)),
+    String(Math.round(s.income)),
+    s.loadout.hull,
+    `${s.loadout.front} p${s.loadout.frontPower}`,
+    `${s.loadout.sidekickL ?? '-'}/${s.loadout.sidekickR ?? '-'}`,
+    s.loadout.rear ? `${s.loadout.rear} p${s.loadout.rearPower}` : '-',
+    s.loadout.generator,
+    s.loadout.shield,
+    s.dps.toFixed(0),
+    `${s.energyUse.toFixed(1)}/${s.energyOut.toFixed(0)}`,
+    s.bossHp ? s.bossPower.toFixed(1) : '',
+    s.bossHp ? s.fightDps.toFixed(0) : '',
+    s.bossHp ? String(s.bossHp) : '',
+    s.bossTtk ? `${s.bossTtk.toFixed(0)} s` : '',
+    s.midbossHp ? s.midbossPower.toFixed(1) : '',
+    s.midbossHp ? s.midbossDps.toFixed(0) : '',
+    s.midbossHp ? String(s.midbossHp) : '',
+    s.midbossTtk ? `${s.midbossTtk.toFixed(0)} s` : '',
+  ]);
+  const widths = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));
+  const line = (c) => c.map((x, i) => x.padEnd(widths[i])).join('  ');
+  console.log(line(head));
+  for (const r of rows) console.log(line(r));
+  if (Array.isArray(data.REFERENCE_DPS)) console.log(`REFERENCE_DPS (boss fights, by planet): ${data.REFERENCE_DPS.join(', ')}`);
+}
+
+// ------------------------------------------------------------------------------ main
+
+async function main() {
+  const o = parseArgs(process.argv.slice(2));
+  const server = await createServer({
+    root: ROOT, logLevel: 'warn', clearScreen: false,
+    server: { port: o.port, strictPort: true, host: '127.0.0.1', hmr: false },
+  });
+  let browser = null;
+  try {
+    const data = await server.ssrLoadModule('/src/data/index.ts');
+    if (o.model) {
+      printModel(data);
+      return;
+    }
+    await server.listen();
+    const baseUrl = `http://127.0.0.1:${o.port}/`;
+    const levels = expandLevels(o.levels);
+    const known = new Set((data.LEVELS ?? []).map((l) => l.id));
+    for (const id of levels) if (!known.has(id)) throw new Error(`unknown level ${id}`);
+    const botFile = existsSync(path.join(ROOT, 'src/game/bot.ts'));
+    const useBot = botFile && !o.driver;
+    if (!useBot) {
+      console.log(botFile
+        ? 'driver: built-in aim driver (--driver), god mode forced'
+        : 'driver: src/game/bot.ts not found -> built-in aim driver, god mode forced (no dodging: damage = hits it would have taken)');
+    }
+    const order = typeof data.levelOrder === 'function' ? data.levelOrder() : [...known];
+    const patch = o.set ? parseSet(o.set) : {};
+    browser = await chromium.launch({
+      args: ['--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required',
+        '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
+    });
+    const rows = [];
+    for (const levelId of levels) {
+      let loadout = { ...data.START_LOADOUT };
+      if (o.loadout === 'ref') {
+        if (typeof data.referenceLoadout !== 'function') throw new Error('src/data has no referenceLoadout()');
+        loadout = { ...data.referenceLoadout(levelId) };
+      } else if (o.loadout !== 'start') {
+        loadout = { ...loadout, ...JSON.parse(o.loadout) };
+      }
+      loadout = { ...loadout, ...patch };
+      const idx = order.indexOf(levelId);
+      const done = order.slice(0, Math.max(0, idx));
+      const save = {
+        version: 1, createdAt: Date.now(), credits: 0, score: 0, difficulty: o.difficulty, loadout,
+        unlockedLevels: order.slice(0, idx + 1), completedLevels: done, bestScores: {}, intel: [], intelRead: [],
+        currentLevel: levelId, stats: { kills: 0, deaths: 0, playSeconds: 0, creditsEarned: 0 },
+        settings: { sfx: 0, music: 0, shake: false, vibrate: false, autofire: true, touchSensitivity: 1.2, showFps: false },
+      };
+      const lvl = data.getLevel(levelId);
+      const fightT = lvl.boss ? lvl.duration : lvl.midboss ? lvl.midboss.t : lvl.duration;
+      if (o.bonus !== '0') {
+        const extra = o.bonus === 'auto'
+          ? Math.round((data.POWER_COLLECT ?? 0.6) * (typeof data.expectedPowerDrops === 'function' ? data.expectedPowerDrops(levelId, fightT) : 0))
+          : Number(o.bonus);
+        loadout.frontPower = Math.max(1, Math.min(10, loadout.frontPower + extra));
+        save.loadout = loadout;
+      }
+      const runOpts = { ...o, startT: o.skip && (lvl.boss || lvl.midboss) ? (lvl.boss ? lvl.duration : Math.max(0, lvl.midboss.t - 1)) : null };
+      for (let k = 0; k < o.runs; k++) {
+        const seed = o.seed !== null ? o.seed + k : k > 0 ? k : null;
+        const lo = loadout;
+        console.log(`> ${levelId}${seed !== null ? ` seed ${seed}` : ''}: ${lo.hull} | ${lo.front} p${lo.frontPower} | rear ${lo.rear ?? '-'}${lo.rear ? ` p${lo.rearPower}` : ''} | ${lo.sidekickL ?? '-'} / ${lo.sidekickR ?? '-'} | ${lo.shield} | ${lo.generator}`);
+        const row = await runOne(browser, baseUrl, levelId, save, runOpts, useBot, seed);
+        row.loadout = lo;
+        // efficiency: landed boss DPS / nominal single-target DPS of the kit at the fight's power
+        if (row.landed !== null && row.bossPower !== null) {
+          const base = nominalAt(data, lo, row.bossPower);
+          row.nominal = base;
+          row.eff = base > 0 ? row.landed / base : null;
+        }
+        if (row.midKill !== null && row.midHp && row.midPower !== null) {
+          row.midLanded = row.midHp / Math.max(1, row.midKill);
+          const base = nominalAt(data, lo, row.midPower);
+          row.midEff = base > 0 ? row.midLanded / base : null;
+        }
+        rows.push(row);
+      }
+    }
+    console.log('');
+    printTable(rows);
+    if (o.json) writeFileSync(o.json, JSON.stringify(rows, null, 2));
+  } finally {
+    if (browser) await browser.close();
+    await server.close();
+  }
+}
+
+main().catch((e) => {
+  console.error(e && e.stack ? e.stack : e);
+  process.exit(1);
+});

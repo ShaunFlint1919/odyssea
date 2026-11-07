@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nova Corsair</string>
+    <string name="title_activity_main">Nova Corsair</string>
+    <string name="package_name">com.shaunflint.novacorsair</string>
+    <string name="custom_url_scheme">com.shaunflint.novacorsair</string>
+</resources>
