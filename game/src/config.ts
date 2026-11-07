@@ -83,3 +83,17 @@ export const COLORS = {
   armor: 0xff8040,
   energy: 0xffe040,
 } as const;
+
+/**
+ * Damage dealt to the player by one enemy bullet, by bullet sprite (before difficulty scaling).
+ * eb_laser deals its damage every 0.1 s of contact.
+ */
+export const ENEMY_BULLET_DAMAGE: Record<string, number> = {
+  eb_dot: 2,
+  eb_orb: 3,
+  eb_needle: 3,
+  eb_ring: 4,
+  eb_bigorb: 6,
+  eb_missile: 7,
+  eb_laser: 1,
+};

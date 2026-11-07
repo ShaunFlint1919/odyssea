@@ -73,3 +73,18 @@ export interface GameStartData {
 /** Shop categories (Upgrade Ship menu entries). */
 export type ShopCategory = 'hull' | 'front' | 'rear' | 'shield' | 'generator' | 'sidekickL' | 'sidekickR';
 export const SHOP_CATEGORIES: ShopCategory[] = ['hull', 'front', 'rear', 'shield', 'generator', 'sidekickL', 'sidekickR'];
+
+/**
+ * Pause flow: the Game scene pauses itself and launches the Pause scene (UI).
+ *  - Resume: Pause scene calls this.scene.resume(SCENES.Game) then this.scene.stop().
+ *  - Abort:  Pause scene emits PAUSE_EVENTS.abort on the GAME scene's events
+ *            (this.scene.get(SCENES.Game).events.emit(PAUSE_EVENTS.abort)), then stops itself.
+ *            The Game scene resumes, ends the level as a failure and starts GameOver.
+ *
+ * Level results: the Game scene NEVER writes the save. It starts LevelEnd (success) or
+ * GameOver (death / abort) with a LevelResult; those UI scenes call applyLevelResult()
+ * from src/state/progress.ts exactly once in create().
+ */
+export const PAUSE_EVENTS = {
+  abort: 'pause:abort',
+} as const;
