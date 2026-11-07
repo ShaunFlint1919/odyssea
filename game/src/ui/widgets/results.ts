@@ -7,7 +7,7 @@ import { COLORS } from '../../config';
 import type { LevelDef, LevelResult, PlanetDef } from '../../types';
 import { getSave } from '../../state/save';
 import { applyLevelResult } from '../../state/progress';
-import { LEVELS, PLANETS, levelOrder } from '../../data';
+import { LEVELS, PLANETS, levelClearBonus, levelOrder } from '../../data';
 import { text, type FontSize } from '../kit';
 import { Tally } from './Tally';
 import { fmtInt } from './util';
@@ -52,13 +52,20 @@ export interface AppliedResult {
   bestBefore: number;
   /** The level was already completed before this result (a replay). */
   completedBefore: boolean;
+  /** Mission pay included in the credits (completed runs; reduced on replays). */
+  bonus: number;
 }
 
-let lastAppliedSig = '';
+/**
+ * Result objects already applied. Identity, not content: a scene restart reuses the same
+ * settings.data object (blocked), while every finished run builds a new object — even one
+ * byte-identical to the previous run (abort, RETRY, abort again) is a new run and is applied.
+ */
+const appliedResults = new WeakSet<object>();
 
 /**
- * Calls applyLevelResult(result) once per distinct result (a scene restart with the same
- * result object does not apply it twice). `real` = false (demo data) never touches the save.
+ * Calls applyLevelResult(result) once per result object (see appliedResults). `real` = false
+ * (demo data) never touches the save; it previews what applying would pay.
  */
 export function applyOnce(result: LevelResult, real: boolean): AppliedResult {
   const save = getSave();
@@ -66,21 +73,23 @@ export function applyOnce(result: LevelResult, real: boolean): AppliedResult {
   const bestBefore = save.bestScores[result.levelId] ?? 0;
   const completedBefore = save.completedLevels.includes(result.levelId);
   const out: AppliedResult = {
-    applied: false, unlocked: [], newIntel: [], creditsBefore, creditsAfter: creditsBefore, bestBefore, completedBefore,
+    applied: false, unlocked: [], newIntel: [], creditsBefore, creditsAfter: creditsBefore, bestBefore, completedBefore, bonus: 0,
   };
   if (!real) {
-    out.creditsAfter = creditsBefore + (result.completed ? result.creditsEarned : Math.floor(result.creditsEarned / 2));
+    const earned = Math.max(0, Math.floor(result.creditsEarned));
+    out.bonus = result.completed ? levelClearBonus(result.levelId, result.bossDefeated, completedBefore) : 0;
+    out.creditsAfter = creditsBefore + (result.completed ? earned + out.bonus : Math.floor(earned / 2));
     out.newIntel = result.intelFound.slice();
     return out;
   }
-  let sig = '';
-  try { sig = JSON.stringify(result); } catch { sig = `${result.levelId}:${Math.random()}`; }
-  if (sig === lastAppliedSig) return out;
-  lastAppliedSig = sig;
+  if (appliedResults.has(result)) return out;
+  appliedResults.add(result);
   const r = applyLevelResult(result);
   out.applied = true;
   out.unlocked = r.unlocked;
   out.newIntel = r.newIntel;
+  out.bonus = r.bonus;
+  out.completedBefore = r.completedBefore;
   out.creditsAfter = getSave().credits;
   return out;
 }

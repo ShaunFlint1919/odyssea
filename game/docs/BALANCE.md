@@ -190,7 +190,7 @@ Rear guns cover the threats from behind and the sides:
     (300 → 5250).
   * A replay of a completed level pays `REPLAY_BONUS_FACTOR` = 25 % of it. Farming still pays
     the full kill credits, so it stays worthwhile without inflating the economy.
-  * The bonus adds about 37k to the campaign: about 181k income plus 1500 start credits.
+  * The bonus adds about 37k to the campaign: about 180k income plus 1500 start credits.
 * **Hard difficulty** pays ×1.3 kill credits (`DIFFICULTY_SCALES`).
 
 | level | name | dur | scroll | spawned | hp | kill credits | target | ratio | clear bonus | income |
@@ -234,8 +234,8 @@ player.
   * every generator tier is tried, and the one that fields the strongest kit wins. Every gun
     must run on it with the shield regenerating.
 * **Pickups.** Fights add the level's in-level pickups: `POWER_COLLECT` = 0.8 × the expected
-  `power` drops of the waves before the fight (`expectedPowerDrops`). That is 1.4-1.5 on Kessra
-  and 3.5-3.9 on the last planets.
+  `power` drops of the waves before the fight (`expectedPowerDrops`). That is 1.4 pickups before
+  the Colossus and 3.5-3.9 before the last two bosses.
 * **Playtests.** `tools/playtest.mjs --loadout ref` flies exactly these kits.
 
 | level | ship value | hull | front | drones | rear | shield | generator | DPS | e/s use / out |
@@ -291,7 +291,7 @@ Reading the curve:
 | umbra | 7-13 | 46-74 | - | 2100 (600) | 13 |
 | cinder | 7-13 | 58-76 | 240-290 | 2200 (820) | 14 |
 | glacia | 9-14 | 62-86 | - | 5300 (1100) | 14 |
-| rift | 9-14 | 66-86 | 280-390 | 6300 (1500) | 15 |
+| rift | 9-14 | 66-86 | 280-390 | 5600 (1500) | 15 |
 | axiom | 10-14 | 66-90 | 380-450 | 10500 (2000) | 17 |
 
 * **Weight classes.** small 4..14, medium 30..90, heavy 150..450, mid-boss 700..11000. No
@@ -356,18 +356,18 @@ nominal single-target DPS the autopilot lands, measured per fight with the refer
 
 | mid-boss | level | hp | credits | ref fight power | ref fight DPS | uptime | model fight | human est. |
 | --- | --- | --: | --: | --: | --: | --: | --: | --: |
-| Sirocco Frigate | kessra-2 | 750 | 220 | 4.9 | 94 | 0.82 | 10 s | 12 s |
-| Canopy Carrier | verdance-2 | 1950 | 340 | 4.9 | 106 | 0.66 | 28 s | 35 s |
+| Sirocco Frigate | kessra-2 | 750 | 220 | 4.9 | 94 | 0.8 | 10 s | 12 s |
+| Canopy Carrier | verdance-2 | 1950 | 340 | 4.9 | 106 | 0.64 | 29 s | 36 s |
 | Tidewall Destroyer | thalassa-2 | 2000 | 450 | 8.4 | 159 | 0.57 | 22 s | 28 s |
 | Gloam Frigate | umbra-2 | 2100 | 600 | 10 | 176 | 0.42 | 28 s | 36 s |
-| Furnace Carrier | cinder-2 | 2200 | 820 | 10 | 196 | 0.35 | 32 s | 40 s |
-| Blizzard Frigate | glacia-2 | 5300 | 1100 | 3.9 | 282 | 0.89 | 21 s | 26 s |
-| Lamprey Carrier | rift-2 | 6300 | 1500 | 6.8 | 334 | 0.63 | 30 s | 37 s |
-| Prefect Frigate | axiom-2 | 10500 | 2000 | 7 | 435 | 0.84 | 29 s | 36 s |
+| Furnace Carrier | cinder-2 | 2200 | 820 | 10 | 196 | 0.38 | 30 s | 37 s |
+| Blizzard Frigate | glacia-2 | 5300 | 1100 | 3.9 | 282 | 0.88 | 21 s | 27 s |
+| Lamprey Carrier | rift-2 | 5600 | 1500 | 6.8 | 334 | 0.67 | 25 s | 31 s |
+| Prefect Frigate | axiom-2 | 10500 | 2000 | 7 | 435 | 0.87 | 28 s | 35 s |
 
 * **Planet 1 is tuned for the start gun.** With the Kestrel at p2 / p3 (the start gun plus one
   or two upgrades or pickups), the model gives the Colossus 74 / 56 s and the Sirocco Frigate
-  21 / 16 s. A player who re-bought everything (Kestrel p5 + pod) beats the tutorial planet
+  22 / 16 s. A player who re-bought everything (Kestrel p5 + pod) beats the tutorial planet
   about twice as fast. From Verdance on, the reference kit is the target: bosses 45-75 s,
   mid-bosses 20-35 s (tests).
 * **HP curve.** HP grows every planet (3100 → 31500 for bosses, 750 → 10500 for mid-bosses).
@@ -535,3 +535,35 @@ aim driver.
   and gave the per-fight uptimes in `src/data/balance.ts`.
 * **Full levels.** Full-level runs with real waves and pickups then validated each fight and
   recalibrated the mid-boss uptimes, which are lower with escorts on screen.
+
+
+**Measured, before → after** (autopilot; boss = `bossKill`, entrance → kill; mid-boss = spawn
+→ kill; seed = level seed unless noted). Before = the catalogue at the start of this pass
+(Kestrel 5 × 5/s, Colossus 3500 → Architect 40000, mid-bosses 1500 → 4000), with the
+piercing double-hit then present. After = final data, mortal bot at speed 2 unless "god".
+
+| fight | kit | before | after |
+| --- | --- | --: | --: |
+| Colossus (kessra-3) | start loadout, no pickups | 156.5 s (god) | 108.8 s at p1; 77.9 s when one pickup drops (p2) |
+| Colossus (kessra-3) | start gun + 1-2 upgrades (p3) | — | 57.6 / 58.3 s (at 3000 hp; ≈ 60 s at 3100) |
+| Colossus (kessra-3) | reference (Kestrel p5 + pod) | 35.1 s (god) | 31.6 s (god, skip) |
+| Sirocco Frigate (kessra-2) | start loadout | escaped | 32.6 s |
+| Sirocco Frigate (kessra-2) | start gun p2 | — | 16.9 s (at 800 hp, one pickup → p3) |
+| Hydra / Dreadnought / Matriarch | reference | — / 62.1 s / — | 48.6 / 56.8 / 57.4 s |
+| Forge / Rime Sentinel | reference | — | 57.0 / 53.5 s (god) |
+| Voidcarrier (rift-3) | reference | 82.0 s (god) | 65.7 s (49.5 s god, another run) |
+| Architect (axiom-3) | reference | 58.3 s (god, double-hit; ~110 s without) | 58.8 s |
+| Tidewall Destroyer (thalassa-2) | reference | escaped (14 s on screen) | 25.0 s (god) |
+| Canopy / Gloam / Furnace (v2 / u2 / c2) | reference | — | 28.9 / 28.2 / 27.2 s (god) |
+| Blizzard / Lamprey / Prefect (g2 / r2 / a2) | reference | — / — / 14.1 s | 21.3 / 16-40 / 26.4 s (god) |
+
+* **Model.** The model's boss fights went from 71-174 s to 47-59 s (planets 2-8), and its
+  mid-boss fights from 12-25 s to 20-30 s.
+* **Spread.** The Lamprey Carrier is the noisiest fight: its launched fighters soak 0.5-0.9 of
+  the fire, depending on the run. Its hp sits at the mean.
+* **Damage.** The mortal autopilot finished every validation level, taking 0-12 raw damage
+  (it dodges very well). Kessra shooters were made 20-30 % more aggressive in response.
+* **Start kit.** Kill ratio with the start loadout went from 52 / 38 / 46 % to 79 / 37-40 /
+  49-57 % on kessra-1/2/3, with 917 / 599 / 1475 → 1337 / 610-686 / 1513-1806 credits
+  (2-7 % of gems are lost off-screen).
+* **Reference kit.** With the reference kits, levels clear 70-100 % of the spawns.
