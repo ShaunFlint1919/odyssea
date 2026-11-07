@@ -47,8 +47,8 @@ function shotPalette(color: ShotColor): ShotPal {
 /** Char -> [colour, alpha] for player shots (translucent glow chars g/h/f). */
 function playerChars(p: ShotPal): Record<string, [string, number]> {
   return {
-    w: [p.w, 1], c: [p.c, 1], L: [p.L, 1], G: [p.G, 1], D: [p.D, 1],
-    g: [p.G, 0.62], h: [p.G, 0.34], f: [p.G, 0.16],
+    w: [p.w, 1], c: [p.c, 1], L: [p.L, 1], G: [p.G, 0.82], D: [p.D, 0.9],
+    g: [p.G, 0.58], h: [p.G, 0.32], f: [p.G, 0.16],
     '1': ['#2c2838', 1], '2': ['#5c586e', 1], '3': ['#9c98ae', 1], '4': ['#dcd8e8', 1],
   };
 }
@@ -176,7 +176,7 @@ function beam(p: ShotPal): HTMLCanvasElement {
 
 function bigOrb(p: ShotPal): HTMLCanvasElement {
   const buf = radial(14, 14, 7, 7, [
-    [2.1, p.w, 1], [3.3, p.c, 1], [4.4, p.L, 1], [5.4, p.G, 1], [6.2, p.G, 0.6], [7.1, p.G, 0.3],
+    [2.1, p.w, 1], [3.3, p.c, 1], [4.4, p.L, 1], [5.4, p.G, 0.82], [6.2, p.G, 0.55], [7.1, p.G, 0.28],
   ]);
   // plasma swirl highlights inside the glow band
   for (let i = 0; i < 3; i++) {
@@ -197,7 +197,7 @@ function ring(p: ShotPal): HTMLCanvasElement {
     if (d < 3.1) continue;
     if (d < 3.9) buf.put(x, y, p.w);
     else if (d < 4.6) buf.put(x, y, p.c);
-    else if (d < 5.2) buf.put(x, y, p.G);
+    else if (d < 5.2) buf.put(x, y, p.G, 0.82);
     else if (d < 5.8) buf.put(x, y, p.G, 0.55);
     else if (d < 6.3) buf.put(x, y, p.G, 0.25);
   }
@@ -213,7 +213,7 @@ function flame(p: ShotPal): HTMLCanvasElement {
     const d = Math.hypot(px - 5, (py - 5.2) * 0.95) + n * 2.6;
     if (d > 4.9) continue;
     const col = d < 1.4 ? p.w : d < 2.4 ? p.c : d < 3.3 ? p.L : d < 4.1 ? p.G : p.G;
-    const a = d < 4.1 ? 1 : 0.5;
+    const a = d < 3.3 ? 1 : d < 4.1 ? 0.85 : 0.5;
     if (a < 1 && bayer(x, y) > 0.75) continue;
     buf.put(x, y, col, a);
   }

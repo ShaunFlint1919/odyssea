@@ -385,7 +385,8 @@ export class ShopScene extends Phaser.Scene {
     const it = this.items[i];
     if (!cat || !it) return;
     this.status.setText(row?.help ?? '');
-    this.setPreview(loadoutWith(getSave().loadout, cat, it.id));
+    const mountable = it.id === null || categoryAvailable(cat);
+    this.setPreview(mountable ? loadoutWith(getSave().loadout, cat, it.id) : getSave().loadout);
     this.itemInfo(cat, it);
     setHookState({ focus: i, focusId: it.id });
   }
