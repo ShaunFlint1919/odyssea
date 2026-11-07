@@ -77,8 +77,9 @@ export class MapScene extends Phaser.Scene {
 
     // ------------------------------------------------------------ planets
     const missionPlanet = planetOfLevel(nextMissionId());
+    const k = Phaser.Math.Clamp((bottom - top) / 420, 0.78, 1.15);
     PLANETS.forEach((p, i) => {
-      const size = i === PLANETS.length - 1 ? 50 : Math.round(28 + i * 2.6);
+      const size = Math.round((i === PLANETS.length - 1 ? 50 : 28 + i * 2.6) * k);
       const cleared = p.levels.filter((id) => isCompleted(id)).length;
       this.nodes.push({
         def: p,
@@ -134,7 +135,8 @@ export class MapScene extends Phaser.Scene {
     const rr = t.r + 13;
     this.ship.setPosition(Math.round(t.x + Math.cos(this.shipAngle) * rr), Math.round(t.y + Math.sin(this.shipAngle) * rr * 0.55));
     this.ship.setRotation(this.shipAngle + Math.PI);
-    this.ship.setDepth(Math.sin(this.shipAngle) > 0 ? MD.content + 2 : MD.content - 1);
+    const depth = Math.sin(this.shipAngle) > 0 ? MD.content + 2 : MD.content - 1;
+    if (this.ship.depth !== depth) this.ship.setDepth(depth);
   }
 
   // ------------------------------------------------------------ drawing

@@ -70,7 +70,7 @@ const smooth = (a: number, b: number, v: number) => {
   const t = clamp01((v - a) / (b - a));
   return t * t * (3 - 2 * t);
 };
-const n3 = (s: V3, k: number, seed: number, oct = 4) => fbm3(s.x * k + 11.3, s.y * k + 7.1, s.z * k + 3.7, seed, oct);
+const n3 = (s: V3, k: number, seed: number, oct = 3) => fbm3(s.x * k + 11.3, s.y * k + 7.1, s.z * k + 3.7, seed, oct);
 
 function set(out: Sample, ramp: readonly string[], level: number, spec = 0): void {
   out.ramp = ramp;

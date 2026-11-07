@@ -43,9 +43,10 @@ export class Trail {
     this.target = t;
     if (t < this.shown - 0.0001) {
       const drop = this.shown - t;
-      if (this.ghost < this.shown) this.ghost = this.shown;
+      // A new hold only starts once the ghost has caught up: under sustained damage the
+      // ghost keeps draining towards the bar instead of freezing at the barrage's start.
+      if (this.ghost <= this.shown + 0.0001) { this.ghost = this.shown; this.hold = this.holdMs; }
       this.shown = t;
-      this.hold = this.holdMs;
       return drop;
     }
     return 0;

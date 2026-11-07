@@ -49,6 +49,7 @@ export class ScrollMenu {
   private readonly onDown: (p: Phaser.Input.Pointer) => void;
   private readonly onUp: () => void;
   private readonly onWheel: (p: Phaser.Input.Pointer, over: unknown, dx: number, dy: number) => void;
+  private readonly onShutdown = () => this.destroy();
 
   constructor(private readonly scene: Phaser.Scene, private readonly opts: ScrollMenuOpts) {
     const size = opts.size ?? 'm';
@@ -118,7 +119,7 @@ export class ScrollMenu {
     scene.input.on('pointerup', this.onUp);
     scene.input.on('wheel', this.onWheel);
     if (opts.keyboard !== false) this.bindKeys();
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
     this.refreshArrows();
   }
 
@@ -162,6 +163,7 @@ export class ScrollMenu {
   }
 
   destroy(): void {
+    this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
     if (this.keyHandler) this.scene.input.keyboard?.off('keydown', this.keyHandler);
     this.keyHandler = undefined;
     this.scene.input.off('pointerdown', this.onDown);

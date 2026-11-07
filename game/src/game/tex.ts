@@ -178,16 +178,19 @@ export function ensureWorldTextures(scene: Phaser.Scene): void {
     scene.textures.addCanvas(TEX_PX, c);
   }
   if (!scene.textures.exists(TEX_VIGNETTE)) {
+    // elliptical red vignette (equal strength on the long and the short edges)
     const w = PLAY_W, h = H;
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     const ctx = c.getContext('2d')!;
-    const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.32, w / 2, h / 2, Math.hypot(w, h) * 0.55);
-    g.addColorStop(0, 'rgba(255,32,24,0)');
-    g.addColorStop(0.6, 'rgba(255,32,24,0.35)');
-    g.addColorStop(1, 'rgba(255,24,16,0.95)');
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(1, h / w);
+    const g = ctx.createRadialGradient(0, 0, w * 0.22, 0, 0, w * 0.68);
+    g.addColorStop(0, 'rgba(255,36,24,0)');
+    g.addColorStop(0.5, 'rgba(255,36,24,0.42)');
+    g.addColorStop(1, 'rgba(255,20,12,0.95)');
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(-w / 2, -w / 2, w, w);
     scene.textures.addCanvas(TEX_VIGNETTE, c);
   }
   if (!scene.textures.exists(TEX_CRATER)) {

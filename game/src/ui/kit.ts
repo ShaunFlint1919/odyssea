@@ -587,6 +587,7 @@ export class MenuList {
   private readonly size: FontSize;
   private readonly modalLevel: number;
   private keyHandler?: (e: KeyboardEvent) => void;
+  private readonly onShutdown = () => this.destroy();
 
   constructor(private readonly scene: Phaser.Scene, private readonly opts: MenuListOpts) {
     this.size = opts.size ?? 'm';
@@ -611,7 +612,7 @@ export class MenuList {
     this.setItems(opts.items, false);
     this.setIndex(opts.startIndex ?? 0, false);
     if (opts.keyboard !== false) this.bindKeys();
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
   }
 
   get index(): number { return this.idx; }
@@ -865,6 +866,7 @@ export class MenuList {
   }
 
   destroy(): void {
+    this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
     if (this.keyHandler) this.scene.input.keyboard?.off('keydown', this.keyHandler);
     this.keyHandler = undefined;
     if (this.container.scene) {

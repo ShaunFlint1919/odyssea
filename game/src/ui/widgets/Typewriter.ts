@@ -30,6 +30,7 @@ export class Typewriter {
   private blip = 0;
   private readonly caret: Phaser.GameObjects.Rectangle | null;
   private readonly onUpdate: (t: number, dt: number) => void;
+  private readonly onShutdown = () => this.destroy();
   private readonly size: FontSize;
   private readonly cell: number;
 
@@ -43,7 +44,7 @@ export class Typewriter {
     if (this.caret && opts.depth !== undefined) this.caret.setDepth(opts.depth);
     this.onUpdate = (_t, dt) => this.tick(dt);
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.onUpdate);
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
     this.start(str);
   }
 
@@ -81,6 +82,7 @@ export class Typewriter {
 
   destroy(): void {
     this.scene.events.off(Phaser.Scenes.Events.UPDATE, this.onUpdate);
+    this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
     if (this.caret?.scene) this.caret.destroy();
     if (this.text.scene) this.text.destroy();
   }

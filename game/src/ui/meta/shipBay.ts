@@ -192,7 +192,7 @@ export class ShipBay {
     c.add(cornerBrackets(scene, ix + 1, iy + 1, iw - 2, ih - 2, COLORS.teal, 6, 0));
 
     this.setLoadout(loadout);
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
   }
 
   /** Rebuild the ship display for a loadout (hull, flames, shield arc, sidekicks, gauges). */
@@ -300,6 +300,7 @@ export class ShipBay {
   }
 
   destroy(): void {
+    this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
     for (const t of this.tweens) t.remove();
     for (const t of this.dynTweens) t.remove();
     this.tweens.length = 0;

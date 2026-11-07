@@ -34,6 +34,7 @@ export class Tally {
   private tickAcc = 0;
   private readonly dur: number;
   private readonly onUpdate: (t: number, dt: number) => void;
+  private readonly onShutdown = () => this.unbind();
 
   constructor(private readonly scene: Phaser.Scene, x: number, y: number, private readonly opts: TallyOpts) {
     this.cur = opts.from ?? 0;
@@ -44,7 +45,7 @@ export class Tally {
     });
     this.onUpdate = (_t, dt) => this.tick(dt);
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.onUpdate);
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.UPDATE, this.onUpdate));
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
     if (opts.autoStart) this.start();
   }
 
@@ -68,8 +69,13 @@ export class Tally {
   }
 
   destroy(): void {
-    this.scene.events.off(Phaser.Scenes.Events.UPDATE, this.onUpdate);
+    this.unbind();
     if (this.text.scene) this.text.destroy();
+  }
+
+  private unbind(): void {
+    this.scene.events.off(Phaser.Scenes.Events.UPDATE, this.onUpdate);
+    this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
   }
 
   private fmt(n: number): string {
