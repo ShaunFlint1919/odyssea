@@ -4,7 +4,8 @@
 //  spawns, destroyable parts (turrets track the player, bonus credits), pulsing weak-point
 //  core (x1.5 damage), damaged look (`<key>__dmg` texture when the art provides it), a
 //  pixel hit-mask built from the body texture, and the death sequence (explosion chain,
-//  slow-motion beat, bullets -> credit gems, flash + shockwave).
+//  slow-motion beat, bullets -> credit gems, flash + shockwave). Player shots are tested
+//  with sweep() (the shot's segment of the step, relative to the boss's own motion).
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, DEPTH, H, PLAY_W } from '../config';
@@ -15,10 +16,12 @@ import type { LaserOwner } from './enemyBullets';
 import { FireState, updateFire } from './firePatterns';
 import { FrameAnim, fallbackTex } from './tex';
 import type { World } from './world';
-import { angleDiff, clamp } from './world';
+import { angleDiff, clamp, segmentCircle } from './world';
 
 const HALF_PI = Math.PI / 2;
 const MASK_CELL = 4;
+/** Sample spacing (px) of the swept body test along a shot's segment (half a mask cell). */
+const SWEEP_STEP = 2;
 const FLASH_TIME = 0.032;
 /** Minimum gap between two white flashes of a part (continuous fire makes it blink, not glow white). */
 const FLASH_GAP = 0.06;
@@ -108,6 +111,16 @@ export class Boss {
   bw = 0;
   bh = 0;
   defeated = false;
+  /** Result of the last successful sweep(): target (as hitTest) and contact point. */
+  sweepTarget = -1;
+  sweepX = 0;
+  sweepY = 0;
+  /** Position at the start of the current simulation step (swept shot tests). */
+  private px = 0;
+  private py = 0;
+  /** Half extents of the body + parts around the centre (quick reject of the sweep). */
+  private reachX = 0;
+  private reachY = 0;
   private t = 0;
   private pt = 0;
   private phaseIdx = 0;
@@ -171,6 +184,7 @@ export class Boss {
     this.serial++;
     this.state = 'enter';
     this.defeated = false;
+    w.stats.spawned++; // the kill is counted in finishDeath(): kills never exceed spawned
     this.t = 0;
     this.pt = 0;
     this.phaseIdx = 0;
@@ -220,6 +234,14 @@ export class Boss {
     });
     // muzzles per phase
     this.muzzles = def.phases.map((ph) => ph.attacks.map((a) => new Muzzle(this, a, a.from?.[0] ?? 0, a.from?.[1] ?? this.bh * 0.3)));
+    this.reachX = this.bw / 2;
+    this.reachY = this.bh / 2;
+    for (const p of this.parts) {
+      this.reachX = Math.max(this.reachX, Math.abs(p.def.offset[0]) + p.radius);
+      this.reachY = Math.max(this.reachY, Math.abs(p.def.offset[1]) + p.radius);
+    }
+    this.px = this.x;
+    this.py = this.y;
     this.enterPhase(0);
     this.sync(0);
   }
@@ -315,9 +337,55 @@ export class Boss {
     return this.onBody(x, y, false) ? this.parts.length : -1;
   }
 
-  /** Apply damage to the target returned by hitTest(). */
+  /**
+   * Swept player-shot test. The shot moved from (x0, y0) to (x1, y1) during the last step
+   * while the boss moved from (px, py) to (x, y): the segment is taken relative to the boss.
+   * Parts first (rule: destroyable parts and the core take the hits that reach them): the
+   * part whose circle the segment enters first; else the first point of the segment on the
+   * body mask. Returns the contact parameter t in [0, 1], or -1; the target (as hitTest())
+   * goes to sweepTarget and the contact point (at the boss's current position) to sweepX/Y.
+   */
+  sweep(x0: number, y0: number, x1: number, y1: number, r: number): number {
+    if (this.state !== 'fight' && this.state !== 'enter') return -1;
+    const ax = x0 + (this.x - this.px), ay = y0 + (this.y - this.py);
+    const rx = this.reachX + r, ry = this.reachY + r;
+    if ((ax < this.x - rx && x1 < this.x - rx) || (ax > this.x + rx && x1 > this.x + rx)
+      || (ay < this.y - ry && y1 < this.y - ry) || (ay > this.y + ry && y1 > this.y + ry)) return -1;
+    let best = -1;
+    let bestT = 2;
+    const parts = this.parts;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (p.dead || (!p.destroyable && !p.core)) continue;
+      const t = segmentCircle(ax, ay, x1, y1, p.x, p.y, p.radius + r);
+      if (t >= 0 && t < bestT) {
+        bestT = t;
+        best = i;
+      }
+    }
+    const dx = x1 - ax, dy = y1 - ay;
+    if (best < 0) {
+      const n = Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy) / SWEEP_STEP));
+      for (let k = 0; k <= n; k++) {
+        const t = k / n;
+        if (this.onBody(ax + dx * t, ay + dy * t, false)) {
+          bestT = t;
+          best = parts.length;
+          break;
+        }
+      }
+      if (best < 0) return -1;
+    }
+    this.sweepTarget = best;
+    this.sweepX = ax + dx * bestT;
+    this.sweepY = ay + dy * bestT;
+    return bestT;
+  }
+
+  /** Apply damage to the target returned by hitTest() / sweep(). */
   damageAt(target: number, amount: number, x: number, y: number): void {
     const w = this.w;
+    if (!(amount > 0)) return; // also rejects NaN (it would make the boss immortal)
     if (this.state === 'enter') {
       if (w.fxRng() < 0.3) w.fx.hit(x, y, 0xc0c8ff);
       return;
@@ -377,17 +445,31 @@ export class Boss {
     w.fx.text(p.x, p.y - 12, 'PART DESTROYED', COLORS.gold, 900);
   }
 
-  /** Splash damage around (x, y) — parts and body. */
+  /**
+   * Splash damage of a blast at (x, y) that struck something else (a shell hitting the boss
+   * itself never splashes it again: World skips the struck target). The boss counts as ONE
+   * target: the nearest live destroyable part in range takes the damage (parts absorb it),
+   * else the body when the blast reaches it.
+   */
   splash(x: number, y: number, radius: number, amount: number): void {
-    if (this.state !== 'fight') return;
-    for (const p of this.parts) {
+    if (this.state !== 'fight' || !(amount > 0)) return;
+    let best: PartRt | null = null;
+    let bd = Infinity;
+    const parts = this.parts;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
       if (p.dead || !p.destroyable) continue;
-      const dx = p.x - x, dy = p.y - y, rr = p.radius + radius;
-      if (dx * dx + dy * dy < rr * rr) {
-        p.hp -= amount;
-        this.flashPart(p);
-        if (p.hp <= 0) this.killPart(p);
+      const dx = p.x - x, dy = p.y - y, rr = p.radius + radius, d2 = dx * dx + dy * dy;
+      if (d2 < rr * rr && d2 < bd) {
+        bd = d2;
+        best = p;
       }
+    }
+    if (best) {
+      best.hp -= amount;
+      this.flashPart(best);
+      if (best.hp <= 0) this.killPart(best);
+      return;
     }
     const dx = Math.max(Math.abs(x - this.x) - this.bw * 0.4, 0), dy = Math.max(Math.abs(y - this.y) - this.bh * 0.4, 0);
     if (dx * dx + dy * dy < radius * radius) this.damageBody(amount);
@@ -475,10 +557,7 @@ export class Boss {
     w.stats.kills++;
     fx.text(this.x, this.y, `${def.score}`, COLORS.gold, 1400);
     w.pickups.spawnCredits(this.x, this.y, def.credits * w.diff.credits, 160);
-    if (w.enemies.canDropIntel()) {
-      w.intelDropped = true;
-      w.pickups.spawnDrop(this.x, this.y + 10, 'intel');
-    }
+    if (w.enemies.canDropIntel() && w.pickups.spawnDrop(this.x, this.y + 10, 'intel')) w.intelDropped = true;
     this.img?.setVisible(false);
     this.flashImg?.setVisible(false);
     this.flashA = 0;
@@ -493,6 +572,8 @@ export class Boss {
   update(dt: number): void {
     if (!this.active || !this.def) return;
     const w = this.w;
+    this.px = this.x;
+    this.py = this.y;
     this.t += dt;
     this.pt += dt;
     if (this.state === 'enter') {

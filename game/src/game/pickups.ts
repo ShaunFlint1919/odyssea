@@ -2,6 +2,8 @@
 //  PICKUPS — credit gems (pk_credit_s/m/l, animated) and drops (armor repair, shield
 //  refill, front power, intel). Pooled. Gems burst out of destroyed enemies, settle into
 //  a slow fall, are magnetised toward the ship within MAGNET_R px and collected on contact.
+//  A full pool never loses anything: a gem is credited directly, and a drop recycles the
+//  oldest gem (credited) so power-ups and the level's intel always appear.
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, DEPTH, H, PLAY_W } from '../config';
@@ -133,15 +135,18 @@ export class Pickups {
     }
   }
 
-  /** Spawn a drop (armor / shield / power / intel) or credits for credit kinds. */
-  spawnDrop(x: number, y: number, kind: PickupKind): void {
+  /**
+   * Spawn a drop (armor / shield / power / intel) or credits for credit kinds. Returns false
+   * only if the drop could not be shown at all (pool full of drops: never with real data).
+   */
+  spawnDrop(x: number, y: number, kind: PickupKind): boolean {
     if (kind === 'credit_s' || kind === 'credit_m' || kind === 'credit_l') {
       const v = kind === 'credit_l' ? 50 : kind === 'credit_m' ? 15 : 5;
       this.spawnGem(x, y, Math.round(v * this.w.diff.credits), 0, -40);
-      return;
+      return true;
     }
-    const p = this.take();
-    if (!p) return;
+    const p = this.takeForDrop();
+    if (!p) return false;
     p.kind = kind === 'armor' ? K_ARMOR : kind === 'shield' ? K_SHIELD : kind === 'power' ? K_POWER : K_INTEL;
     p.value = 0;
     p.x = Phaser.Math.Clamp(x, 10, PLAY_W - 10);
@@ -152,6 +157,32 @@ export class Pickups {
     p.anim.apply(p.img, 0);
     p.img.setPosition(p.x, y).setScale(1).setAlpha(1).setAngle(0).setVisible(true);
     this.w.fx.glow(x, y, 0xffffff, 1.2, 260);
+    return true;
+  }
+
+  /**
+   * A slot for a drop: a free one, else the oldest credit gem is recycled (its value is
+   * credited, never lost), else the oldest drop that is not the intel.
+   */
+  private takeForDrop(): Pickup | null {
+    const free = this.take();
+    if (free) return free;
+    const live = this.live;
+    let gem = -1, drop = -1;
+    for (let k = 0; k < live.length; k++) {
+      const q = live[k];
+      if (q.kind === K_CREDIT) {
+        if (gem < 0 || q.age > live[gem].age) gem = k;
+      } else if (q.kind !== K_INTEL && (drop < 0 || q.age > live[drop].age)) {
+        drop = k;
+      }
+    }
+    const k = gem >= 0 ? gem : drop;
+    if (k < 0) return null;
+    const q = live[k];
+    if (q.kind === K_CREDIT) this.w.stats.credits += q.value;
+    this.release(q, k);
+    return this.take();
   }
 
   /** Every pickup flies to the ship (stage clear). */

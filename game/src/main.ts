@@ -33,6 +33,9 @@ const game = new Phaser.Game({
   render: { powerPreference: 'high-performance', batchSize: 4096 },
   // All sound is procedural WebAudio in src/audio: don't let Phaser open a second AudioContext.
   audio: { noAudio: true },
+  // The built-in Pre/Post FX pipelines are unused: skip their ~30 render targets and shaders.
+  disablePreFX: true,
+  disablePostFX: true,
   scene: [
     BootScene, TitleScene, MapScene, HangarScene, ShopScene, SpecsScene, OptionsScene, IntelScene,
     GameScene, LevelEndScene, GameOverScene, PauseScene,

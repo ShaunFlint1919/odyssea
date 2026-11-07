@@ -3,7 +3,8 @@
 //  runtime: air units (DEPTH.air, ground shadow +6/+10 on DEPTH.shadows) and surface units
 //  (DEPTH.ground, scroll with the terrain, rotatable turret heads). Handles movement
 //  (movement.ts), firing (firePatterns.ts), hit flash, damage smoke, deaths (explosions by
-//  size, debris, shake, hit-stop, credit gems, drops, score) and culling.
+//  size, debris, shake, hit-stop, credit gems, drops, score) and culling. Every step records
+//  each unit's previous position (px, py) for the swept player-shot tests (collisions.ts).
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, DEPTH, H, PLAY_W } from '../config';
@@ -46,6 +47,9 @@ export class Enemy implements LaserOwner, FireSpec {
   layer: EnemyLayer = 'air';
   x = 0;
   y = 0;
+  /** Position at the start of the current simulation step (swept shot tests). */
+  px = 0;
+  py = 0;
   vx = 0;
   vy = 0;
   rot = 0;
@@ -217,8 +221,8 @@ export class Enemies {
     e.serial = this.serialSeq++;
     e.def = def;
     e.layer = def.layer;
-    e.x = x;
-    e.y = y;
+    e.x = e.px = x;
+    e.y = e.py = y;
     e.rot = 0;
     e.targetRot = 0;
     e.t = 0;
@@ -330,7 +334,7 @@ export class Enemies {
 
   /** Apply player damage; flashes white and kills at 0 hp. Returns true if it died. */
   damage(e: Enemy, amount: number): boolean {
-    if (!e.active) return false;
+    if (!e.active || !(amount > 0)) return false; // also rejects NaN (it would make the unit immortal)
     e.hp -= amount;
     if (e.flash <= 0 && e.flashCd <= 0) {
       e.img.setTintFill(0xffffff);
@@ -399,11 +403,9 @@ export class Enemies {
     if (drops) {
       for (const d of drops) {
         if (w.rng() >= d.chance) continue;
-        if (d.kind === 'intel') {
-          if (!this.canDropIntel()) continue;
-          w.intelDropped = true;
-        }
-        w.pickups.spawnDrop(e.x + spawned * 10, e.y, d.kind);
+        if (d.kind === 'intel' && !this.canDropIntel()) continue;
+        const ok = w.pickups.spawnDrop(e.x + spawned * 10, e.y, d.kind);
+        if (ok && d.kind === 'intel') w.intelDropped = true;
         spawned++;
       }
     }
@@ -411,8 +413,7 @@ export class Enemies {
     // levels without a mid-boss / boss).
     const lv = w.level;
     if (this.canDropIntel() && (e.isMidboss || (!lv.midboss && !lv.boss && w.time > lv.duration * 0.6 && e.def.explosion !== 's'))) {
-      w.intelDropped = true;
-      w.pickups.spawnDrop(e.x - 10, e.y, 'intel');
+      if (w.pickups.spawnDrop(e.x - 10, e.y, 'intel')) w.intelDropped = true;
     }
     if (e.isMidboss) {
       w.pickups.spawnDrop(e.x + 12, e.y, 'power');
@@ -451,6 +452,8 @@ export class Enemies {
     for (let k = list.length - 1; k >= 0; k--) {
       const e = list[k];
       e.t += dt;
+      e.px = e.x;
+      e.py = e.y;
       stepMove(e, w, dt);
       const r = e.radius;
       if (!e.entered) {
@@ -552,5 +555,30 @@ export class Enemies {
       if (this.hittable(e)) this.kill(e, byPlayer);
       else this.remove(e);
     }
+  }
+
+  /**
+   * Stage clear: the leftover units blow up without rewards, except a live mid-boss, which is
+   * never destroyed for free — an air capital ship starts its retreat (movement.ts) and leaves
+   * the screen (no reward, flagged as escaped when it is gone), a surface one keeps drifting.
+   */
+  clearForStageEnd(): void {
+    for (let k = this.list.length - 1; k >= 0; k--) {
+      const e = this.list[k];
+      if (e.isMidboss) {
+        if (e.move === 'hover' && e.ms !== 2) {
+          e.ms = 2;
+          e.vy = Math.min(0, e.vy);
+        }
+        continue;
+      }
+      if (this.hittable(e)) this.kill(e, false);
+      else this.remove(e);
+    }
+  }
+
+  /** A mid-boss is on the field (it holds a level without a boss open, see flow.ts). */
+  get midbossAlive(): boolean {
+    return this.midboss !== null && this.midboss.active;
   }
 }

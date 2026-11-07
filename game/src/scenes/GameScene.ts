@@ -3,7 +3,9 @@
 //  FX, pickups, enemy bullets, enemies, boss, ship, arsenal, collisions, director, flow),
 //  feeds the HUD, runs the fixed-ish simulation steps (sub-stepped, hit-stop, slow-motion,
 //  DEBUG.speed), handles pause / abort / app background and leaves to LevelEnd / GameOver
-//  with a LevelResult. Never writes the save.
+//  with a LevelResult. Never writes the save. Once the outcome is decided (boss dying or
+//  down, stage clear, ship destroyed) pause requests are ignored and an abort cannot change
+//  the result: the flow finishes the mission (LevelEnd, or GameOver "SHIP DESTROYED").
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, DEPTH, H, PLAY_W, SCENES, W } from '../config';
@@ -18,7 +20,7 @@ import { getSave } from '../state/save';
 import { difficultyScale } from '../state/progress';
 import { audio } from '../audio';
 import { haptic, type HapticKind } from '../platform/haptics';
-import { addAppStateListener } from '../platform/device';
+import { addAppStateListener, isAppActive } from '../platform/device';
 import { Controls, type ControlsState } from '../input/controls';
 import { createHud, hudButtonAt } from '../ui/Hud';
 import { ensureFonts } from '../ui/kit';
@@ -39,7 +41,11 @@ import { Director } from '../game/director';
 import { LevelFlow, type FlowHost } from '../game/flow';
 import { BOT_FLAGS, Bot, publishRun } from '../game/bot';
 
-/** Largest simulation sub-step (ms): keeps fast shots from tunnelling at low fps / DEBUG.speed. */
+/**
+ * Largest simulation sub-step (ms) at low fps / DEBUG.speed. Shots cannot tunnel whatever the
+ * step (collisions.ts sweeps each shot's segment relative to each target's motion); the cap
+ * bounds the motion integrated per step (homing turns, enemy patterns, flow timers).
+ */
 const MAX_STEP_MS = 25;
 /** Real-time clamp of one frame (tab switches, hitches). */
 const MAX_FRAME_MS = 50;
@@ -111,6 +117,8 @@ export class GameScene extends Phaser.Scene implements FlowHost {
   /** create() completed for the current run (fields persist across scene restarts). */
   private running = false;
   private unsubAppState: (() => void) | null = null;
+  /** game.loop.frame when the app last went to background (resume race, see onResume()). */
+  private inactiveFrame = -1;
   private readonly warned = new Set<string>();
   private readonly target = { x: 0, y: 0 };
   private readonly bossTarget = { x: 0, y: 0 };
@@ -213,7 +221,9 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.events.on(Phaser.Scenes.Events.RESUME, this.onResume, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
     this.unsubAppState = addAppStateListener((active) => {
-      if (!active) this.pauseGame();
+      if (active) return;
+      this.inactiveFrame = this.game.loop.frame;
+      this.pauseGame();
     });
 
     if (DEBUG.fps || settings.showFps) {
@@ -246,6 +256,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.finished = false;
     this.paused = false;
     this.running = false;
+    this.inactiveFrame = -1;
     this.fpsText = null;
     this.bossDef = null;
     this.bot = null;
@@ -382,8 +393,21 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.sfx('rear_toggle');
   }
 
+  /**
+   * The mission's outcome is decided: won (the boss is dying or down, stage clear and fly-out)
+   * or lost (the ship is destroyed). w.ended covers the stage clear and the death phases.
+   */
+  private get outcomeDecided(): boolean {
+    const w = this.w;
+    return w.ended || w.boss.defeated || w.boss.state === 'dying' || !this.ship.alive;
+  }
+
+  /**
+   * Opens the pause menu. Ignored once the outcome is decided, so a won mission can never be
+   * aborted (the Controls back handler still consumes Android back: the app stays open).
+   */
   private pauseGame(): void {
-    if (this.paused || this.finished || !this.scene.isActive()) return;
+    if (this.paused || this.finished || !this.scene.isActive() || this.outcomeDecided) return;
     this.paused = true;
     audio.sfx('ui_select');
     this.scene.pause();
@@ -395,12 +419,25 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     // settings may have changed in the pause menu (shake is read live from the save)
     const st = getSave().settings;
     this.controls.configure({ sensitivity: st.touchSensitivity, autofire: st.autofire });
+    // RESUME is queued to the next frame: if the app went to background meanwhile (or still
+    // is), this resume must not leave the mission running unpaused -> pause again.
+    if (!isAppActive() || this.inactiveFrame >= this.game.loop.frame) {
+      this.pauseGame();
+      return;
+    }
+    markSceneReady(SCENES.Game, this.hookState());
   }
 
+  /**
+   * Pause menu ABORT. Once the outcome is decided the abort cannot change it: the game resumes
+   * and the flow ends the mission itself (victory -> LevelEnd with every reward; ship
+   * destroyed -> GameOver "SHIP DESTROYED", not "aborted").
+   */
   private onAbort(): void {
     if (this.finished) return;
     this.scene.resume();
     this.paused = false;
+    if (this.outcomeDecided) return;
     this.finish(false, true);
   }
 
@@ -418,7 +455,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
   stageClear(): void {
     const w = this.w;
     w.bullets.clearAll(true);
-    w.enemies.killAll(false);
+    w.enemies.clearForStageEnd(); // leftovers blow up unrewarded; a live mid-boss retreats instead
     w.pickups.magnetAll();
     this.arsenal.clearShots();
     this.hud.showBanner('ALL CLEAR', `${fmtScore(w.stats.score)} PTS`, 2600);
@@ -460,7 +497,8 @@ export class GameScene extends Phaser.Scene implements FlowHost {
   // ------------------------------------------------------------------ main loop
 
   override update(_time: number, delta: number): void {
-    if (!this.running || this.finished) return;
+    // paused: the scene pause is queued to the next frame, so skip the rest of this one too
+    if (!this.running || this.finished || this.paused) return;
     const real = Math.min(delta, MAX_FRAME_MS);
     this.realMs += real;
     const c = this.controls.update();

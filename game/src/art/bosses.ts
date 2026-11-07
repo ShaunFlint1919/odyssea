@@ -30,6 +30,7 @@ import { drawArchitect } from './b_boss_architect';
 import { drawCannon, drawCore, drawPod, drawTurret, drawWing } from './b_boss_parts';
 import { damaged } from './b_boss_damage';
 import { BOSS_MOUNTS } from './b_boss_mounts';
+import { bossPartPaletteWanted, bossVariantWanted } from './usage';
 
 export type { BossMounts, Offset } from './b_boss_types';
 
@@ -70,9 +71,10 @@ function checkSize(name: string, g: Grid, size: number): void {
  * Render an (outlined) grid for every palette and register each texture plus its shadow
  * (same 38 % black silhouette as addTextureWithShadow, built once and shared by the palettes).
  */
-function addPaletteSet(scene: Phaser.Scene, grid: Grid, keyOf: (pal: Palette) => string): void {
+function addPaletteSet(scene: Phaser.Scene, grid: Grid, keyOf: (pal: Palette) => string, wanted: (pal: Palette) => boolean): void {
   let shadow: HTMLCanvasElement | null = null;
   for (const pal of PALETTE_NAMES) {
+    if (!wanted(pal)) continue;
     const canvas = gridCanvas(grid, pal);
     shadow ??= silhouette(canvas, '#000000', 0.38);
     addTexture(scene, keyOf(pal), canvas);
@@ -80,23 +82,29 @@ function addPaletteSet(scene: Phaser.Scene, grid: Grid, keyOf: (pal: Palette) =>
   }
 }
 
-/** Generates every boss body, damaged body and boss part for every palette. */
+/**
+ * Generates every boss body, damaged body and boss part — for every palette, or only for the
+ * variants allowed by src/art/usage.ts (set by the Boot scene from the content catalogue).
+ */
 export function generateBossArt(scene: Phaser.Scene): void {
   const t0 = performance.now();
   for (const sprite of Object.keys(BOSS_SPRITES) as BossSprite[]) {
     const def = BODIES[sprite];
     const raw = def.draw();
     checkSize(sprite, raw, BOSS_SPRITES[sprite]);
-    addPaletteSet(scene, outlineGrid(raw), (pal) => bossKey(sprite, pal));
-    addPaletteSet(scene, outlineGrid(damaged(raw, def.seed, BOSS_MOUNTS[sprite])), (pal) => bossDamagedKey(sprite, pal));
+    const wanted = (pal: Palette) => bossVariantWanted(sprite, pal);
+    if (!PALETTE_NAMES.some(wanted)) continue;
+    addPaletteSet(scene, outlineGrid(raw), (pal) => bossKey(sprite, pal), wanted);
+    addPaletteSet(scene, outlineGrid(damaged(raw, def.seed, BOSS_MOUNTS[sprite])), (pal) => bossDamagedKey(sprite, pal), wanted);
   }
   for (const part of Object.keys(BOSS_PART_SPRITES) as BossPartSprite[]) {
     const g = PARTS[part]();
     checkSize(part, g, BOSS_PART_SPRITES[part]);
-    addPaletteSet(scene, outlineGrid(g), (pal) => bossKey(part, pal));
+    addPaletteSet(scene, outlineGrid(g), (pal) => bossKey(part, pal), bossPartPaletteWanted);
   }
   const beat = [outlineGrid(drawCore(0)), outlineGrid(drawCore(1))];
   for (const pal of PALETTE_NAMES) {
+    if (!bossPartPaletteWanted(pal)) continue;
     const key = bossCorePulseKey(pal);
     addSheet(scene, key, beat.map((g) => gridCanvas(g, pal)));
     const anim = bossCorePulseAnim(pal);

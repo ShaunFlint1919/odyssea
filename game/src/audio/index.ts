@@ -146,6 +146,12 @@ export const audio = {
       if (!l) {
         l = st.live = create();
         if (!l) return;
+        if (st.userSuspended) {
+          // Created while the app is inactive (a gesture before a ringing call, say): WebView
+          // contexts start running, so silence it and keep the music scheduler off until resume().
+          l.music.pause();
+          quiet(l.ctx.suspend());
+        }
       }
       if (!st.userSuspended && l.ctx.state !== 'running') quiet(l.ctx.resume());
       prime(l);
@@ -195,18 +201,19 @@ export const audio = {
       /* ignore */
     }
   },
-  /** Pause/resume everything (app backgrounded). */
+  /** Pause everything (app inactive). Also from 'interrupted' (or suspended) so an ended OS interruption stays silent. */
   suspend(): void {
     try {
       st.userSuspended = true;
       const l = st.live;
       if (!l) return;
       l.music.pause();
-      if (l.ctx.state === 'running') quiet(l.ctx.suspend());
+      if (l.ctx.state !== 'closed') quiet(l.ctx.suspend());
     } catch {
       /* ignore */
     }
   },
+  /** Undo suspend() (app active again): the only call that lifts it. */
   resume(): void {
     try {
       st.userSuspended = false;

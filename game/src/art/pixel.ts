@@ -226,10 +226,21 @@ export function silhouette(src: HTMLCanvasElement, color = '#000000', alpha = 0.
   return canvas;
 }
 
+/**
+ * Register a static canvas as an image texture. Unlike textures.addCanvas(), this does NOT keep a
+ * second full ImageData copy of every texture in CPU memory (CanvasTexture calls getImageData in
+ * its constructor) — a large boot-time and memory saving on phones. The canvas stays the source
+ * image (getSourceImage() returns it; WebGL context restore re-uploads from it). Use
+ * textures.createCanvas() instead for textures you redraw and refresh() at runtime.
+ */
+function addStaticCanvas(scene: Phaser.Scene, key: string, canvas: HTMLCanvasElement): Phaser.Textures.Texture | null {
+  if (scene.textures.exists(key)) scene.textures.remove(key);
+  return scene.textures.addImage(key, canvas as unknown as HTMLImageElement);
+}
+
 /** Register (or replace) a canvas as a Phaser texture. */
 export function addTexture(scene: Phaser.Scene, key: string, canvas: HTMLCanvasElement): void {
-  if (scene.textures.exists(key)) scene.textures.remove(key);
-  scene.textures.addCanvas(key, canvas);
+  addStaticCanvas(scene, key, canvas);
 }
 
 /**
@@ -242,8 +253,7 @@ export function addSheet(scene: Phaser.Scene, key: string, frames: HTMLCanvasEle
   const fw = frames[0].width, fh = frames[0].height;
   const { canvas, ctx } = makeCanvas(fw * frames.length, fh);
   frames.forEach((f, i) => ctx.drawImage(f, i * fw, 0));
-  if (scene.textures.exists(key)) scene.textures.remove(key);
-  const tex = scene.textures.addCanvas(key, canvas);
+  const tex = addStaticCanvas(scene, key, canvas);
   if (!tex) return;
   frames.forEach((_, i) => tex.add(i, 0, i * fw, 0, fw, fh));
 }

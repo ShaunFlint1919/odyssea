@@ -14,6 +14,8 @@ export default defineConfig({
       output: { manualChunks: { phaser: ['phaser'] } },
     },
   },
+  // Phaser ships ~1,500 inline license comments (~270 KB): move them to the end of the chunk.
+  esbuild: { legalComments: 'eof' },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],

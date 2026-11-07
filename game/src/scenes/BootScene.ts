@@ -16,7 +16,9 @@ import { generateDoodadArt } from '../art/doodads';
 import { getSave, loadSave, newGame, saveNow } from '../state/save';
 import { audio } from '../audio';
 import { initPlatform } from '../platform/device';
-import { LEVELS, levelOrder } from '../data';
+import { BOSSES, ENEMIES, LEVELS, levelOrder } from '../data';
+import { addUsage, setArtUsage } from '../art/usage';
+import type { Palette } from '../types';
 
 /** One slice of the boot work: label shown under the bar, relative cost (bar share), work. */
 interface BootStep {
@@ -38,8 +40,8 @@ const STEPS: BootStep[] = [
   { label: 'PRIMING EXPLOSIVES', weight: 75, run: (s) => generateFxArt(s) },
   { label: 'WIRING CONSOLES', weight: 14, run: (s) => generateUiArt(s) },
   { label: 'CHARTING PLANETS', weight: 75, run: (s) => generatePlanetArt(s) },
-  { label: 'SCANNING HOSTILES', weight: 100, run: (s) => generateEnemyArt(s) },
-  { label: 'TRACKING CAPITAL SHIPS', weight: 220, run: (s) => generateBossArt(s) },
+  { label: 'SCANNING HOSTILES', weight: 60, run: (s) => generateEnemyArt(s) },
+  { label: 'TRACKING CAPITAL SHIPS', weight: 45, run: (s) => generateBossArt(s) },
   { label: 'SURVEYING TERRAIN', weight: 25, run: (s) => generateDoodadArt(s) },
   { label: 'SYNCING ANIMATIONS', weight: 2, run: (s) => registerAnimations(s) },
   { label: 'LOADING PILOT RECORD', weight: 3, run: (s) => s.setupState() },
@@ -83,6 +85,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    restrictArtToCampaign();
     this.next = 0;
     this.frame = 0;
     this.done = false;
@@ -258,4 +261,24 @@ export class BootScene extends Phaser.Scene {
       this.scene.start(target);
     }
   }
+}
+
+/**
+ * Only generate the enemy / boss palette variants the campaign uses (plus the shop preview's
+ * target drones) — bosses alone would otherwise be ~13 MiB of GPU textures and the slowest boot
+ * step on phones. The texture gallery does not call this and still renders every variant.
+ */
+function restrictArtToCampaign(): void {
+  const enemies = new Map<string, Set<Palette>>();
+  const bosses = new Map<string, Set<Palette>>();
+  const bossParts = new Set<Palette>();
+  for (const e of ENEMIES) addUsage(enemies, e.sprite, e.palette);
+  for (const b of BOSSES) {
+    addUsage(bosses, b.sprite, b.palette);
+    bossParts.add(b.palette);
+  }
+  // Shop weapon preview target drones (src/game/preview.ts DRONE_TYPES).
+  const previewDrones: [string, Palette][] = [['en_drone', 'steel'], ['en_dart', 'crimson'], ['en_drone', 'violet'], ['en_wasp', 'amber']];
+  for (const [sprite, pal] of previewDrones) addUsage(enemies, sprite, pal);
+  setArtUsage({ enemies, bosses, bossParts });
 }

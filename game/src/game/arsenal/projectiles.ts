@@ -12,6 +12,10 @@
 //    embers scaled to the hit) and splits prism bolts; piercing shots show a small spark on
 //    every NEW hit (registerHit). Dead shots are only flagged and compacted in update(), so
 //    shots may end (or spawn shards) safely inside forEach() callbacks.
+//  - Splits never create damage out of thin air: the fan of a split shares `splitShare` x
+//    the parent's damage (in flight) or `impactShare` x (after the parent hit its target).
+//  - Every update records where each shot was before it moved (PlayerShot.prevX / prevY, the
+//    spawn point until its first move): the World sweeps that segment (no tunnelling).
 //  - Piercing shots remember the enemies they hit in a HitRegistry; multi-segment beams
 //    share one registry so a whole beam hits each enemy once. Beam segments can be
 //    `hidden` (collision only) while one sprite draws the whole beam.
@@ -83,6 +87,10 @@ export interface ShotSpec {
   splitDist: number;    // prism: split after travelling this far (0 = never)
   splitN: number;
   splitSpread: number;  // half-angle of the shard fan (rad)
+  /** Total damage of the fan of an in-flight split, as a multiple of the parent's damage (1 = conserved). */
+  splitShare: number;
+  /** Same for a split on impact (the parent already dealt its damage to the struck target). */
+  impactShare: number;
   shard: ShotSpec | null;
   shardTex: readonly TexInfo[] | null; // per-shard textures (spectrum), picked across the fan
   armMs: number;        // no collisions during the first ms
@@ -99,8 +107,8 @@ export function makeSpec(tex: TexInfo, glow: number, core: number): ShotSpec {
     tex, frameMs: 0, move: MOVE_STRAIGHT, speed: 600, damage: 1, radius: 3, radiusEnd: 1, splash: 0, pierce: false,
     life: 1200, rotate: true, quarter: false, hidden: false, halo: null, haloAlpha: 0.3, blink: false,
     glow, core, hit: HIT_SPARK, fx: NO_IMPACT, popOnExpire: false, fadeMs: 0, cull: 0, accel: 0, maxSpeed: 2000, drag: 0,
-    turnRate: 0, seekRange: 400, launchMs: 0, amp: 0, omega: 0, splitDist: 0, splitN: 0, splitSpread: 0, shard: null,
-    shardTex: null, armMs: 0, driftY: 0, trail: TRAIL_NONE, trailMs: 40, trailTex: null, trailSpread: 0,
+    turnRate: 0, seekRange: 400, launchMs: 0, amp: 0, omega: 0, splitDist: 0, splitN: 0, splitSpread: 0, splitShare: 1,
+    impactShare: 0, shard: null, shardTex: null, armMs: 0, driftY: 0, trail: TRAIL_NONE, trailMs: 40, trailTex: null, trailSpread: 0,
   };
 }
 
@@ -141,6 +149,11 @@ export class HitRegistry {
 export class Shot implements PlayerShot {
   x = 0;
   y = 0;
+  /** Position before the last move (swept collisions), see PlayerShot. */
+  prevX = 0;
+  prevY = 0;
+  /** Fired since the last update(): prevX / prevY still hold the spawn point. */
+  fresh = false;
   radius = 3;
   damage = 1;
   splash = 0;
@@ -244,6 +257,9 @@ export class ShotPool {
     s.alive = true;
     s.x = x;
     s.y = y;
+    s.prevX = x;
+    s.prevY = y;
+    s.fresh = true;
     s.speed = spec.speed;
     s.vx = Math.cos(angle) * spec.speed;
     s.vy = Math.sin(angle) * spec.speed;
@@ -335,10 +351,13 @@ export class ShotPool {
     const hues = sp.shardTex;
     const n = sp.splitN;
     const base = Math.atan2(s.vy, s.vx);
+    // the fan shares a fixed multiple of the parent's actual damage (see ShotSpec.splitShare)
+    const each = (s.damage * (fromImpact ? sp.impactShare : sp.splitShare)) / n;
     for (let k = 0; k < n; k++) {
       const a = n === 1 ? base : base - sp.splitSpread + (2 * sp.splitSpread * k) / (n - 1);
       const tex = hues ? hues[n === 1 ? hues.length >> 1 : Math.round((k * (hues.length - 1)) / (n - 1))] : child.tex;
       const c = this.fire(child, s.x, s.y, a + (Math.random() - 0.5) * 0.05, tex);
+      c.damage = each;
       c.ownReg.copyFrom(s.reg);
       if (fromImpact && c.armMs < 70) c.armMs = 70; // clear the struck enemy first
     }
@@ -406,6 +425,12 @@ export class ShotPool {
     for (let i = 0; i < n; i++) {
       const s = live[i];
       if (!s.alive) continue;
+      if (s.fresh) {
+        s.fresh = false; // keep the spawn point: the first sweep covers spawn -> first move
+      } else {
+        s.prevX = s.x;
+        s.prevY = s.y;
+      }
       s.age += dtMs;
       if (s.age >= s.life) {
         this.expire(s);

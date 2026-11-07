@@ -148,7 +148,7 @@ export class Ship {
 
   /** Apply damage from a bullet / laser / contact at (hx, hy). Shield first, then armor. */
   hit(amount: number, hx: number, hy: number): void {
-    if (!this.hittable || amount <= 0) return;
+    if (!this.hittable || !(amount > 0)) return; // also rejects NaN (it would make the ship immortal)
     const w = this.w;
     const m = w.metrics;
     if (w.god) {

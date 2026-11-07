@@ -135,6 +135,26 @@ export function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : v;
 }
 
+/**
+ * Swept circle test: the earliest t in [0, 1] at which the point (ax, ay) + t ((bx, by) - (ax, ay))
+ * comes within `radius` of (cx, cy); 0 when it starts inside; -1 when it never does.
+ * Used for player shots, with the segment expressed relative to the moving target.
+ */
+export function segmentCircle(ax: number, ay: number, bx: number, by: number, cx: number, cy: number, radius: number): number {
+  const fx = ax - cx, fy = ay - cy;
+  const c = fx * fx + fy * fy - radius * radius;
+  if (c < 0) return 0;
+  const dx = bx - ax, dy = by - ay;
+  const a = dx * dx + dy * dy;
+  if (a < 1e-9) return -1;
+  const b = fx * dx + fy * dy;
+  if (b >= 0) return -1; // outside and not moving towards the centre
+  const disc = b * b - a * c;
+  if (disc < 0) return -1;
+  const t = (-b - Math.sqrt(disc)) / a;
+  return t <= 1 ? t : -1;
+}
+
 /** Shortest signed angular difference b - a in (-PI, PI]. */
 export function angleDiff(a: number, b: number): number {
   let d = (b - a) % (Math.PI * 2);

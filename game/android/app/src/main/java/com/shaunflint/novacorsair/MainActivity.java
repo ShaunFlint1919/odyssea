@@ -1,5 +1,6 @@
 package com.shaunflint.novacorsair;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.media.AudioManager;
 import android.os.Build;
@@ -7,6 +8,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -14,6 +17,7 @@ import android.view.WindowManager;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import androidx.annotation.RequiresApi;
 import androidx.core.content.ContextCompat;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.core.view.WindowCompat;
@@ -29,19 +33,29 @@ import com.getcapacitor.WebViewListener;
  * <ul>
  *   <li>Immersive sticky fullscreen, re-applied whenever the window regains focus (dialogs, recents
  *       and edge swipes bring the bars back); the screen stays on while the game is visible.</li>
+ *   <li>Window focus is reported to the game (window event {@value #FOCUS_EVENT} carrying
+ *       {@code focused}): the notification shade, quick settings, the power menu, the assistant and
+ *       system dialogs take the focus without pausing the activity, and src/platform/device.ts treats
+ *       an unfocused window as inactive (the mission pauses, audio stops).</li>
  *   <li>The launch splash (SplashScreen API on Android 12+, its compat version before) stays up until
  *       the game page has loaded, so no blank frame shows between the splash and the game.</li>
  *   <li>WebView tuned for a canvas game: system font size ignored, no zoom, no overscroll glow,
  *       no scrollbars, no long-press selection or haptic tick.</li>
- *   <li>Volume keys always drive the media volume. On Android 12+ a ringing or ongoing phone call
- *       reports the app as inactive to JS (App "appStateChange"), which pauses the game and its audio
- *       exactly like a trip to the background.</li>
+ *   <li>Volume keys always drive the media volume. A ringing or ongoing phone call reports the app as
+ *       inactive to JS (App "appStateChange", re-sent after a resume while the call lasts), which pauses
+ *       the game and its audio exactly like a trip to the background: audio-mode listener on Android
+ *       12+, telephony call state on Android 7-11 (where it needs no permission). Audio focus is not
+ *       requested on purpose: AUDIOFOCUS_GAIN would stop the player's own music or podcast app at every
+ *       launch and return to the game, and a permanent focus loss could not be mapped to a pause the
+ *       player can leave; calls, the one interruption that must silence the game, are covered above.</li>
  *   <li>If the WebView renderer process dies, the activity is rebuilt instead of the app crashing.</li>
  * </ul>
  */
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "NovaCorsair";
+    /** Window event for window focus changes, read by src/platform/device.ts (FOCUS_EVENT). */
+    static final String FOCUS_EVENT = "nc:focus";
     /** Longest time the launch splash waits for the game page (ms). */
     private static final long SPLASH_TIMEOUT_MS = 4000L;
     /** A second renderer loss within this delay is a crash loop: stop restarting (ms). */
@@ -59,7 +73,7 @@ public class MainActivity extends BridgeActivity {
     private boolean resumed;
     private boolean restartOnStart;
     private boolean inPhoneCall;
-    /** Audio mode listener (Android 12+), typed Object so that older ART never resolves its class. */
+    /** Call watcher (Api31 or LegacyCalls), typed Object so that older ART never resolves its class. */
     private Object callListener;
 
     @Override
@@ -96,6 +110,8 @@ public class MainActivity extends BridgeActivity {
         bridge.addWebViewListener(new GameWebViewListener());
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             callListener = Api31.watchPhoneCalls(this);
+        } else {
+            callListener = LegacyCalls.watchPhoneCalls(this);
         }
     }
 
@@ -114,6 +130,12 @@ public class MainActivity extends BridgeActivity {
         super.onResume();
         resumed = true;
         applyImmersiveMode();
+        // BridgeActivity.onResume() has just reported the app as active: while a call rings or lasts
+        // the game must stay paused and silent (this also covers a launch during a call, whose
+        // earlier reports were sent before the page listened; it reads App.getState() at boot).
+        if (inPhoneCall) {
+            reportActive(false);
+        }
     }
 
     @Override
@@ -134,13 +156,18 @@ public class MainActivity extends BridgeActivity {
         if (hasFocus) {
             applyImmersiveMode();
         }
+        notifyWindowFocus(hasFocus);
     }
 
     @Override
     public void onDestroy() {
         mainHandler.removeCallbacksAndMessages(null);
-        if (callListener != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Api31.stopWatching(this, callListener);
+        if (callListener != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                Api31.stopWatching(this, callListener);
+            } else {
+                LegacyCalls.stopWatching(this, callListener);
+            }
             callListener = null;
         }
         super.onDestroy();
@@ -174,20 +201,33 @@ public class MainActivity extends BridgeActivity {
         webView.setHapticFeedbackEnabled(false);
     }
 
-    /** Phone call started or ended (Android 12+): pause the game as if the app went to the background. */
+    /** Window focus for the game: an unfocused window keeps it inactive (mission paused, audio off). */
+    private void notifyWindowFocus(boolean focused) {
+        Bridge bridge = getBridge();
+        if (bridge == null || bridge.getWebView() == null || isFinishing()) {
+            return;
+        }
+        bridge.triggerWindowJSEvent(FOCUS_EVENT, "{\"focused\":" + focused + "}");
+    }
+
+    /** App state for JS: Capacitor App "appStateChange" (App.getState() answers the same afterwards). */
+    private void reportActive(boolean active) {
+        Bridge bridge = getBridge();
+        if (bridge != null) {
+            bridge.getApp().fireStatusChange(active);
+        }
+    }
+
+    /** Phone call started or ended: pause the game as if the app went to the background. */
     void onPhoneCallChanged(boolean call) {
         if (call == inPhoneCall) {
             return;
         }
         inPhoneCall = call;
-        Bridge bridge = getBridge();
-        if (bridge == null) {
-            return;
-        }
         if (call) {
-            bridge.getApp().fireStatusChange(false);
+            reportActive(false);
         } else if (resumed) {
-            bridge.getApp().fireStatusChange(true);
+            reportActive(true);
         }
     }
 
@@ -222,6 +262,8 @@ public class MainActivity extends BridgeActivity {
         @Override
         public void onPageLoaded(WebView webView) {
             pageReady = true;
+            // Focus reports sent before this page existed were lost: send the current state.
+            notifyWindowFocus(hasWindowFocus());
         }
 
         @Override
@@ -236,6 +278,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     /** Android 12+ (API 31) audio-mode listener. In its own class so older ART never loads it. */
+    @RequiresApi(Build.VERSION_CODES.S)
     private static final class Api31 {
 
         private Api31() {}
@@ -260,11 +303,52 @@ public class MainActivity extends BridgeActivity {
         }
 
         /** Ringing or in a cellular call. VoIP / voice chat (MODE_IN_COMMUNICATION) keeps the game running. */
+        @SuppressLint("InlinedApi") // MODE_CALL_REDIRECT (API 33) is a compile-time constant, never reported on 31-32
         static boolean isPhoneCall(int mode) {
             return mode == AudioManager.MODE_RINGTONE
                 || mode == AudioManager.MODE_IN_CALL
                 || mode == AudioManager.MODE_CALL_SCREENING
                 || mode == AudioManager.MODE_CALL_REDIRECT;
+        }
+    }
+
+    /**
+     * Android 7-11 (API 24-30) telephony call state: LISTEN_CALL_STATE needs no permission before
+     * Android 12 (where Api31 takes over). Created on the main thread, whose looper delivers the
+     * callbacks; the current state is delivered right after registration.
+     */
+    @SuppressWarnings("deprecation")
+    private static final class LegacyCalls {
+
+        private LegacyCalls() {}
+
+        /** Starts reporting telephony calls to the activity; returns the listener for stopWatching(). */
+        static Object watchPhoneCalls(MainActivity activity) {
+            TelephonyManager telephony = (TelephonyManager) activity.getSystemService(Context.TELEPHONY_SERVICE);
+            if (telephony == null) {
+                return null;
+            }
+            PhoneStateListener listener = new PhoneStateListener() {
+                @Override
+                public void onCallStateChanged(int state, String phoneNumber) {
+                    activity.onPhoneCallChanged(state != TelephonyManager.CALL_STATE_IDLE);
+                }
+            };
+            try {
+                telephony.listen(listener, PhoneStateListener.LISTEN_CALL_STATE);
+            } catch (RuntimeException e) {
+                // Some vendor builds guard the call state: the game simply does not pause on calls there.
+                Log.w(TAG, "Call state unavailable", e);
+                return null;
+            }
+            return listener;
+        }
+
+        static void stopWatching(MainActivity activity, Object listener) {
+            TelephonyManager telephony = (TelephonyManager) activity.getSystemService(Context.TELEPHONY_SERVICE);
+            if (telephony != null) {
+                telephony.listen((PhoneStateListener) listener, PhoneStateListener.LISTEN_NONE);
+            }
         }
     }
 }

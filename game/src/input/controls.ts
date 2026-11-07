@@ -4,8 +4,10 @@
 //    P / Esc pause (edge).
 //  - Touch / mouse: RELATIVE drag. A drag may start anywhere inside `dragArea`; the ship
 //    moves by the finger delta x sensitivity, so the finger never hides the ship. The first
-//    pointer drives; other fingers are ignored until it lifts (then a finger still held
-//    inside the drag area takes over without a jump). Coordinates are game pixels
+//    pointer drives. Once the driver has rested (moved <= STILL_PX for STILL_MS: a palm or
+//    grip contact, or a thumb holding still), another finger held in the drag area that moves
+//    takes over; when the driver lifts, a finger still held takes over. Every hand-over
+//    re-anchors on the new finger, so the ship never jumps. Coordinates are game pixels
 //    (pointer.x / pointer.y are already mapped through the FIT scale).
 //  - Gamepad (standard mapping): left stick / d-pad move (radial deadzone), A / RB / RT fire,
 //    B / X rear toggle, Start pause.
@@ -38,6 +40,12 @@ type Key = Phaser.Input.Keyboard.Key;
 
 /** Gamepad stick radial deadzone (0..1). */
 const DEADZONE = 0.22;
+/** A pointer that moved no more than this (game px, per axis)... */
+const STILL_PX = 2;
+/** ...for this long (ms) is resting: another finger that moves may take the drag over. */
+const STILL_MS = 250;
+/** Pointer slots tracked for hand-overs (Phaser pointer ids: mouse 0, at most 10 touches). */
+const SLOTS = 11;
 const DIAGONAL = Math.SQRT1_2;
 // Standard gamepad mapping button indices.
 const PAD_A = 0, PAD_B = 1, PAD_X = 2, PAD_RB = 5, PAD_RT = 7, PAD_START = 9;
@@ -73,6 +81,11 @@ export class Controls {
   private driverDownTime = 0;
   private lastX = 0;
   private lastY = 0;
+  /** Per pointer slot: press being tracked (its downTime, -1 = none), movement anchor, last time it moved. */
+  private readonly slotPress = new Float64Array(SLOTS).fill(-1);
+  private readonly slotX = new Float32Array(SLOTS);
+  private readonly slotY = new Float32Array(SLOTS);
+  private readonly slotMovedAt = new Float64Array(SLOTS).fill(-Infinity);
 
   private pendingRear = false;
   private pendingPause = false;
@@ -238,6 +251,8 @@ export class Controls {
     const s = this.state;
     s.dragDX = 0;
     s.dragDY = 0;
+    const now = performance.now();
+    this.trackPointers(now);
     let d = this.driver;
     // Released, or lifted and pressed again between two frames: drop it (re-acquired below without a jump).
     if (d && (!d.primaryDown || d.downTime !== this.driverDownTime)) d = this.driver = null;
@@ -248,14 +263,52 @@ export class Controls {
       this.lastY = d.y;
     } else {
       d = this.pickPointer();
-      if (d) {
-        this.driver = d;
-        this.driverDownTime = d.downTime;
-        this.lastX = d.x;
-        this.lastY = d.y;
-      }
+      if (d) this.drive(d);
+    }
+    // A resting driver (palm / grip contact that landed first, or a thumb holding still) hands
+    // over to another finger that is moving right now.
+    if (d && d.id < SLOTS && now - this.slotMovedAt[d.id] >= STILL_MS) {
+      const mover = this.movingPointer(d, now);
+      if (mover) this.drive(mover);
     }
     s.touching = this.driver !== null;
+  }
+
+  /** Makes `p` the driver, anchored on its current position (no jump). */
+  private drive(p: Phaser.Input.Pointer): void {
+    this.driver = p;
+    this.driverDownTime = p.downTime;
+    this.lastX = p.x;
+    this.lastY = p.y;
+  }
+
+  /**
+   * Per-slot movement bookkeeping (allocation-free): an anchor that follows a pointer only once it
+   * travelled more than STILL_PX, and the time of that last real move.
+   */
+  private trackPointers(now: number): void {
+    const pointers = this.scene.input.manager.pointers;
+    for (let i = 0; i < pointers.length; i++) {
+      const p = pointers[i];
+      const k = p ? p.id : -1;
+      if (!p || k < 0 || k >= SLOTS) continue;
+      if (!p.primaryDown) {
+        this.slotPress[k] = -1;
+        continue;
+      }
+      if (this.slotPress[k] !== p.downTime) {
+        // New press: anchored where it went down, so a slide before this frame counts as a move.
+        this.slotPress[k] = p.downTime;
+        this.slotX[k] = p.downX;
+        this.slotY[k] = p.downY;
+        this.slotMovedAt[k] = -Infinity;
+      }
+      if (Math.abs(p.x - this.slotX[k]) > STILL_PX || Math.abs(p.y - this.slotY[k]) > STILL_PX) {
+        this.slotX[k] = p.x;
+        this.slotY[k] = p.y;
+        this.slotMovedAt[k] = now;
+      }
+    }
   }
 
   /** Earliest-pressed pointer whose press started inside the drag area, or null. */
@@ -270,6 +323,19 @@ export class Controls {
     return best;
   }
 
+  /** Latest-pressed pointer other than `driver` that started in the drag area and moved this frame, or null. */
+  private movingPointer(driver: Phaser.Input.Pointer, now: number): Phaser.Input.Pointer | null {
+    const pointers = this.scene.input.manager.pointers;
+    let best: Phaser.Input.Pointer | null = null;
+    for (let i = 0; i < pointers.length; i++) {
+      const p = pointers[i];
+      if (!p || p === driver || !p.primaryDown || p.id >= SLOTS || this.slotMovedAt[p.id] !== now) continue;
+      if (!this.dragArea.contains(p.downX, p.downY)) continue;
+      if (!best || p.downTime > best.downTime) best = p;
+    }
+    return best;
+  }
+
   /** Forget presses that happened while the scene was paused / asleep (no stale pause / toggle on resume). */
   private resetEdges(): void {
     this.pendingRear = false;
@@ -280,6 +346,18 @@ export class Controls {
     this.padRearPrev = this.padCount > 0;
     this.padPausePrev = this.padCount > 0;
     this.driver = null;
+    // Fingers held through the pause keep their press but restart their movement history where
+    // they are now (moves made under the pause menu are not "moving right now").
+    const pointers = this.scene.input.manager.pointers;
+    for (let i = 0; i < pointers.length; i++) {
+      const p = pointers[i];
+      const k = p ? p.id : -1;
+      if (!p || k < 0 || k >= SLOTS) continue;
+      this.slotPress[k] = p.primaryDown ? p.downTime : -1;
+      this.slotX[k] = p.x;
+      this.slotY[k] = p.y;
+      this.slotMovedAt[k] = -Infinity;
+    }
   }
 
   private countPads(): number {

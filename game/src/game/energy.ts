@@ -64,9 +64,14 @@ export class EnergyModel {
     return false;
   }
 
-  /** Shield first, then armor. Fills lastShieldDamage / lastArmorDamage. */
+  /** Shield first, then armor. Fills lastShieldDamage / lastArmorDamage. NaN / <= 0: no damage. */
   damage(amount: number): void {
-    let rest = Math.max(0, amount);
+    if (!(amount > 0)) {
+      this.lastShieldDamage = 0;
+      this.lastArmorDamage = 0;
+      return;
+    }
+    let rest = amount;
     const s = Math.min(this.shield, rest);
     this.shield -= s;
     rest -= s;
@@ -76,10 +81,11 @@ export class EnergyModel {
     this.lastArmorDamage = a;
   }
 
-  /** Repair armor by `amount` (capped). Returns the points actually restored. */
+  /** Repair armor by `amount` (capped; NaN / <= 0 repairs nothing). Returns the points actually restored. */
   repair(amount: number): number {
+    if (!(amount > 0)) return 0;
     const before = this.armor;
-    this.armor = Math.min(this.armorMax, this.armor + Math.max(0, amount));
+    this.armor = Math.min(this.armorMax, this.armor + amount);
     return this.armor - before;
   }
 

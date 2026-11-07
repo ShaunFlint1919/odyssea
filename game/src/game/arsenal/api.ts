@@ -5,8 +5,10 @@
 //  - The World owns the ship (position, energy, damage) and calls createArsenal(host, ...).
 //  - The Arsenal owns weapon cadence, power scaling, patterns, homing, sidekick sprites,
 //    muzzle flashes, player projectile pools and their impact visuals.
-//  - Collisions are done by the World: it iterates forEachShot() against enemies, applies
-//    shot.damage (+ splash), and calls shot.impact(x, y) for shots that must end.
+//  - Collisions are done by the World: it iterates forEachShot() against enemies (swept
+//    from prevX/prevY to x/y), applies shot.damage to the struck target (+ splash to the
+//    OTHER targets in range), registers the hit, and calls shot.impact(x, y) for shots that
+//    must end.
 //  - Implemented in src/game/arsenal/index.ts (createArsenal). The shop preview
 //    (src/game/preview.ts) reuses createArsenal with a fake host.
 // =====================================================================================
@@ -38,17 +40,30 @@ export interface ArsenalHost {
 export interface PlayerShot {
   readonly x: number;
   readonly y: number;
+  /**
+   * Where the shot was before its last move (the spawn point until it first moves). The
+   * World sweeps the segment (prevX, prevY) -> (x, y) so fast shots cannot tunnel through
+   * small enemies between two simulation steps. Recorded by Arsenal.update(), no allocation.
+   */
+  readonly prevX: number;
+  readonly prevY: number;
   /** Collision radius in px. */
   readonly radius: number;
   /** Damage of one hit (power scaling already applied). */
   readonly damage: number;
-  /** > 0: on impact the World also applies `damage` to every enemy within this radius (px). */
+  /**
+   * > 0: on impact the World also applies `damage` to every OTHER target within this radius
+   * (px). The struck target takes `damage` once (the boss counts as one target: body, core and
+   * parts), so the single-target DPS stays the nominal damage per projectile.
+   */
   readonly splash: number;
   /** true: the shot keeps flying after a hit (beams, shards). */
   readonly pierce: boolean;
   /**
    * For piercing shots: returns true if this shot ALREADY hit `enemyId` (World must skip it);
-   * otherwise records the hit and returns false. Non-piercing shots always return false.
+   * otherwise records the hit and returns false. Non-piercing shots always return false; the
+   * World still registers the target they strike (before impact()), so the shards a shot
+   * splits into skip that target.
    */
   registerHit(enemyId: number): boolean;
   /** End the shot at (x, y): impact visuals, splitting (prism), recycling. Call once. */

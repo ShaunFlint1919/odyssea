@@ -16,13 +16,14 @@
         -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
       }
       /* The game box stays inside the safe area (notch / cutout, also under hidden system bars); the
-         body background fills the rest. src/config.ts reads this box once at boot to pick the height. */
+         body background fills the rest. src/config.ts reads this box once at boot to pick the height.
+         No flex centring here: Phaser (Scale.CENTER_BOTH) centres the canvas with its own margins. */
       #game {
-        position: fixed; display: flex; align-items: center; justify-content: center;
+        position: fixed;
         top: env(safe-area-inset-top, 0px); right: env(safe-area-inset-right, 0px);
         bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px);
       }
-      canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+      canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
       .nc-unsupported {
         position: absolute; left: 24px; right: 24px; top: 50%; transform: translateY(-50%);
         max-width: 300px; margin: 0 auto; color: #d8d4ec; font: 15px/1.5 sans-serif; text-align: center;

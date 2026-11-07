@@ -17,6 +17,7 @@ import {
 } from './pixel';
 import { EN_COLORS } from './b_en_kit';
 import { ENEMY_DESIGNS, TOP_DESIGNS, designFrames } from './b_en_catalog';
+import { enemyVariantWanted } from './usage';
 
 /** Base sprite -> rotatable head base key (texture key = turretTopKey(sprite, palette)). */
 export const TURRET_TOPS: Record<string, string> = { gr_turret: 'gr_turret_top', gr_twin: 'gr_twin_top', gr_tank: 'gr_tank_top' };
@@ -76,18 +77,21 @@ function createAnim(scene: Phaser.Scene, key: string, texture: string, frames: {
   scene.anims.create({ key, frames: frames.map((f) => ({ key: texture, ...f })), frameRate, repeat: -1 });
 }
 
-/** Generates every enemy texture (all palettes), the turret heads and the enemy animations. */
+/**
+ * Generates the enemy textures (every palette, or only the variants allowed by src/art/usage.ts),
+ * the turret heads and the enemy animations.
+ */
 export function generateEnemyArt(scene: Phaser.Scene): void {
   const palettes = PALETTE_NAMES.map((p) => [p, colorsFor(p)] as const);
   for (const sprite of Object.keys(ENEMY_SPRITES) as EnemySprite[]) {
     const size = ENEMY_SPRITES[sprite];
     const frames = designFrames(ENEMY_DESIGNS[sprite]()).map((f) => fit(f, size));
-    for (const [p, colors] of palettes) register(scene, enemyKey(sprite, p), frames, colors);
+    for (const [p, colors] of palettes) if (enemyVariantWanted(sprite, p)) register(scene, enemyKey(sprite, p), frames, colors);
   }
   for (const [sprite, design] of Object.entries(TOP_DESIGNS)) {
     const size = ENEMY_SPRITES[sprite as EnemySprite];
     const frames = designFrames(design()).map((f) => fit(f, size));
-    for (const [p, colors] of palettes) register(scene, turretTopKey(sprite, p), frames, colors);
+    for (const [p, colors] of palettes) if (enemyVariantWanted(sprite, p)) register(scene, turretTopKey(sprite, p), frames, colors);
   }
   for (const p of PALETTE_NAMES) {
     const spinner = enemyKey('en_spinner', p);

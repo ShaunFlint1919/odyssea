@@ -12,7 +12,7 @@ import type { ShotColor } from '../types';
 import { SHOT_COLORS } from '../types';
 import { TEX_PX, fallbackTex } from './tex';
 import type { World } from './world';
-import { angleDiff } from './world';
+import { angleDiff, segmentCircle } from './world';
 
 /** Something a laser beam is attached to (an enemy, a boss muzzle). */
 export interface LaserOwner {
@@ -367,24 +367,41 @@ export class EnemyBullets {
 
   // ------------------------------------------------------------------ interactions
 
-  /** Player shot vs homing missiles: damages the first missile within r. Returns true on hit. */
-  hitMissile(x: number, y: number, r: number, damage: number): boolean {
+  /** Bullet index of the missile found by the last successful sweepMissile(). */
+  sweepIndex = -1;
+
+  /**
+   * Swept player shot vs the shootable missiles: the shot moved (x0, y0) -> (x1, y1) during
+   * the last step of `dt` s while each missile moved by (vx, vy) dt. Returns the earliest
+   * contact parameter t in [0, 1] (missile in sweepIndex), or -1.
+   */
+  sweepMissile(x0: number, y0: number, x1: number, y1: number, r: number, dt: number): number {
+    let best = 2;
+    let hit = -1;
     for (let m = 0; m < this.missileCount; m++) {
       const i = this.missiles[m];
-      const dx = this.x[i] - x, dy = this.y[i] - y, rr = this.rad[i] + r + 2;
-      if (dx * dx + dy * dy < rr * rr) {
-        this.hp[i] -= damage;
-        if (this.hp[i] <= 0) {
-          this.popMissile(i);
-          this.w.stats.score += 10;
-          this.release(i);
-        } else {
-          this.w.fx.hit(this.x[i], this.y[i], 0xffffff);
-        }
-        return true;
+      const t = segmentCircle(x0 + this.vx[i] * dt, y0 + this.vy[i] * dt, x1, y1, this.x[i], this.y[i], this.rad[i] + r + 2);
+      if (t >= 0 && t < best) {
+        best = t;
+        hit = i;
       }
     }
-    return false;
+    if (hit < 0) return -1;
+    this.sweepIndex = hit;
+    return best;
+  }
+
+  /** Player damage to missile `i` (from sweepMissile()): it pops at 0 hp (+10 score). */
+  damageMissile(i: number, damage: number): void {
+    if (this.kind[i] !== KIND_MISSILE || !(damage > 0)) return;
+    this.hp[i] -= damage;
+    if (this.hp[i] <= 0) {
+      this.popMissile(i);
+      this.w.stats.score += 10;
+      this.release(i);
+    } else {
+      this.w.fx.hit(this.x[i], this.y[i], 0xffffff);
+    }
   }
 
   /** Destroy every bullet within r of (x, y) (orbiter blockers). Returns how many. */

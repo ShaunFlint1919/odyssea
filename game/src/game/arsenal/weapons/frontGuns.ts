@@ -17,7 +17,8 @@
 //   mortar   swirling plasma orbs 16 -> 22 px, 1 -> 3 per volley, ember trails, splash ring
 //            drawn at the splash radius (22 -> 54 px)
 //   prism    faceted crystal bolts (~6-8 rows/s) splitting after 80 px into 3/5/7
-//            spectrum shards, twin bolts from p6, shards re-split at p10
+//            spectrum shards, twin bolts from p6, shards re-split at p10 (damage split:
+//            see PrismGun; at most 1.2 x the nominal damage when everything connects)
 //  Damage follows the balance model (scaling.ts): total DPS = damage * fireRate * N1 * M(p);
 //  sub-volleys / extra projectiles only split that damage (dmg()), energy is paid per volley.
 // =====================================================================================
@@ -485,12 +486,20 @@ const PRISM_SHARDS = [3, 3, 5, 5, 7, 3, 5, 5, 7, 7];
 const PRISM_TIER = [0, 0, 1, 1, 1, 1, 2, 2, 2, 2];
 /** Target bolt rows per second per level (1..2 sub-volleys). */
 const PRISM_ROWS = [8, 8, 8, 8, 6, 6, 6, 6, 6, 6];
+/** Total damage of the shatter spray of a bolt that hit its target, x the bolt damage. */
+const PRISM_IMPACT_SHARE = 0.2;
 
 /**
  * White crystal bolts (~8 rows/s at low power) split after 80 px into an odd fan
  * of spectrum shards (always a centre shard). A bolt that hits before splitting shatters
- * through the target. Damage: bolt = full projectile damage; the k shards share 2 x bolt
- * damage.
+ * through the target. Damage split (bolt damage B = the nominal projectile damage of the
+ * balance model, damage x M(p) / (bolts x sub-volleys x R(p))):
+ *  - in flight (no hit within 80 px): the k piercing shards share B (B / k each), so a far
+ *    target hit by the whole fan takes exactly the nominal damage;
+ *  - on impact: the struck target takes B and the shatter spray shares 0.2 B (it skips the
+ *    struck target: the World registers it on the bolt, the shards copy the registry);
+ *  - p10: each shard re-splits into 2 fine shards carrying half of its damage (conserved).
+ * So one bolt never deals more than 1.2 B when everything connects (1.0 B in flight).
  */
 class PrismGun extends WeaponGun {
   private bolts = 1;
@@ -504,7 +513,8 @@ class PrismGun extends WeaponGun {
     this.bolts = table(p, PRISM_BOLTS);
     const k = table(p, PRISM_SHARDS);
     const boltDmg = this.dmg(1, this.bolts * this.subs, r);
-    const shardDmg = (boltDmg * 2) / k;
+    // informational: split() sets each child's damage from its parent's (ShotSpec.splitShare)
+    const shardDmg = boltDmg / k;
     const hues = (t: number): TexInfo[] => SPECTRUM.map((h) => shardTex(scene, h, t));
 
     const shard = this.spec(shardTex(scene, SPECTRUM[3], 1));
@@ -520,7 +530,7 @@ class PrismGun extends WeaponGun {
       fine.speed = 610;
       fine.life = 420;
       fine.pierce = true;
-      fine.damage = shardDmg * 0.6;
+      fine.damage = shardDmg / 2;
       fine.radius = 3;
       fine.fadeMs = 130;
       fine.fx = shard.fx;
@@ -543,6 +553,8 @@ class PrismGun extends WeaponGun {
     b.splitDist = 80;
     b.splitN = k;
     b.splitSpread = ramp(p, 10, 30) * DEG;
+    b.splitShare = 1;
+    b.impactShare = PRISM_IMPACT_SHARE;
     b.shard = shard;
     b.shardTex = hues(1);
     b.fx = impactFx(scene, 'white', 1);

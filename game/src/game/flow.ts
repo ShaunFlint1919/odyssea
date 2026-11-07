@@ -2,7 +2,9 @@
 //  LEVEL FLOW — the mission state machine:
 //    waves  -> (duration reached) -> clearing (screen clear or 4 s) -> warning + boss
 //           -> boss defeated -> stage clear -> fly-out -> LevelEnd
-//    waves  -> (no boss: last wave gone, or 6 s after duration) -> stage clear
+//    waves  -> (no boss: last wave gone, or 6 s after duration) -> stage clear; a live
+//              mid-boss holds the level open until it is destroyed (rewarded) or has
+//              retreated off-screen after its 45 s hover (no reward) — never a free kill
 //    any    -> ship destroyed -> GameOver after ~1.5 s
 //  The host (GameScene) performs the side effects (music, banners, scene changes).
 // =====================================================================================
@@ -70,7 +72,7 @@ export class LevelFlow {
         const time = w.time;
         if (this.bossDef) {
           if (time >= this.level.duration) this.set('clearing');
-        } else {
+        } else if (!w.enemies.midbossAlive) {
           const gone = this.director.done && w.enemies.count === 0;
           if ((gone && (time >= this.level.duration || time >= this.director.lastWaveT + 4)) || time >= this.level.duration + NO_BOSS_GRACE) {
             this.toClear();
