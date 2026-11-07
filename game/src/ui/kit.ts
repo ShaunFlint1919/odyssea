@@ -1,21 +1,25 @@
 // =====================================================================================
 //  UI KIT — shared widgets for every menu scene and the HUD.
-//  CONTRACT: the exported functions/classes, their parameters and semantics are frozen
-//  (several engineers build scenes on top of them in parallel). The UI-KIT owner may improve
-//  the internals and the visuals, and may ADD exports, but must not change existing ones.
+//  CONTRACT: exported functions/classes keep their parameters and semantics; the API only
+//  grows with OPTIONAL parameters / new exports (src/ui/Hud.ts, src/ui/hud/** and the Game
+//  scene use ensureFonts + FontSize; every menu scene uses the rest).
 //
 //  Conventions: positions are in game px with a TOP-LEFT origin unless stated otherwise;
 //  fonts are the bitmap fonts FONT.s / FONT.m / FONT.l from src/art/keys.ts (white glyphs,
-//  tinted); colours come from COLORS in src/config.ts.
+//  tinted); colours come from COLORS in src/config.ts. The screen frame shared by every menu
+//  (header strip, spacing grid, backdrop) lives in src/ui/widgets/screen.ts.
 //
-//  Internals (UI-KIT owner):
+//  Internals:
 //  - 9-slices are baked ONCE per (texture, size) into a cached canvas texture (pixel-perfect,
 //    tiled edges/centre, one Image per panel → batches well); unused bakes are evicted
 //    beyond a pixel budget. Missing art falls back to procedural gunmetal tiles.
 //  - Modal dialogs (confirm, openModal) block keyboard input of the widgets/back handlers
 //    created before them; Escape/Backspace/Android back go to the top-most handler only.
 //  - Added exports: lineHeight, wrapText, nineSlice, openModal, isModalOpen, onBackIf,
-//    modalLevel, MenuItem.arrows, MenuList.length/setValue/setLabel/rowContainer/rowY/cancelPress.
+//    modalLevel, MenuItem.arrows, MenuList.length/setValue/setLabel/rowContainer/rowY/cancelPress,
+//    MenuListOpts.tapMode ('focusThenSelect': first tap focuses, second tap selects — for
+//    purchases and other costly picks), IconButtonOpts (larger hit area, hover ring),
+//    StatusBarOpts (right-hand text; help is upper-cased for a uniform look), isLeaving.
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, DEPTH } from '../config';
@@ -32,7 +36,8 @@ const FONT_KEY: Record<FontSize, string> = { s: FONT.s, m: FONT.m, l: FONT.l };
 const FONT_CELL: Record<FontSize, [number, number]> = { s: [6, 8], m: [8, 10], l: [12, 16] };
 
 type LeavingScene = Phaser.Scene & { __leaving?: boolean };
-const isLeaving = (scene: Phaser.Scene): boolean => !!(scene as LeavingScene).__leaving;
+/** True while goto() fades the scene out (input is ignored until the next scene starts). */
+export const isLeaving = (scene: Phaser.Scene): boolean => !!(scene as LeavingScene).__leaving;
 
 // ------------------------------------------------------------------------------ fonts
 
@@ -496,6 +501,16 @@ export interface MenuItem {
   arrows?: boolean;
 }
 
+/**
+ * How a pointer tap acts on a MenuList row:
+ *  - 'select' (default): a tap selects the row at once (navigation menus). Mouse hover focuses.
+ *  - 'focusThenSelect': a tap on an unfocused row only focuses it (its help / preview shows,
+ *    the row's value pulses as "armed"); a tap on the focused row selects it. No hover focus,
+ *    so a mouse click behaves like a tap. Use it where a pick costs credits or commits the
+ *    player (shop purchases, choosing the next mission). Keyboard Enter always selects.
+ */
+export type TapMode = 'select' | 'focusThenSelect';
+
 export interface MenuListOpts {
   x: number;
   y: number;
@@ -506,6 +521,7 @@ export interface MenuListOpts {
   startIndex?: number;
   depth?: number;
   keyboard?: boolean;      // listen to arrows/WASD/Enter/Space (default true)
+  tapMode?: TapMode;       // (added) default 'select'
   onSelect: (index: number, item: MenuItem) => void;
   onFocus?: (index: number, item: MenuItem) => void;
   onDisabled?: (index: number, item: MenuItem) => void;
@@ -573,7 +589,8 @@ function glowTex(scene: Phaser.Scene, w: number, h: number): string {
 
 /**
  * Vertical selectable list: cursor + highlight, keyboard (up/down/enter/space/left/right),
- * pointer (hover focuses on desktop, tap selects). Plays ui_move / ui_select / ui_error.
+ * pointer (see TapMode: tap selects, or tap focuses then a second tap selects). Plays
+ * ui_move / ui_select / ui_error.
  */
 export class MenuList {
   readonly container: Phaser.GameObjects.Container;
@@ -587,8 +604,12 @@ export class MenuList {
   private idx = 0;
   private enabled = true;
   private pressedRow = -1;
+  /** The pressed row already had the focus when the press started (focusThenSelect). */
+  private pressArmed = false;
+  private armTween: Phaser.Tweens.Tween | null = null;
   private readonly rowH: number;
   private readonly size: FontSize;
+  private readonly tapMode: TapMode;
   private readonly modalLevel: number;
   private keyHandler?: (e: KeyboardEvent) => void;
   private readonly onShutdown = () => this.destroy();
@@ -596,6 +617,7 @@ export class MenuList {
   constructor(private readonly scene: Phaser.Scene, private readonly opts: MenuListOpts) {
     this.size = opts.size ?? 'm';
     this.rowH = opts.rowHeight ?? (this.size === 's' ? 14 : this.size === 'm' ? 18 : 24);
+    this.tapMode = opts.tapMode ?? 'select';
     this.modalLevel = modalDepth(scene);
     this.container = scene.add.container(Math.round(opts.x), Math.round(opts.y));
     if (opts.depth !== undefined) this.container.setDepth(opts.depth);
@@ -627,6 +649,8 @@ export class MenuList {
 
   /** Replace the rows (keeps the current index when possible). */
   setItems(items: MenuItem[], keepIndex = true): void {
+    this.armTween?.remove();
+    this.armTween = null;
     this.rows.forEach((r) => r.destroy());
     this.rows = [];
     this.parts = [];
@@ -656,11 +680,14 @@ export class MenuList {
     const label = text(s, lx, midY, it.label, { size: this.size, color: baseColor, originY: 0.5 });
     row.add(label);
     const zone = s.add.zone(0, 0, w, this.rowH).setOrigin(0).setInteractive({ useHandCursor: true });
-    zone.on('pointerover', (p: Phaser.Input.Pointer) => { if (this.acceptsPointer() && !p.wasTouch) this.setIndex(i); });
+    zone.on('pointerover', (p: Phaser.Input.Pointer) => {
+      if (this.tapMode === 'select' && this.acceptsPointer() && !p.wasTouch) this.setIndex(i);
+    });
     zone.on('pointerdown', () => {
       if (!this.acceptsPointer()) return;
       audio.unlock();
       this.pressedRow = i;
+      this.pressArmed = this.idx === i;
       this.setIndex(i);
       this.flashImg.setAlpha(0.35);
       this.scene.tweens.add({ targets: this.flashImg, alpha: 0, duration: 160 });
@@ -669,7 +696,9 @@ export class MenuList {
     zone.on('pointerup', () => {
       const pressed = this.pressedRow === i;
       this.pressedRow = -1;
-      if (pressed && this.acceptsPointer() && this.idx === i) this.select();
+      if (!pressed || !this.acceptsPointer() || this.idx !== i) return;
+      if (this.tapMode === 'focusThenSelect' && !this.pressArmed) return; // first tap only focuses
+      this.select();
     });
     row.add(zone);
     const parts: RowParts = { row, label, labelX: lx, baseColor, value: null, arrowL: null, arrowR: null, zoneL: null, zoneR: null };
@@ -770,6 +799,20 @@ export class MenuList {
     const a = focused ? 1 : 0.45;
     p.arrowL?.setAlpha(a);
     p.arrowR?.setAlpha(a);
+    if (focused) this.armRow(p, !!it && !it.disabled);
+  }
+
+  /** focusThenSelect: the focused row's value pulses ("armed": the next tap selects it). */
+  private armRow(p: RowParts, armed: boolean): void {
+    if (this.armTween) {
+      const prev = this.armTween.targets[0] as Phaser.GameObjects.BitmapText | undefined;
+      this.armTween.remove();
+      this.armTween = null;
+      if (prev?.scene) prev.setAlpha(1);
+    }
+    if (this.tapMode !== 'focusThenSelect' || !armed || !p.value) return;
+    p.value.setAlpha(1);
+    this.armTween = this.scene.tweens.add({ targets: p.value, alpha: 0.45, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
 
   /** Enable/disable input (e.g. while a confirm dialog is open). */
@@ -873,6 +916,8 @@ export class MenuList {
     this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
     if (this.keyHandler) this.scene.input.keyboard?.off('keydown', this.keyHandler);
     this.keyHandler = undefined;
+    this.armTween?.remove();
+    this.armTween = null;
     if (this.container.scene) {
       this.scene.tweens.killTweensOf([this.cursor, this.highlight, this.glow, this.flashImg]);
       this.container.destroy();
@@ -1056,8 +1101,19 @@ export function button(
   };
 }
 
+/** (added) Optional settings of iconButton. */
+export interface IconButtonOpts {
+  /** Hit area (centred on the button) when larger than the visual — e.g. a header back arrow. */
+  hitW?: number;
+  hitH?: number;
+  /** Fallback glyph drawn when the icon texture is missing (default '?'). */
+  glyph?: string;
+}
+
 /** A small square tappable icon (e.g. pause). (x, y) = centre. */
-export function iconButton(scene: Phaser.Scene, x: number, y: number, icon: string, onClick: () => void, size = 22, depth?: number): Phaser.GameObjects.Container {
+export function iconButton(
+  scene: Phaser.Scene, x: number, y: number, icon: string, onClick: () => void, size = 22, depth?: number, opts: IconButtonOpts = {},
+): Phaser.GameObjects.Container {
   const c = scene.add.container(Math.round(x), Math.round(y));
   if (depth !== undefined) c.setDepth(depth);
   const half = Math.round(size / 2);
@@ -1067,9 +1123,12 @@ export function iconButton(scene: Phaser.Scene, x: number, y: number, icon: stri
   pressed?.setPosition(-half, -half).setVisible(false);
   if (normal) c.add(normal);
   if (pressed) c.add(pressed);
-  const glyph: Glyph = scene.textures.exists(icon)
+  const hover = scene.add.image(-half, -half, outlineTex(scene, size, size)).setOrigin(0).setTint(COLORS.teal)
+    .setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+  c.add(hover);
+  const glyph: Glyph = icon && scene.textures.exists(icon)
     ? scene.add.image(0, 0, icon)
-    : text(scene, 0, 0, '?', { size: 's', originX: 0.5, originY: 0.5 });
+    : text(scene, 0, 0, opts.glyph ?? '?', { size: opts.glyph ? 'm' : 's', color: COLORS.teal, originX: 0.5, originY: 0.5 });
   c.add(glyph);
   let down = false;
   const setDown = (d: boolean) => {
@@ -1078,46 +1137,77 @@ export function iconButton(scene: Phaser.Scene, x: number, y: number, icon: stri
     pressed?.setVisible(d);
     glyph.setY(d ? 1 : 0);
   };
-  const zone = scene.add.zone(-half, -half, size, size).setOrigin(0).setInteractive({ useHandCursor: true });
+  const hw = Math.max(size, Math.round(opts.hitW ?? size));
+  const hh = Math.max(size, Math.round(opts.hitH ?? size));
+  const zone = scene.add.zone(-Math.round(hw / 2), -Math.round(hh / 2), hw, hh).setOrigin(0).setInteractive({ useHandCursor: true });
   zone.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
     ev.stopPropagation();
+    if (isLeaving(scene)) return;
     audio.unlock();
     setDown(true);
   });
-  zone.on('pointerout', () => setDown(false));
+  zone.on('pointerover', (p: Phaser.Input.Pointer) => { if (!p.wasTouch) hover.setAlpha(0.8); });
+  zone.on('pointerout', () => { setDown(false); hover.setAlpha(0); });
   zone.on('pointerup', () => {
     const wasDown = down;
     setDown(false);
-    if (wasDown) onClick();
+    if (wasDown && !isLeaving(scene)) onClick();
   });
   c.add(zone);
   c.setSize(size, size);
   return c;
 }
 
-export interface StatusBarApi { setText(t: string): void; readonly object: Phaser.GameObjects.Container }
+export interface StatusBarApi {
+  setText(t: string): void;
+  readonly object: Phaser.GameObjects.Container;
+  /** (added) Replace the dim right-hand text (e.g. the version on the title screen). */
+  setRight?(t: string): void;
+}
+
+/** (added) Optional settings of statusBar. */
+export interface StatusBarOpts {
+  /** Short dim text right-aligned in the bar. */
+  right?: string;
+  /** Upper-case the help text (default true: every menu shows its help the same way). */
+  upper?: boolean;
+  depth?: number;
+}
+
+/** Height in px of the bottom status bar (content of a menu screen ends above it). */
+export const STATUS_H = 16;
 
 /** Bottom help line across the screen (contextual help for the focused entry). */
-export function statusBar(scene: Phaser.Scene, initial = ''): StatusBarApi {
+export function statusBar(scene: Phaser.Scene, initial = '', opts: StatusBarOpts = {}): StatusBarApi {
   const { width, height } = scene.scale.gameSize;
-  const h = 16;
-  const c = scene.add.container(0, height - h).setDepth(DEPTH.overlay - 1);
-  c.add(panel(scene, 2, 0, width - 4, h - 1, 'inset'));
-  const led = scene.add.rectangle(8, Math.round(h / 2) - 1, 2, 2, COLORS.teal).setOrigin(0);
+  const h = STATUS_H;
+  const upper = opts.upper !== false;
+  const norm = (s: string) => (upper ? s.toUpperCase() : s);
+  const c = scene.add.container(0, height - h).setDepth(opts.depth ?? DEPTH.overlay - 1);
+  c.add(panel(scene, 4, 0, width - 8, h - 1, 'inset'));
+  const led = scene.add.rectangle(10, Math.round(h / 2) - 1, 2, 2, COLORS.teal).setOrigin(0);
   c.add(led);
   scene.tweens.add({ targets: led, alpha: 0.25, duration: 520, yoyo: true, repeat: -1, ease: 'Stepped' });
-  const maxW = width - 24;
-  const t = text(scene, 14, Math.round(h / 2), fit(initial, maxW, 's'), { size: 's', color: COLORS.teal, originY: 0.5 });
+  const right = text(scene, width - 10, Math.round(h / 2), opts.right ?? '', { size: 's', color: COLORS.textDim, originX: 1, originY: 0.5 });
+  c.add(right);
+  const maxW = () => width - 16 - 10 - (right.text ? right.width + 8 : 0);
+  let current = norm(initial);
+  const t = text(scene, 16, Math.round(h / 2), fit(current, maxW(), 's'), { size: 's', color: COLORS.teal, originY: 0.5 });
   c.add(t);
-  let current = initial;
   return {
-    setText: (s: string) => {
+    setText: (raw: string) => {
+      const s = norm(raw);
       if (s === current) return;
       current = s;
-      t.setText(fit(s, maxW, 's'));
+      t.setText(fit(s, maxW(), 's'));
       scene.tweens.killTweensOf(t);
       t.setAlpha(0.35);
-      scene.tweens.add({ targets: t, alpha: 1, duration: 140 });
+      t.x = 13;
+      scene.tweens.add({ targets: t, alpha: 1, x: 16, duration: 150, ease: 'Quad.easeOut' });
+    },
+    setRight: (s: string) => {
+      right.setText(s);
+      t.setText(fit(current, maxW(), 's'));
     },
     object: c,
   };

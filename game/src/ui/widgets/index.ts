@@ -4,7 +4,11 @@ export { Toggle, type ToggleOpts } from './Toggle';
 export { Typewriter, type TypewriterOpts } from './Typewriter';
 export { Tally, type TallyOpts } from './Tally';
 export { ScrollMenu, type ScrollMenuOpts } from './ScrollMenu';
-export { header, neonRule, badge, scanlines, burst, ringPulse, vignette, creditsTag, type HeaderOpts } from './decor';
+export { neonRule, sectionLabel, cornerBrackets, badge, scanlines, burst, ringPulse, vignette } from './decor';
+export {
+  LAYOUT, MD, CreditsReadout, backdropTexture, bottomButton, bottomButtonY, contentRect, screenBackdrop, screenHeader,
+  type Rect, type ScreenHeaderApi, type ScreenHeaderOpts,
+} from './screen';
 export { cachedTexture, fmtInt, fmtTime, isShown, cssColor } from './util';
 export { Sequence, type SequenceStep } from './Sequence';
 export {

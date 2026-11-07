@@ -24,7 +24,15 @@ const K_SHIELD = 2;
 const K_POWER = 3;
 const K_INTEL = 4;
 
-class Pickup {
+/** Read-only view of a live pickup (autopilot). kind 0 = credit gem, else a drop. */
+export interface PickupView {
+  readonly x: number;
+  readonly y: number;
+  readonly kind: number;
+  readonly magnet: boolean;
+}
+
+class Pickup implements PickupView {
   active = false;
   kind = K_CREDIT;
   value = 0;
@@ -69,6 +77,11 @@ export class Pickups {
 
   get count(): number {
     return this.live.length;
+  }
+
+  /** Live pickups (read-only view; order changes when pickups are collected). */
+  get liveView(): readonly PickupView[] {
+    return this.live;
   }
 
   private take(): Pickup | null {
@@ -211,6 +224,7 @@ export class Pickups {
   private collect(p: Pickup): void {
     const w = this.w;
     const fx = w.fx;
+    w.metrics.pickups++;
     switch (p.kind) {
       case K_CREDIT:
         w.stats.credits += p.value;

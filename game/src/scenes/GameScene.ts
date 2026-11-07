@@ -37,6 +37,7 @@ import { Ship } from '../game/ship';
 import { Collisions } from '../game/collisions';
 import { Director } from '../game/director';
 import { LevelFlow, type FlowHost } from '../game/flow';
+import { BOT_FLAGS, Bot, publishRun } from '../game/bot';
 
 /** Largest simulation sub-step (ms): keeps fast shots from tunnelling at low fps / DEBUG.speed. */
 const MAX_STEP_MS = 25;
@@ -71,6 +72,8 @@ export class GameScene extends Phaser.Scene implements FlowHost {
   private bossDef: BossDef | null = null;
   private loadout!: Loadout;
   private fpsText: Phaser.GameObjects.BitmapText | null = null;
+  /** Autopilot (?bot=1), null otherwise. */
+  private bot: Bot | null = null;
 
   private speed = 1;
   private hitStopMs = 0;
@@ -154,7 +157,11 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       shipY: () => this.ship.y,
       canFire: () => this.ship.canFire && !w.ended,
       trySpendEnergy: (amount) => {
-        if (this.ship.energy.trySpend(amount)) return true;
+        if (this.ship.energy.trySpend(amount)) {
+          w.metrics.volleys++;
+          return true;
+        }
+        w.metrics.starved++;
         this.energyEmpty();
         return false;
       },
@@ -166,6 +173,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       shots: DEPTH.playerShots, sidekicks: DEPTH.player, shadows: w.shadows ? DEPTH.shadows : -1,
     });
 
+    this.bot = BOT_FLAGS.enabled ? new Bot(w) : null;
     this.collisions = new Collisions(w);
     this.director = new Director(w, level, startT, (id) => this.enemyDef(id));
     this.bossDef = level.boss ? safe<BossDef | null>(() => getBoss(level.boss!), null) : null;
@@ -221,6 +229,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.running = false;
     this.fpsText = null;
     this.bossDef = null;
+    this.bot = null;
   }
 
   private resolveLevel(id: string | undefined): LevelDef | null {
@@ -351,6 +360,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.hud.showBanner('WARNING', def.name.toUpperCase(), 2800);
     this.sfx('boss_alarm');
     audio.music('boss');
+    w.metrics.bossStartT = w.time;
     w.boss.start(def);
   }
 
@@ -372,7 +382,12 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.w.ended = true;
     const result: LevelResult & { aborted?: boolean } = this.result(completed);
     if (aborted) result.aborted = true;
-    setHookState({ done: true, completed });
+    const st = this.hookState();
+    st.done = true;
+    st.completed = completed;
+    st.aborted = aborted;
+    setHookState(st);
+    publishRun(st);
     this.scene.start(completed ? SCENES.LevelEnd : SCENES.GameOver, result);
   }
 
@@ -415,6 +430,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       scale = 0;
     }
     const dtMs = real * scale;
+    if (this.bot) this.bot.drive(c, dtMs / 1000);
     if (dtMs > 0) {
       const w = this.w;
       this.ship.update(dtMs / 1000, this.ship.controllable ? c : this.idleControls);
@@ -429,7 +445,9 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.hookT -= real;
     if (this.hookT <= 0) {
       this.hookT = 250;
-      setHookState(this.hookState());
+      const st = this.hookState();
+      setHookState(st);
+      publishRun(st);
     }
     if (this.fpsText) {
       this.fpsT -= real;
@@ -445,7 +463,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     const w = this.w;
     const dt = ms / 1000;
     w.time += dt;
-    if (this.ship.alive) this.ship.energy.update(dt);
+    if (this.ship.alive) this.ship.updateEnergy(dt);
     if (this.flow.spawning) this.director.update();
     this.arsenal.update(ms, firing);
     w.enemies.update(dt);
@@ -486,6 +504,9 @@ export class GameScene extends Phaser.Scene implements FlowHost {
 
   private hookState(): Record<string, unknown> {
     const w = this.w;
+    const m = w?.metrics;
+    const since = (t0: number, t1: number): number | null => (t0 >= 0 && t1 >= 0 ? Math.round((t1 - t0) * 100) / 100 : null);
+    const r1 = (v: number): number => Math.round(v * 10) / 10;
     return {
       levelId: this.level?.id,
       levelTime: w ? Math.round(w.time * 100) / 100 : 0,
@@ -501,6 +522,26 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       kills: w ? w.stats.kills : 0,
       fps: Math.round(this.game.loop.actualFps),
       done: this.finished,
+      bot: !!this.bot,
+      spawned: w ? w.stats.spawned : 0,
+      killRatio: w && w.stats.spawned > 0 ? Math.round((w.stats.kills / w.stats.spawned) * 1000) / 1000 : 0,
+      creditsEarned: w ? Math.round(w.stats.credits) : 0,
+      damageTaken: m ? r1(m.damageTaken) : 0,
+      armorDamage: m ? r1(m.armorDamage) : 0,
+      hitsTaken: m ? m.hitsTaken : 0,
+      wouldDie: m ? m.wouldDie : 0,
+      firstDeathT: m && m.firstDeathT >= 0 ? r1(m.firstDeathT) : null,
+      bossTime: m ? since(m.bossStartT, w.time) : null,
+      bossKillTime: m ? since(m.bossStartT, m.bossKillT) : null,
+      midbossKillTime: m ? since(m.midbossStartT, m.midbossKillT) : null,
+      midbossEscaped: m ? m.midbossEscaped : false,
+      volleys: m ? m.volleys : 0,
+      starved: m ? m.starved : 0,
+      shotHits: m ? m.shotHits : 0,
+      damageDealt: m ? Math.round(m.damageDealt) : 0,
+      pickups: m ? m.pickups : 0,
+      shipArmor: this.ship ? r1(this.ship.energy.armor) : 0,
+      shipShield: this.ship ? r1(this.ship.energy.shield) : 0,
     };
   }
 

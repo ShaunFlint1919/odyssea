@@ -13,7 +13,7 @@ import type { Loadout } from '../../types';
 import * as kit from '../kit';
 import { META, bayBackdrop, ensureMetaArt, shieldArcKey, shieldArcOriginY } from './art';
 import { catalogMax, findHull, findShield, findSidekick, shotGlow, upper } from './common';
-import { cornerBrackets, scanlines } from './chrome';
+import { cornerBrackets, scanlines } from '../widgets/decor';
 
 export interface ShipBayOpts {
   x: number;
@@ -188,7 +188,7 @@ export class ShipBay {
     c.add(beam);
     this.tweens.push(scene.tweens.add({ targets: beam, y: iy + ih, duration: 2600, repeat: -1, repeatDelay: 1800, ease: 'Sine.In' }));
 
-    c.add(scanlines(scene, ix, iy, iw, ih, 0, 0.6));
+    c.add(scanlines(scene, ix, iy, iw, ih, 0.6, 0));
     c.add(cornerBrackets(scene, ix + 1, iy + 1, iw - 2, ih - 2, COLORS.teal, 6, 0));
 
     this.setLoadout(loadout);

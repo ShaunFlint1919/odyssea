@@ -21,7 +21,6 @@ export const META = {
   icEmpty: 'meta_ic_empty',
   icLock: 'meta_ic_lock',
   tick: 'meta_tick',
-  scan: 'meta_scan',
   arc: 'meta_arc',
   glow: 'meta_glow',
   ring: 'meta_ring',
@@ -237,7 +236,6 @@ export function ensureMetaArt(scene: Phaser.Scene): void {
   for (const [key, map] of Object.entries(ICONS)) {
     if (!scene.textures.exists(key)) addTexture(scene, key, mapToCanvas(map, C));
   }
-  if (!scene.textures.exists(META.scan)) addTexture(scene, META.scan, scanlineTile());
   if (!scene.textures.exists(META.arc)) addTexture(scene, META.arc, shieldArc(54, 54));
   if (!scene.textures.exists(META.glow)) addTexture(scene, META.glow, softGlow(32));
   if (!scene.textures.exists(META.ring)) addTexture(scene, META.ring, ringTexture(32, 2));
@@ -266,16 +264,6 @@ export const shieldArcOriginY = (r: number): number => {
 export const iconOr = (scene: Phaser.Scene, key: string, fallback: string): string => (scene.textures.exists(key) ? key : fallback);
 
 // ------------------------------------------------------------------------- small textures
-
-/** 1x3 CRT scanline tile (every third row darkened). */
-function scanlineTile(): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(1, 3);
-  ctx.fillStyle = 'rgba(0,0,0,0.32)';
-  ctx.fillRect(0, 2, 1, 1);
-  ctx.fillStyle = 'rgba(255,255,255,0.025)';
-  ctx.fillRect(0, 0, 1, 1);
-  return canvas;
-}
 
 /** Soft white radial glow (smooth falloff, for ADD blending). */
 function softGlow(size: number): HTMLCanvasElement {
@@ -471,28 +459,6 @@ export function bayBackdrop(scene: Phaser.Scene, w: number, h: number): string {
       c = lerp3(c, [2, 1, 6], Math.min(0.7, v * 0.9));
       const i = (y * w + x) * 4;
       d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  addTexture(scene, key, canvas);
-  return key;
-}
-
-/** Full-screen menu backdrop: indigo gradient + faint diagonal plating. Cached per size. */
-export function menuBackdrop(scene: Phaser.Scene, w: number, h: number): string {
-  const key = `meta_bg_${w}x${h}`;
-  if (scene.textures.exists(key)) return key;
-  const { canvas, ctx } = makeCanvas(w, h);
-  const img = ctx.createImageData(w, h);
-  const top = hex('#100d20'), mid = hex('#08070f'), bot = hex('#0c0a18');
-  for (let y = 0; y < h; y++) {
-    const t = y / (h - 1);
-    for (let x = 0; x < w; x++) {
-      const tt = t + (bayer(x, y) - 0.5) * 0.05;
-      let c = tt < 0.55 ? lerp3(top, mid, tt / 0.55) : lerp3(mid, bot, (tt - 0.55) / 0.45);
-      if ((x + y * 2) % 48 === 0) c = lerp3(c, [40, 36, 70], 0.18);
-      const i = (y * w + x) * 4;
-      img.data[i] = c[0]; img.data[i + 1] = c[1]; img.data[i + 2] = c[2]; img.data[i + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);

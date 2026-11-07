@@ -3,8 +3,8 @@
 // craters and embedded metal structures (plates, girders, lights).
 import { fbm, hash2, valueNoise } from './noise';
 import {
-  CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, pack, scratch, scratchU8, sites,
-  Site, Voronoi, ensureSite,
+  CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, pack, sites,
+  Site, Voronoi, ensureSite, list, once, range, type Step,
 } from './b_ter_core';
 
 const NEB_V = rampN(8, 0x040309, 0x08060f, 0x0d0918, 0x130c22, 0x1a102c, 0x221436, 0x2b1840, 0x351d4a);
@@ -23,11 +23,17 @@ function radii(st: Site): [number, number] {
   return [56 + st.h3 * 50, 42 + st.h4 * 40];
 }
 
-/** Nebula void: dithered clouds (teal / violet / red by a slow hue field) with soft dust lanes. */
-function paintVoid(c: Chunk, cls: Uint8Array, NEB: Float32Array, HUE: Float32Array, LANE: Float32Array,
-  MID: Float32Array, DET: Float32Array): void {
+/** Per-chunk state shared by the space steps. */
+interface Ctx {
+  c: Chunk; NEB: Float32Array; HUE: Float32Array; LANE: Float32Array; MID: Float32Array; DET: Float32Array;
+  G: Float32Array; cls: Uint8Array; sites: Site[]; plats: Plat[];
+}
+
+/** Nebula void, rows [r0, r1): dithered clouds (teal / violet / red by a slow hue field), soft dust lanes. */
+function voidRows(k: Ctx, r0: number, r1: number): void {
+  const { c, NEB, HUE, LANE, MID, DET, cls } = k;
   const W = c.w, M = c.M, S = c.S, px = c.px;
-  for (let r = 0; r < CH; r++) {
+  for (let r = r0; r < r1; r++) {
     const wy = c.wy0 - r;
     let i = (r + M) * S + M, o = r * W;
     for (let x = 0; x < W; x++, i++, o++) {
@@ -66,53 +72,62 @@ function paintStars(c: Chunk): void {
   }
 }
 
-/** Paints one space chunk. */
-export function paintSpace(c: Chunk): void {
-  const s = c.seed, W = c.w;
-  const NEB = field(c, 8, (x, y) => fbm(x / 150, y / 210, s + 1, 3) + 0.25 * (valueNoise(x / 520, y / 700, s + 2) - 0.5), 0);
-  const HUE = lattice(c, 96, s + 3, 0, 1.6);
-  const LANE = lattice(c, 36, s + 7, 0, 1.6);
-  const MID = lattice(c, 12, s + 4, 12);
-  const DET = lattice(c, 4, s + 5, 12);
-  const G = grain(c, s + 6, 0);
-  const plats = sites(c, 640, 1001, 0.55, 130, 80);
-  ensureSite(c, plats);
-  const cls = scratchU8(W * CH);
-  paintVoid(c, cls, NEB, HUE, LANE, MID, DET);
-  paintStars(c);
-  for (let k = 0; k < plats.length; k++) paintPlatform(c, cls, plats[k], MID, DET, G);
-  placeSpaceDoodads(c, cls, plats);
+/** One asteroid platform prepared for row-sliced painting (shape buffer, craters, metal parts). */
+class Plat {
+  readonly ax: number; readonly ay: number;
+  readonly xa: number; readonly xb: number; readonly ra: number; readonly rb: number;
+  readonly V: Float32Array; readonly vor: Voronoi; readonly id: number;
+  readonly mw: number; readonly mh: number; readonly mx0: number; readonly mr0: number;
+  readonly gy: number; readonly gLen: number; readonly gDir: number; readonly padX: number; readonly padR: number;
+
+  constructor(c: Chunk, readonly st: Site) {
+    const s = c.seed;
+    const [ax, ay] = radii(st);
+    this.ax = ax; this.ay = ay;
+    // shape buffer bounds (+7 px for the up-left shadow lookups, +1 px for slopes)
+    this.xa = Math.max(-7, Math.floor(st.wx - ax * 1.45)) | 0;
+    this.xb = Math.min(c.w + 1, Math.ceil(st.wx + ax * 1.45)) | 0;
+    this.ra = Math.max(-7, Math.floor(st.r - ay * 1.45)) | 0;
+    this.rb = Math.min(CH + 1, Math.ceil(st.r + ay * 1.45)) | 0;
+    this.V = c.f32(c.N);
+    this.vor = new Voronoi(c, 26, s + 41 + Math.floor(st.wy), 0.85, 8);
+    const id = Math.floor(st.wy);
+    this.id = id;
+    this.mw = 30 + Math.floor(st.h1 * 24);
+    this.mh = 18 + Math.floor(st.h2 * 14);
+    this.mx0 = Math.round(st.wx - this.mw / 2 + (hash2(id, 1, s) - 0.5) * 30) | 0;
+    this.mr0 = Math.round(st.r - this.mh / 2 + (hash2(id, 2, s) - 0.5) * 20) | 0;
+    this.gy = this.mr0 + Math.floor(this.mh / 2) - 1;
+    this.gLen = 34 + Math.floor(hash2(id, 3, s) * 30);
+    this.gDir = hash2(id, 4, s) < 0.5 ? -1 : 1;
+    this.padX = this.mx0 + (this.gDir > 0 ? -16 : this.mw + 16);
+    this.padR = this.mr0 + this.mh + 10;
+  }
 }
 
-/** One rocky asteroid platform: shaded rock, ridges, craters, lit rim, metal deck + girder + pad. */
-function paintPlatform(c: Chunk, cls: Uint8Array, st: Site, MID: Float32Array, DET: Float32Array, G: Float32Array): void {
-  const W = c.w, M = c.M, S = c.S, px = c.px, s = c.seed;
-  const [ax, ay] = radii(st);
-  // shape buffer over the bounding box (+7 px for neighbour / shadow lookups)
-  const xa = Math.max(-7, Math.floor(st.wx - ax * 1.45)) | 0, xb = Math.min(W + 1, Math.ceil(st.wx + ax * 1.45)) | 0;
-  const ra = Math.max(-7, Math.floor(st.r - ay * 1.45)) | 0, rb = Math.min(CH + 1, Math.ceil(st.r + ay * 1.45)) | 0;
-  if (xa > xb || ra > rb || rb < 0 || ra >= CH) return;
-  const V = scratch(c.N);
-  for (let r = ra; r <= rb; r++) {
-    const dy = (r - st.r) / ay;
-    let i = (r + M) * S + xa + M;
-    for (let x = xa; x <= xb; x++, i++) {
-      const dx = (x - st.wx) / ax;
+/** Platform shape values for chunk rows [r0, r1) (rows may start at -7). */
+function shapeRows(k: Ctx, p: Plat, r0: number, r1: number): void {
+  const { c, MID, DET } = k;
+  const M = c.M, S = c.S, V = p.V, st = p.st;
+  for (let r = Math.max(r0, p.ra); r <= Math.min(r1 - 1, p.rb + 1); r++) {
+    const dy = (r - st.r) / p.ay;
+    let i = (r + M) * S + p.xa + M;
+    for (let x = p.xa; x <= p.xb + 1; x++, i++) {
+      const dx = (x - st.wx) / p.ax;
       V[i] = 1 - Math.sqrt(dx * dx + dy * dy) + (MID[i] - 0.5) * 0.75 + (DET[i] - 0.5) * 0.16;
     }
   }
-  const vor = new Voronoi(c, 26, s + 41 + Math.floor(st.wy), 0.85, 8);
-  const id = Math.floor(st.wy);
-  const mw = 30 + Math.floor(st.h1 * 24), mh = 18 + Math.floor(st.h2 * 14);
-  const mx0 = Math.round(st.wx - mw / 2 + (hash2(id, 1, s) - 0.5) * 30) | 0;
-  const mr0 = Math.round(st.r - mh / 2 + (hash2(id, 2, s) - 0.5) * 20) | 0;
-  const gy = mr0 + Math.floor(mh / 2) - 1, gLen = 34 + Math.floor(hash2(id, 3, s) * 30);
-  const gDir = hash2(id, 4, s) < 0.5 ? -1 : 1;
-  const padX = mx0 + (gDir > 0 ? -16 : mw + 16), padR = mr0 + mh + 10, padRad = 9;
-  const stx = st.wx, str = st.r;
-  for (let r = Math.max(0, ra + 7); r <= Math.min(CH - 1, rb); r++) {
+}
+
+/** Platform pixels for rows [r0, r1): shaded rock, ridges, craters, lit rim, deck, girder, pad, shadows. */
+function platRows(k: Ctx, p: Plat, r0: number, r1: number): void {
+  const { c, cls, MID, DET, G } = k;
+  const W = c.w, M = c.M, S = c.S, px = c.px, s = c.seed;
+  const { V, vor, id, mw, mh, mx0, mr0, gy, gLen, gDir, padX, padR } = p;
+  const padRad = 9;
+  for (let r = Math.max(r0, p.ra + 7); r <= Math.min(r1 - 1, p.rb); r++) {
     const wy = c.wy0 - r;
-    for (let x = Math.max(0, xa + 7); x <= Math.min(W - 1, xb); x++) {
+    for (let x = Math.max(0, p.xa + 7); x <= Math.min(W - 1, p.xb); x++) {
       const i = (r + M) * S + x + M, o = r * W + x;
       const v = V[i];
       if (v <= 0) {
@@ -172,6 +187,33 @@ function paintPlatform(c: Chunk, cls: Uint8Array, st: Site, MID: Float32Array, D
       px[o] = col;
     }
   }
+}
+
+/** Space chunk plan: nebula fields, void, stars, asteroid platforms, doodads. */
+export function planSpace(c: Chunk): Step[] {
+  const s = c.seed, W = c.w;
+  let NEB!: Float32Array, HUE!: Float32Array, LANE!: Float32Array, MID!: Float32Array;
+  let k!: Ctx;
+  return [
+    once(() => { NEB = field(c, 8, (x, y) => fbm(x / 150, y / 210, s + 1, 3) + 0.25 * (valueNoise(x / 520, y / 700, s + 2) - 0.5), 0); }),
+    once(() => { HUE = lattice(c, 96, s + 3, 0, 1.6); LANE = lattice(c, 36, s + 7, 0, 1.6); }),
+    once(() => { MID = lattice(c, 12, s + 4, 12); }),
+    once(() => {
+      const DET = lattice(c, 4, s + 5, 12);
+      const plats = sites(c, 640, 1001, 0.55, 130, 80);
+      ensureSite(c, plats);
+      k = { c, NEB, HUE, LANE, MID, DET, G: grain(c, s + 6, 0), cls: c.u8(W * CH), sites: plats, plats: list<Plat>() };
+      for (let q = 0; q < plats.length; q++) {
+        const p = new Plat(c, plats[q]);
+        if (p.xa <= p.xb && p.ra <= p.rb && p.rb >= 0 && p.ra < CH) k.plats.push(p);
+      }
+    }),
+    range(CH, 4, (a, b) => voidRows(k, a, b)),
+    once(() => paintStars(c)),
+    range(CH + 9, 16, (a, b) => { for (let q = 0; q < k.plats.length; q++) shapeRows(k, k.plats[q], a - 7, b - 7); }),
+    range(CH, 4, (a, b) => { for (let q = 0; q < k.plats.length; q++) platRows(k, k.plats[q], a, b); }),
+    once(() => placeSpaceDoodads(c, k.cls, k.sites)),
+  ];
 }
 
 /** Beacons and debris on platforms, satellites and drifting debris in the void. */

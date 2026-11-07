@@ -34,6 +34,39 @@ export interface LevelStats {
   intelFound: string[];
 }
 
+/**
+ * Balance / automation metrics of one run (exposed through window.__NC__.state by GameScene,
+ * see the header of src/game/bot.ts). Times are world-clock seconds (World.time), -1 = never.
+ * Damage counters are RAW (before the shield) and are also counted in god mode, where a
+ * shadow shield/armor model replays what would have happened (incl. the post-hit invulnerability).
+ */
+export class RunMetrics {
+  /** Raw damage of every hit that reached the ship (bullets, laser ticks, rams, boss contact). */
+  damageTaken = 0;
+  /** Part of damageTaken that went through to the armor (would have, in god mode). */
+  armorDamage = 0;
+  /** Number of hits (a laser counts once per 0.1 s tick). */
+  hitsTaken = 0;
+  /** God mode only: times the ship would have been destroyed (the shadow model then refills). */
+  wouldDie = 0;
+  /** World time of the first (would-be) death, -1 = none. */
+  firstDeathT = -1;
+  /** Weapon volleys that drew energy, and volleys skipped for lack of energy. */
+  volleys = 0;
+  starved = 0;
+  /** Player projectile hits on enemies / boss / missiles, and the damage they dealt. */
+  shotHits = 0;
+  damageDealt = 0;
+  /** Pickups collected (gems + drops). */
+  pickups = 0;
+  bossStartT = -1;
+  bossKillT = -1;
+  midbossStartT = -1;
+  midbossKillT = -1;
+  /** The mid-boss left the screen alive. */
+  midbossEscaped = false;
+}
+
 /** Feedback services implemented by GameScene (audio, haptics, HUD, camera). */
 export interface WorldServices {
   sfx(key: SfxKey): void;
@@ -63,6 +96,7 @@ export class World {
   /** Air units cast ground shadows (false in space: there is no ground). */
   readonly shadows: boolean;
   readonly stats: LevelStats = { kills: 0, spawned: 0, score: 0, credits: 0, intelFound: [] };
+  readonly metrics = new RunMetrics();
 
   ship!: Ship;
   fx!: Fx;

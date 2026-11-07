@@ -98,7 +98,10 @@ export class Collisions {
     }
   }
 
-  private hitFeedback(x: number, y: number): void {
+  private hitFeedback(x: number, y: number, damage: number): void {
+    const m = this.w.metrics;
+    m.shotHits++;
+    m.damageDealt += damage;
     this.w.fx.hit(x, y, 0xfff0a0);
     if (this.hitSfxT <= 0) {
       this.w.services.sfx('hit');
@@ -118,12 +121,12 @@ export class Collisions {
         if (s.pierce) {
           if (!s.registerHit(-1 - tgt)) {
             boss.damageAt(tgt, s.damage, x, y);
-            this.hitFeedback(x, y);
+            this.hitFeedback(x, y, s.damage);
           }
         } else {
           boss.damageAt(tgt, s.damage, x, y);
           if (s.splash > 0) this.splash(x, y, s.splash, s.damage);
-          this.hitFeedback(x, y);
+          this.hitFeedback(x, y, s.damage);
           s.impact(x, y);
           return;
         }
@@ -145,12 +148,12 @@ export class Collisions {
       if (s.pierce) {
         if (s.registerHit(e.serial)) continue;
         w.enemies.damage(e, s.damage);
-        this.hitFeedback(x, y);
+        this.hitFeedback(x, y, s.damage);
         continue;
       }
       w.enemies.damage(e, s.damage);
       if (s.splash > 0) this.splash(x, y, s.splash, s.damage);
-      this.hitFeedback(x, y);
+      this.hitFeedback(x, y, s.damage);
       s.impact(x, y);
       return;
     }

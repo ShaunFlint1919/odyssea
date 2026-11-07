@@ -1,7 +1,9 @@
 // OCEAN terrain painter: deep blue water banded by depth with dashed wave crests, archipelagos
 // with turquoise shallows, two foam lines, wet/dry sandy beaches, vegetated and rocky interiors.
 import { fbm, valueNoise } from './noise';
-import { CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, scratchU8 } from './b_ter_core';
+import {
+  CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, once, range, type Step,
+} from './b_ter_core';
 
 const WATER = rampN(12, 0x07112a, 0x0a1834, 0x0d203f, 0x10284a, 0x133154, 0x163b5d, 0x194764, 0x1d546a, 0x22636f,
   0x297274, 0x318076, 0x3a8c78);
@@ -11,25 +13,30 @@ const ROCK = rampN(7, 0x1c1a19, 0x2a2724, 0x3a3530, 0x4a443c, 0x5c5449, 0x6e6556
 const FOAM = rampN(4, 0x5c8c9c, 0x7aa6b4, 0x9cbfca, 0xbcd4dc);
 
 const LAND = 0.6;
+// sin() lookup (256 steps per turn) for the wave crests
+const SIN = new Float32Array(256).map((_, k) => Math.sin((k / 256) * Math.PI * 2));
+const SIN_K = 256 / (Math.PI * 2);
 const K_DEEP = 0, K_MID = 1, K_SHALLOW = 2, K_BEACH = 3, K_LAND = 4;
 
-/** Paints one ocean chunk. */
-export function paintOcean(c: Chunk): void {
-  const s = c.seed, W = c.w, M = c.M, S = c.S;
-  // islands: 3-octave fbm, density modulated by a very slow wave (open sea <-> archipelago)
-  const I = field(c, 8, (x, y) => fbm(x / 120, y / 130, s + 1, 3) + 0.2 * (valueNoise(x / 600, y / 900, s + 2) - 0.5), 4);
-  const DET = lattice(c, 4, s + 5, 4);
-  const MID = lattice(c, 12, s + 6, 4);
-  const WAV = lattice(c, 28, s + 7, 0);
-  const G = grain(c, s + 9, 0);
-  // rough coastline (in place, margin included for the shadow lookups)
-  for (let rr = c.M - 4; rr < CH + c.M + 4; rr++) {
+/** Per-chunk state shared by the ocean steps. */
+interface Ctx { c: Chunk; I: Float32Array; DET: Float32Array; MID: Float32Array; WAV: Float32Array; G: Float32Array; cls: Uint8Array }
+
+/** Rough coastline: perturbs the island field in place for margin-layout rows M-4+[a, b). */
+function roughCoast(k: Ctx, a: number, b: number): void {
+  const { c, I, DET, MID } = k;
+  const W = c.w, M = c.M, S = c.S;
+  for (let rr = M - 4 + a; rr < M - 4 + b; rr++) {
     let i = rr * S + M - 4;
     for (let xx = -4; xx < W + 4; xx++, i++) I[i] += (DET[i] - 0.5) * 0.028 + (MID[i] - 0.5) * 0.05;
   }
-  const px = c.px, cls = scratchU8(W * CH);
+}
+
+/** Main pass, rows [r0, r1): depth-banded water, crests, shallows, foam, beaches, islands. */
+function paintRows(k: Ctx, r0: number, r1: number): void {
+  const { c, I, DET, MID, WAV, G, cls } = k;
+  const W = c.w, M = c.M, S = c.S, px = c.px;
   const sh = 3 * S + 3;
-  for (let r = 0; r < CH; r++) {
+  for (let r = r0; r < r1; r++) {
     const wy = c.wy0 - r;
     let i = (r + M) * S + M, o = r * W;
     for (let x = 0; x < W; x++, i++, o++) {
@@ -41,7 +48,7 @@ export function paintOcean(c: Chunk): void {
         let t = 1 - (depth > 1 ? 1 : depth);
         t = t * t * 0.92 + 0.04 + (WAV[i] - 0.5) * 0.12;    // depth bands + slow swell
         // wavy dashed crests with a dark trough line below them
-        const ph = (wy + 3.2 * Math.sin(x * 0.11 + WAV[i] * 6.3) + WAV[i] * 14) / 7.5;
+        const ph = (wy + 3.2 * SIN[((x * 0.11 + WAV[i] * 6.3) * SIN_K) & 255] + WAV[i] * 14) / 7.5;
         const f = ph - Math.floor(ph);
         if (f < 0.12 && DET[i] > 0.52) t += depth > 0.5 ? 0.2 : 0.11;
         else if (f >= 0.12 && f < 0.24 && DET[i] > 0.52) t -= 0.06;
@@ -92,7 +99,23 @@ export function paintOcean(c: Chunk): void {
       px[o] = col;
     }
   }
-  placeOceanDoodads(c, cls);
+}
+
+/** Ocean chunk plan: island / detail / swell fields, coastline roughness, main pass, doodads. */
+export function planOcean(c: Chunk): Step[] {
+  const s = c.seed, W = c.w;
+  let I!: Float32Array, DET!: Float32Array, MID!: Float32Array;
+  let k!: Ctx;
+  return [
+    // islands: 3-octave fbm, density modulated by a very slow wave (open sea <-> archipelago)
+    once(() => { I = field(c, 8, (x, y) => fbm(x / 120, y / 130, s + 1, 3) + 0.2 * (valueNoise(x / 600, y / 900, s + 2) - 0.5), 4); }),
+    once(() => { DET = lattice(c, 4, s + 5, 4); }),
+    once(() => { MID = lattice(c, 12, s + 6, 4); }),
+    once(() => { k = { c, I, DET, MID, WAV: lattice(c, 28, s + 7, 0), G: grain(c, s + 9, 0), cls: c.u8(W * CH) }; }),
+    range(CH + 8, 16, (a, b) => roughCoast(k, a, b)),
+    range(CH, 4, (a, b) => paintRows(k, a, b)),
+    once(() => placeOceanDoodads(c, k.cls)),
+  ];
 }
 
 /** Islets and wrecks in open water, reefs in the shallows, buoys near the coasts. */

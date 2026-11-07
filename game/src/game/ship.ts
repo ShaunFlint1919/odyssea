@@ -61,10 +61,14 @@ export class Ship {
   private deathT = -1;
   private deathStep = 0;
   private smokeT = 0;
+  /** God mode: shadow shield/armor model fed by the hits (RunMetrics) + its invulnerability timer. */
+  private readonly godModel: EnergyModel | null;
+  private godInvuln = 0;
 
   constructor(private readonly w: World, readonly hull: HullDef, shield: ShieldDef, gen: GeneratorDef) {
     const scene = w.scene;
     this.energy = new EnergyModel(hull, shield, gen);
+    this.godModel = w.god ? new EnergyModel(hull, shield, gen) : null;
     this.hitRadius = Math.max(2, hull.hitRadius);
     const key = texOr(scene, hullKey(hull.id), 'ship');
     this.frames = frameCount(scene, key);
@@ -133,13 +137,34 @@ export class Ship {
   hit(amount: number, hx: number, hy: number): void {
     if (!this.hittable || amount <= 0) return;
     const w = this.w;
+    const m = w.metrics;
     if (w.god) {
+      // god mode: no damage, but replay the hit on the shadow model for the metrics
+      if (this.godInvuln > 0) return;
+      const g = this.godModel!;
+      g.damage(amount);
+      m.damageTaken += amount;
+      m.hitsTaken++;
+      m.armorDamage += g.lastArmorDamage;
+      if (g.lastArmorDamage > 0) {
+        this.godInvuln = INVULN_AFTER_HIT;
+        if (g.dead) {
+          m.wouldDie++;
+          if (m.firstDeathT < 0) m.firstDeathT = w.time;
+          g.repair(g.armorMax);
+          g.refillShield();
+        }
+      }
       this.shieldFlash();
       return;
     }
     const e = this.energy;
     const shieldBefore = e.shield;
     e.damage(amount);
+    m.damageTaken += amount;
+    m.hitsTaken++;
+    m.armorDamage += e.lastArmorDamage;
+    if (e.dead && m.firstDeathT < 0) m.firstDeathT = w.time;
     if (e.lastShieldDamage > 0) {
       this.shieldFlash();
       w.services.hudFlash('shield');
@@ -157,6 +182,18 @@ export class Ship {
       w.services.haptic('medium');
       w.services.shake(0.005, 160);
       if (e.dead) this.die();
+    }
+  }
+
+  /** Generator output + shield regeneration for one simulation step (and the god-mode shadow model). */
+  updateEnergy(dt: number): void {
+    this.energy.update(dt);
+    const g = this.godModel;
+    if (g) {
+      // weapons draw from the real cell; the shadow shield regenerates from what is left there
+      g.energy = this.energy.energy;
+      g.update(dt);
+      if (this.godInvuln > 0) this.godInvuln -= dt;
     }
   }
 

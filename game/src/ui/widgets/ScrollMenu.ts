@@ -9,7 +9,7 @@
 import Phaser from 'phaser';
 import { COLORS } from '../../config';
 import { audio } from '../../audio';
-import { MenuList, modalLevel, type FontSize, type MenuItem } from '../kit';
+import { MenuList, modalLevel, type FontSize, type MenuItem, type TapMode } from '../kit';
 import { isShown } from './util';
 
 export interface ScrollMenuOpts {
@@ -23,6 +23,7 @@ export interface ScrollMenuOpts {
   startIndex?: number;
   depth?: number;
   keyboard?: boolean;       // default true
+  tapMode?: TapMode;        // default 'select' (see MenuListOpts.tapMode)
   onSelect: (index: number, item: MenuItem) => void;
   onFocus?: (index: number, item: MenuItem) => void;
   onDisabled?: (index: number, item: MenuItem) => void;
@@ -69,7 +70,7 @@ export class ScrollMenu {
     this.syncing = true;
     this.list = new MenuList(scene, {
       x: 0, y: 0, width: needsBar ? width - 8 : width, items: this.windowItems(), rowHeight: this.rowH, size,
-      startIndex: this.idx - this.top, keyboard: false,
+      startIndex: this.idx - this.top, keyboard: false, tapMode: opts.tapMode,
       onSelect: (i) => this.opts.onSelect(this.top + i, this.items[this.top + i]),
       onFocus: (i) => {
         if (this.syncing) return;

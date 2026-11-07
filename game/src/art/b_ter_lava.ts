@@ -3,8 +3,8 @@
 // floating dark crust, a red glow on nearby rock, and drifts of grey ash.
 import { valueNoise } from './noise';
 import {
-  CH, Chunk, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, scratch, scratchU8, sites, Site, Voronoi,
-  Meander, mixPacked, pack, ensureSite,
+  CH, Chunk, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, sites, Site, Voronoi,
+  Meander, mixPacked, pack, ensureSite, once, range, type Step,
 } from './b_ter_core';
 
 const BASALT = rampN(7, 0x0b080a, 0x130e11, 0x1b1418, 0x241b1f, 0x2e2327, 0x392b2f, 0x463438);
@@ -18,37 +18,48 @@ const FLOWR = rampN(7, 0x0a080b, 0x120f14, 0x1b171e, 0x252029, 0x302935, 0x3c344
 const FLOW_T = 0.66;
 const K_ROCK = 0, K_LAVA = 1, K_ASH = 2, K_EDGE = 3;
 
-/** Paints one lava chunk. */
-export function paintLava(c: Chunk): void {
-  const s = c.seed, W = c.w;
-  const HEAT = lattice(c, 40, s + 3, 2, 1.6);
-  const ASHF = lattice(c, 52, s + 4, 0, 1.6);
-  const DET = lattice(c, 4, s + 7, 2);
-  const MID = lattice(c, 12, s + 8, 9);
-  const FLOW = lattice(c, 72, s + 10, 3, 1.7);
-  const G = grain(c, s + 9, 1);
-  const flow = new Meander(W, s + 20, {
-    amp: W * 0.3, wave: 260, wave2: 70, amp2: 14, width: 17, widthVar: 6, widthWave: 150,
-    gateWave: 900, gateLo: 0.38, gateHi: 0.46,
-  }, valueNoise);
-  const river = flow.rows(c);
-  const pools = sites(c, 430, 1201, 0.6, 60, 40);
-  ensureSite(c, pools);
-  // lava distance field (<0 inside lava, px)
-  const L = scratch(c.N);
-  lavaField(c, L, river.xc, river.hw, river.slope, pools, MID, DET);
-  const cls = scratchU8(W * CH);
-  const vor = new Voronoi(c, 29, s + 31, 0.9, 12);
-  paintRock(c, cls, vor, L, HEAT, ASHF, FLOW, DET, MID, G);
-  paintFlow(c, cls, L, MID, DET, G);
-  placeLavaDoodads(c, cls, HEAT, ASHF);
+/** Per-chunk state shared by the lava steps. */
+interface Ctx {
+  c: Chunk; HEAT: Float32Array; ASHF: Float32Array; DET: Float32Array; MID: Float32Array; FLOW: Float32Array;
+  G: Float32Array; L: Float32Array; cls: Uint8Array; vor: Voronoi; xc: Float32Array; hw: Float32Array;
+  sl: Float32Array; pools: Site[];
 }
 
-/** Signed distance-ish field to lava (river + pools), negative inside, over the chunk +2 px. */
-function lavaField(c: Chunk, L: Float32Array, xcA: Float32Array, hwA: Float32Array, slA: Float32Array,
-  pools: Site[], MID: Float32Array, DET: Float32Array): void {
+/** Lava chunk plan: fields, lava distance field, basalt / flows, lava river and pools, doodads. */
+export function planLava(c: Chunk): Step[] {
+  const s = c.seed, W = c.w;
+  let HEAT!: Float32Array, ASHF!: Float32Array, DET!: Float32Array, MID!: Float32Array;
+  let k!: Ctx;
+  return [
+    once(() => { HEAT = lattice(c, 40, s + 3, 2, 1.6); ASHF = lattice(c, 52, s + 4, 0, 1.6); }),
+    once(() => { DET = lattice(c, 4, s + 7, 2); }),
+    once(() => { MID = lattice(c, 12, s + 8, 9); }),
+    once(() => {
+      const FLOW = lattice(c, 72, s + 10, 3, 1.7);
+      const flow = new Meander(W, s + 20, {
+        amp: W * 0.3, wave: 260, wave2: 70, amp2: 14, width: 17, widthVar: 6, widthWave: 150,
+        gateWave: 900, gateLo: 0.38, gateHi: 0.46,
+      }, valueNoise);
+      const river = flow.rows(c);
+      const pools = sites(c, 430, 1201, 0.6, 60, 40);
+      ensureSite(c, pools);
+      k = {
+        c, HEAT, ASHF, DET, MID, FLOW, G: grain(c, s + 9, 1), L: c.f32(c.N), cls: c.u8(W * CH),
+        vor: new Voronoi(c, 29, s + 31, 0.9, 12), xc: river.xc, hw: river.hw, sl: river.slope, pools,
+      };
+    }),
+    range(CH + 4, 16, (a, b) => lavaRows(k, a - 2, b - 2)),
+    range(CH, 4, (a, b) => rockRows(k, a, b)),
+    range(CH, 8, (a, b) => flowRows(k, a, b)),
+    once(() => placeLavaDoodads(c, k.cls, k.HEAT, k.ASHF)),
+  ];
+}
+
+/** Signed distance-ish field to lava (river + pools), negative inside, rows [r0, r1) (from -2), +2 px wide. */
+function lavaRows(k: Ctx, r0: number, r1: number): void {
+  const { c, L, xc: xcA, hw: hwA, sl: slA, pools, MID, DET } = k;
   const W = c.w, M = c.M, S = c.S;
-  for (let r = -2; r < CH + 2; r++) {
+  for (let r = r0; r < r1; r++) {
     const rr = r + M, hw = hwA[rr], xc = xcA[rr], k = 1 / Math.sqrt(1 + slA[rr] * slA[rr]);
     let i = rr * S + M - 2;
     for (let x = -2; x < W + 2; x++, i++) {
@@ -66,12 +77,12 @@ function lavaField(c: Chunk, L: Float32Array, xcA: Float32Array, hwA: Float32Arr
   }
 }
 
-/** Basalt plates with bevels, cracks (glowing where hot), ash drifts and lava-side glow. */
-function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEAT: Float32Array, ASHF: Float32Array,
-  FLOW: Float32Array, DET: Float32Array, MID: Float32Array, G: Float32Array): void {
+/** Rows [r0, r1): basalt plates with bevels, cracks (glowing where hot), ropy flows, ash, lava-side glow. */
+function rockRows(k: Ctx, r0: number, r1: number): void {
+  const { c, cls, vor, L, HEAT, ASHF, FLOW, DET, MID, G } = k;
   const W = c.w, M = c.M, S = c.S, px = c.px;
   const wo = 7 * S + 7;                                             // second warp channel = MID shifted
-  for (let r = 0; r < CH; r++) {
+  for (let r = r0; r < r1; r++) {
     const wy = c.wy0 - r;
     let i = (r + M) * S + M, o = r * W;
     for (let x = 0; x < W; x++, i++, o++) {
@@ -136,10 +147,11 @@ function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEA
   }
 }
 
-/** Lava river / pools: hot gradient toward the core, slow flow streaks, floating crust plates. */
-function paintFlow(c: Chunk, cls: Uint8Array, L: Float32Array, MID: Float32Array, DET: Float32Array, G: Float32Array): void {
+/** Rows [r0, r1) of the lava river / pools: hot gradient, flow streaks, floating crust rafts. */
+function flowRows(k: Ctx, r0: number, r1: number): void {
+  const { c, cls, L, MID, DET, G } = k;
   const W = c.w, M = c.M, S = c.S, px = c.px;
-  for (let r = 0; r < CH; r++) {
+  for (let r = r0; r < r1; r++) {
     const wy = c.wy0 - r;
     let i = (r + M) * S + M, o = r * W;
     for (let x = 0; x < W; x++, i++, o++) {

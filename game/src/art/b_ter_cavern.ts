@@ -4,8 +4,8 @@
 // egg-pod biomass.
 import { fbm, hash2, valueNoise } from './noise';
 import {
-  CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, scratch, scratchU8, sites, Site,
-  Voronoi, mixPacked, ensureSite,
+  CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, sites, Site,
+  Voronoi, mixPacked, ensureSite, once, range, type Step,
 } from './b_ter_core';
 
 const WALL = rampN(8, 0x150f0e, 0x221814, 0x30221b, 0x3e2c22, 0x4e382a, 0x5e4533, 0x6e533d, 0x806248);
@@ -26,32 +26,49 @@ function wallDepth(wy: number, w: number, seed: number): number {
   return w * (base + (pinch > 0.62 ? (pinch - 0.62) * 0.5 : 0));
 }
 
-/** Paints one cavern chunk. */
-export function paintCavern(c: Chunk): void {
-  const s = c.seed, W = c.w;
-  const ROUGH = lattice(c, 14, s + 3);
-  const DET = lattice(c, 4, s + 4);
-  const PIL = field(c, 8, (x, y) => fbm(x / 70, y / 80, s + 5, 3) + 0.3 * (valueNoise(x / 400, y / 500, s + 6) - 0.5));
-  const MID = lattice(c, 9, s + 7, 1);
-  const BIG = lattice(c, 40, s + 12, 1, 1.5);
-  const G = grain(c, s + 9, 1);
-  const crystals = sites(c, 300, 901, 0.75, 60, 40);
-  const nests = sites(c, 420, 951, 0.6, 70, 50);
-  ensureSite(c, crystals);
-  ensureSite(c, nests);
-  const R = scratch(c.N);
-  rockField(c, R, ROUGH, DET, PIL);
-  const cls = scratchU8(W * CH);
-  paintMain(c, cls, R, ROUGH, DET, MID, BIG, G);
-  for (let k = 0; k < crystals.length; k++) paintGlow(c, cls, crystals[k], DET, G);
-  for (let k = 0; k < nests.length; k++) paintNest(c, cls, nests[k], DET, MID, G);
-  placeCavernDoodads(c, cls, crystals, nests);
+/** Per-chunk state shared by the cavern steps. */
+interface Ctx {
+  c: Chunk; R: Float32Array; ROUGH: Float32Array; DET: Float32Array; PIL: Float32Array; MID: Float32Array;
+  BIG: Float32Array; G: Float32Array; cls: Uint8Array; since: Int16Array; vor: Voronoi; crystals: Site[]; nests: Site[];
 }
 
-/** Solid rock field (>0 = raised rock) over the margin layout: side walls + rare pillars. */
-function rockField(c: Chunk, R: Float32Array, ROUGH: Float32Array, DET: Float32Array, PIL: Float32Array): void {
-  const W = c.w, M = c.M, S = c.S, rows = CH + 2 * M, s = c.seed;
-  for (let rr = 0; rr < rows; rr++) {
+/** Cavern chunk plan: fields, rock field, main pass, crystal glows, nests, doodads. */
+export function planCavern(c: Chunk): Step[] {
+  const s = c.seed, W = c.w, rows = CH + 2 * c.M;
+  let ROUGH!: Float32Array, DET!: Float32Array, PIL!: Float32Array;
+  let k!: Ctx;
+  return [
+    once(() => { ROUGH = lattice(c, 14, s + 3); }),
+    once(() => { DET = lattice(c, 4, s + 4); }),
+    once(() => { PIL = field(c, 8, (x, y) => fbm(x / 70, y / 80, s + 5, 3) + 0.3 * (valueNoise(x / 400, y / 500, s + 6) - 0.5)); }),
+    once(() => {
+      const MID = lattice(c, 9, s + 7, 1);
+      const BIG = lattice(c, 40, s + 12, 1, 1.5);
+      const crystals = sites(c, 300, 901, 0.75, 60, 40);
+      const nests = sites(c, 420, 951, 0.6, 70, 50);
+      ensureSite(c, crystals);
+      ensureSite(c, nests);
+      k = {
+        c, R: c.f32(c.N), ROUGH, DET, PIL, MID, BIG, G: grain(c, s + 9, 1), cls: c.u8(W * CH),
+        since: new Int16Array(W), vor: new Voronoi(c, 23, s + 31, 0.9, 4), crystals, nests,
+      };
+    }),
+    range(rows, 16, (a, b) => rockRows(k, a, b)),
+    once(() => seedSince(k)),
+    range(CH, 4, (a, b) => paintRows(k, a, b)),
+    range(CH, 16, (a, b) => {
+      for (let q = 0; q < k.crystals.length; q++) paintGlow(k, k.crystals[q], a, b);
+      for (let q = 0; q < k.nests.length; q++) paintNest(k, k.nests[q], a, b);
+    }),
+    once(() => placeCavernDoodads(c, k.cls, k.crystals, k.nests)),
+  ];
+}
+
+/** Solid rock field (>0 = raised rock) for margin rows [a, b): side walls + rare pillars. */
+function rockRows(k: Ctx, a: number, b: number): void {
+  const { c, R, ROUGH, DET, PIL } = k;
+  const W = c.w, M = c.M, S = c.S, s = c.seed;
+  for (let rr = a; rr < b; rr++) {
     const wy = c.wy0 - (rr - M);
     const L = wallDepth(wy, W, s + 11), Rr = W - wallDepth(wy, W, s + 23);
     let i = rr * S;
@@ -65,18 +82,23 @@ function rockField(c: Chunk, R: Float32Array, ROUGH: Float32Array, DET: Float32A
   }
 }
 
-/** Main pass: boulder walls (lit rims), south faces, floor with dust, rubble, cracks, puddles. */
-function paintMain(c: Chunk, cls: Uint8Array, R: Float32Array, ROUGH: Float32Array, DET: Float32Array,
-  MID: Float32Array, BIG: Float32Array, G: Float32Array): void {
-  const W = c.w, M = c.M, S = c.S, px = c.px, s = c.seed;
-  const since = new Int16Array(W).fill(99);
+/** Seeds the cliff-face counters through the top margin. */
+function seedSince(k: Ctx): void {
+  const { c, R, since } = k;
+  const W = c.w, M = c.M, S = c.S;
+  since.fill(99);
   for (let rr = 0; rr < M; rr++) {
     const o = rr * S + M;
     for (let x = 0; x < W; x++) since[x] = R[o + x] > 0 ? 0 : since[x] < 99 ? since[x] + 1 : 99;
   }
+}
+
+/** Main pass, rows [r0, r1) in order: boulder walls, south faces, floor with dust, rubble, puddles. */
+function paintRows(k: Ctx, r0: number, r1: number): void {
+  const { c, cls, R, ROUGH, DET, MID, BIG, G, since, vor } = k;
+  const W = c.w, M = c.M, S = c.S, px = c.px;
   const sh = SHADOW * S + SHADOW, sh2 = 4 * S + 4;
-  const vor = new Voronoi(c, 23, s + 31, 0.9, 4);
-  for (let r = 0; r < CH; r++) {
+  for (let r = r0; r < r1; r++) {
     const wy = c.wy0 - r;
     let i = (r + M) * S + M, o = r * W;
     for (let x = 0; x < W; x++, i++, o++) {
@@ -136,11 +158,12 @@ function paintMain(c: Chunk, cls: Uint8Array, R: Float32Array, ROUGH: Float32Arr
   }
 }
 
-/** Crystal patch: dithered cyan or violet glow on the floor around a crystal cluster. */
-function paintGlow(c: Chunk, cls: Uint8Array, st: Site, DET: Float32Array, G: Float32Array): void {
+/** Crystal patch, rows [r0, r1): dithered cyan or violet glow on the floor around a crystal cluster. */
+function paintGlow(k: Ctx, st: Site, r0: number, r1: number): void {
+  const { c, cls, DET, G } = k;
   const W = c.w, M = c.M, S = c.S, px = c.px;
   const R = 26 + st.h3 * 14, ramp = st.h4 < 0.55 ? GLOW_C : GLOW_V;
-  for (let r = Math.max(0, Math.floor(st.r - R)); r <= Math.min(CH - 1, Math.ceil(st.r + R)); r++) {
+  for (let r = Math.max(r0, Math.floor(st.r - R)); r <= Math.min(r1 - 1, Math.ceil(st.r + R)); r++) {
     const wy = c.wy0 - r;
     for (let x = Math.max(0, Math.floor(st.wx - R)); x <= Math.min(W - 1, Math.ceil(st.wx + R)); x++) {
       const o = r * W + x;
@@ -158,11 +181,12 @@ function paintGlow(c: Chunk, cls: Uint8Array, st: Site, DET: Float32Array, G: Fl
   }
 }
 
-/** Organic nest: fleshy membrane with veins and glossy blisters (egg pods sit on top). */
-function paintNest(c: Chunk, cls: Uint8Array, st: Site, DET: Float32Array, MID: Float32Array, G: Float32Array): void {
+/** Organic nest, rows [r0, r1): fleshy membrane with veins and glossy blisters (egg pods on top). */
+function paintNest(k: Ctx, st: Site, r0: number, r1: number): void {
+  const { c, cls, DET, MID, G } = k;
   const W = c.w, M = c.M, S = c.S, px = c.px;
   const R = 26 + st.h3 * 14;
-  for (let r = Math.max(0, Math.floor(st.r - R)); r <= Math.min(CH - 1, Math.ceil(st.r + R)); r++) {
+  for (let r = Math.max(r0, Math.floor(st.r - R)); r <= Math.min(r1 - 1, Math.ceil(st.r + R)); r++) {
     const wy = c.wy0 - r;
     for (let x = Math.max(0, Math.floor(st.wx - R)); x <= Math.min(W - 1, Math.ceil(st.wx + R)); x++) {
       const o = r * W + x;

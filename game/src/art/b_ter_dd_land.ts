@@ -324,8 +324,8 @@ function islet(): Spr {
 }
 
 function wreck(): Spr {
-  const s = new Spr(50, 24);
-  const hull = [3, 12, 9, 5, 36, 4, 46, 12, 36, 19, 9, 19];
+  const s = new Spr(48, 24);
+  const hull = [2, 12, 8, 5, 35, 4, 45, 12, 35, 19, 8, 19];
   s.poly(hull, (x, y) => {
     const ny = (y - 12) / 7.5;
     let t = 0.5 - ny * 0.3 + (hash2(x, y, 121) - 0.5) * 0.18;
@@ -333,7 +333,7 @@ function wreck(): Spr {
     return pick(RUST, t, x, y);
   });
   // hull rim: lit north edge, dark south edge
-  for (let x = 9; x <= 36; x++) { s.set(x, 5, RUST[6]); s.set(x, 18, RUST[0]); }
+  for (let x = 8; x <= 35; x++) { s.set(x, 5, RUST[6]); s.set(x, 18, RUST[0]); }
   // cabin
   for (let y = 8; y <= 15; y++) for (let x = 26; x <= 33; x++) s.set(x, y, pick(RUST, x === 26 || y === 8 ? 0.95 : x === 33 || y === 15 ? 0.15 : 0.6, x, y));
   s.rect(28, 10, 4, 3, 0x1a2a30);
@@ -349,7 +349,7 @@ function wreck(): Spr {
     }
   }
   s.outline(0x0a0606, 200);
-  for (let k = 0; k < 14; k++) s.under(2 + hash2(k, 1, 122) * 46, 2 + hash2(k, 2, 122) * 20, 0xb8d0d8, 110);
+  for (let k = 0; k < 14; k++) s.under(1 + hash2(k, 1, 122) * 46, 2 + hash2(k, 2, 122) * 20, 0xb8d0d8, 110);
   s.shadow(1, 2, 0.22);
   return s;
 }

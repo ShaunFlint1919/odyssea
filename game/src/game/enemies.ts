@@ -264,7 +264,10 @@ export class Enemies {
     e.img.rotation = e.rot;
     this.list.push(e);
     w.stats.spawned++;
-    if (e.isMidboss) this.midboss = e;
+    if (e.isMidboss) {
+      this.midboss = e;
+      w.metrics.midbossStartT = w.time;
+    }
     return e;
   }
 
@@ -311,7 +314,10 @@ export class Enemies {
       this.list.pop();
     }
     (e.shadow ? this.airFree : this.groundFree).push(e);
-    if (this.midboss === e) this.midboss = null;
+    if (this.midboss === e) {
+      this.midboss = null;
+      if (this.w.metrics.midbossKillT < 0) this.w.metrics.midbossEscaped = true;
+    }
   }
 
   /** True if the enemy can be hit by player shots (visible on screen). */
@@ -374,6 +380,7 @@ export class Enemies {
     }
     if (byPlayer) {
       w.stats.kills++;
+      if (e.isMidboss) w.metrics.midbossKillT = w.time;
       w.stats.score += def.score;
       if (size === 'l' || def.score >= 500) fx.text(e.x, e.y - e.radius, `${def.score}`, COLORS.gold, 1000);
       w.pickups.spawnCredits(e.x, e.y, def.credits * w.diff.credits, size === 'l' ? 90 : size === 'm' ? 70 : 45);

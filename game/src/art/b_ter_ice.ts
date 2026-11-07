@@ -3,8 +3,8 @@
 // snow caps, south faces and bluish cast shadows, and thin crevasses.
 import { fbm, valueNoise } from './noise';
 import {
-  CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, scratchU8, sites, Site, Meander,
-  ensureSite,
+  CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, sites, Site, Meander,
+  ensureSite, once, range, type Step,
 } from './b_ter_core';
 
 // Snow is the brightest biome surface: kept mid-high value and low saturation so bullets pop.
@@ -17,45 +17,71 @@ const FACE = rampN(5, 0x0c0d13, 0x13141c, 0x1b1c26, 0x242530, 0x2e2f3b);
 const K_SNOW = 0, K_ICE = 1, K_LAKE = 2, K_ROCK = 3, K_FACE = 4, K_CRACK = 5;
 const RT = 0.67, IT = 0.63, FACE_H = 5, SHADOW = 7;
 
-/** Paints one ice chunk. */
-export function paintIce(c: Chunk): void {
-  const s = c.seed, W = c.w;
-  const N = field(c, 8, (x, y) => fbm(x / 120, y / 90, s + 1, 2), 1);
-  const P = field(c, 8, (x, y) => fbm(x / 150, y / 140, s + 2, 2) + 0.16 * (valueNoise(x / 600, y / 700, s + 9) - 0.5), 3);
-  const R = field(c, 8, (x, y) => fbm(x / 70, y / 80, s + 3, 3) + 0.2 * (valueNoise(x / 500, y / 600, s + 4) - 0.5));
-  const MID = lattice(c, 10, s + 5);
-  const DET = lattice(c, 4, s + 6);
-  const G = grain(c, s + 7, 1);
-  const lakes = sites(c, 520, 1401, 0.55, 100, 70);
-  ensureSite(c, lakes);
-  const crev = new Meander(W, s + 30, {
-    amp: W * 0.34, wave: 300, wave2: 60, amp2: 10, width: 2.4, widthVar: 1.2, widthWave: 90,
-    gateWave: 500, gateLo: 0.62, gateHi: 0.66,
-  }, valueNoise);
-  const cr = crev.rows(c);
-  const cls = scratchU8(W * CH);
-  // rough rock field (margin included for faces / shadows)
-  const M = c.M, S = c.S, rows = CH + 2 * M;
-  for (let rr = 0; rr < rows; rr++) {
+/** Per-chunk state shared by the ice steps. */
+interface Ctx {
+  c: Chunk; N: Float32Array; P: Float32Array; R: Float32Array; MID: Float32Array; DET: Float32Array; G: Float32Array;
+  cls: Uint8Array; since: Int16Array; xc: Float32Array; hw: Float32Array; sl: Float32Array; lakes: Site[];
+}
+
+/** Ice chunk plan: fields, rough rock field, ground pass, frozen lakes, doodads. */
+export function planIce(c: Chunk): Step[] {
+  const s = c.seed, W = c.w, rows = CH + 2 * c.M;
+  let N!: Float32Array, P!: Float32Array, R!: Float32Array, MID!: Float32Array;
+  let k!: Ctx;
+  return [
+    once(() => { N = field(c, 8, (x, y) => fbm(x / 120, y / 90, s + 1, 2), 1); }),
+    once(() => { P = field(c, 8, (x, y) => fbm(x / 150, y / 140, s + 2, 2) + 0.16 * (valueNoise(x / 600, y / 700, s + 9) - 0.5), 3); }),
+    once(() => { R = field(c, 8, (x, y) => fbm(x / 70, y / 80, s + 3, 3) + 0.2 * (valueNoise(x / 500, y / 600, s + 4) - 0.5)); }),
+    once(() => { MID = lattice(c, 10, s + 5); }),
+    once(() => {
+      const DET = lattice(c, 4, s + 6);
+      const lakes = sites(c, 520, 1401, 0.55, 100, 70);
+      ensureSite(c, lakes);
+      const crev = new Meander(W, s + 30, {
+        amp: W * 0.34, wave: 300, wave2: 60, amp2: 10, width: 2.4, widthVar: 1.2, widthWave: 90,
+        gateWave: 500, gateLo: 0.62, gateHi: 0.66,
+      }, valueNoise);
+      const cr = crev.rows(c);
+      k = {
+        c, N, P, R, MID, DET, G: grain(c, s + 7, 1), cls: c.u8(W * CH), since: new Int16Array(W),
+        xc: cr.xc, hw: cr.hw, sl: cr.slope, lakes,
+      };
+    }),
+    range(rows, 16, (a, b) => roughRows(k, a, b)),
+    once(() => seedSince(k)),
+    range(CH, 4, (a, b) => groundRows(k, a, b)),
+    range(CH, 16, (a, b) => { for (let q = 0; q < k.lakes.length; q++) lakeRows(k, k.lakes[q], a, b); }),
+    once(() => placeIceDoodads(c, k.cls, k.lakes)),
+  ];
+}
+
+/** Rough rock outcrop field for margin rows [a, b) (margin included for faces / shadows). */
+function roughRows(k: Ctx, a: number, b: number): void {
+  const { c, R, DET, MID } = k;
+  const S = c.S;
+  for (let rr = a; rr < b; rr++) {
     let i = rr * S;
     for (let xx = 0; xx < S; xx++, i++) R[i] += (DET[i] - 0.5) * 0.05 + (MID[i] - 0.5) * 0.05;
   }
-  paintGround(c, cls, N, P, R, MID, DET, G, cr.xc, cr.hw, cr.slope);
-  for (let k = 0; k < lakes.length; k++) paintLake(c, cls, lakes[k], MID, DET, G);
-  placeIceDoodads(c, cls, lakes);
 }
 
-/** Snow, ice sheets, rock outcrops (with faces and shadows) and crevasses. */
-function paintGround(c: Chunk, cls: Uint8Array, N: Float32Array, P: Float32Array, R: Float32Array, MID: Float32Array,
-  DET: Float32Array, G: Float32Array, xcA: Float32Array, hwA: Float32Array, slA: Float32Array): void {
-  const W = c.w, M = c.M, S = c.S, px = c.px;
-  const since = new Int16Array(W).fill(99);
+/** Seeds the rock-face counters through the top margin. */
+function seedSince(k: Ctx): void {
+  const { c, R, since } = k;
+  const W = c.w, M = c.M, S = c.S;
+  since.fill(99);
   for (let rr = 0; rr < M; rr++) {
     const o = rr * S + M;
     for (let x = 0; x < W; x++) since[x] = R[o + x] > RT ? 0 : since[x] < 99 ? since[x] + 1 : 99;
   }
+}
+
+/** Rows [r0, r1) in order: snow, ice sheets, rock outcrops (faces, shadows) and crevasses. */
+function groundRows(k: Ctx, r0: number, r1: number): void {
+  const { c, cls, N, P, R, MID, DET, G, since, xc: xcA, hw: hwA, sl: slA } = k;
+  const W = c.w, M = c.M, S = c.S, px = c.px;
   const sh = SHADOW * S + SHADOW, sh2 = 3 * S + 3;
-  for (let r = 0; r < CH; r++) {
+  for (let r = r0; r < r1; r++) {
     const rr = r + M, wy = c.wy0 - r;
     const xc = xcA[rr], hw = hwA[rr], kk = 1 / Math.sqrt(1 + slA[rr] * slA[rr]);
     let i = rr * S + M, o = r * W;
@@ -123,11 +149,12 @@ function paintGround(c: Chunk, cls: Uint8Array, N: Float32Array, P: Float32Array
   }
 }
 
-/** Frozen lake: dark smooth ice, concentric pressure cracks, reflections, snowy shore. */
-function paintLake(c: Chunk, cls: Uint8Array, st: Site, MID: Float32Array, DET: Float32Array, G: Float32Array): void {
+/** Frozen lake rows [r0, r1): dark smooth ice, concentric pressure cracks, reflections, snowy shore. */
+function lakeRows(k: Ctx, st: Site, r0: number, r1: number): void {
+  const { c, cls, MID, DET, G } = k;
   const W = c.w, M = c.M, S = c.S, px = c.px;
   const R = 38 + st.h3 * 26, ext = R * 1.3;
-  for (let r = Math.max(0, Math.floor(st.r - ext)); r <= Math.min(CH - 1, Math.ceil(st.r + ext)); r++) {
+  for (let r = Math.max(r0, Math.floor(st.r - ext)); r <= Math.min(r1 - 1, Math.ceil(st.r + ext)); r++) {
     const wy = c.wy0 - r;
     for (let x = Math.max(0, Math.floor(st.wx - ext)); x <= Math.min(W - 1, Math.ceil(st.wx + ext)); x++) {
       const o = r * W + x;

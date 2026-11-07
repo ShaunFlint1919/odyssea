@@ -45,7 +45,20 @@ const SPRITE_NAMES = Object.keys(ENEMY_BULLET_SPRITES);
 /** Flak shells are drawn this much larger than their fragments. */
 const FLAK_SHELL_SCALE = 1.35;
 
-class Laser {
+/** Read-only view of a telegraphed laser. state: 0 warning line, 1 firing, 2 fading out. */
+export interface LaserView {
+  readonly active: boolean;
+  readonly state: number;
+  /** Seconds spent in the current state, and the warning duration. */
+  readonly t: number;
+  readonly warn: number;
+  /** Beam column x, origin y (the beam goes down to the bottom of the screen) and full width (px). */
+  readonly x: number;
+  readonly y0: number;
+  readonly width: number;
+}
+
+class Laser implements LaserView {
   active = false;
   owner: LaserOwner | null = null;
   serial = 0;
@@ -69,9 +82,10 @@ export class EnemyBullets {
   private readonly scene: Phaser.Scene;
   readonly x = new Float32Array(MAX);
   readonly y = new Float32Array(MAX);
-  private readonly vx = new Float32Array(MAX);
-  private readonly vy = new Float32Array(MAX);
-  private readonly rad = new Float32Array(MAX);
+  readonly vx = new Float32Array(MAX);
+  readonly vy = new Float32Array(MAX);
+  /** Collision radius of each bullet (px). */
+  readonly rad = new Float32Array(MAX);
   private readonly dmg = new Float32Array(MAX);
   private readonly life = new Float32Array(MAX);
   private readonly hp = new Float32Array(MAX);
@@ -112,6 +126,16 @@ export class EnemyBullets {
   /** Number of live bullets (lasers excluded). */
   get count(): number {
     return this.actCount;
+  }
+
+  /** Index into x / y / vx / vy / rad of the k-th live bullet (0 <= k < count). */
+  activeAt(k: number): number {
+    return this.act[k];
+  }
+
+  /** The laser slots (read-only view for the autopilot; check `active`). */
+  get laserViews(): readonly LaserView[] {
+    return this.lasers;
   }
 
   /** Resolved texture key for a bullet sprite/colour (cached; falls back if the art is missing). */

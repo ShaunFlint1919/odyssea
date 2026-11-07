@@ -1,68 +1,13 @@
 // =====================================================================================
 //  META SCREENS — composite widgets built on the UI kit:
-//   - TapGuard: makes a MenuList "tap to focus, tap again to select" (shop safety) while
-//     keeping keyboard behaviour unchanged;
 //   - PowerRow: weapon power control (left/right arrows, MAX_POWER pip gauge, next cost);
 //   - compareGrid: N stat cells "LABEL / a > b +d" with green / red deltas.
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, MAX_POWER } from '../../config';
-import { audio } from '../../audio';
 import * as kit from '../kit';
 import { MD } from './chrome';
 import { dec, fmt } from './common';
-
-// ------------------------------------------------------------------------- tap guard
-
-/**
- * Interactive zones laid over the rows of a MenuList (which never scrolls). A tap / click on
- * an unfocused row only focuses it; a tap on the focused row selects it (no hover focus, so
- * a purchase always takes a deliberate second tap). Keyboard handling stays with the MenuList.
- */
-export class TapGuard {
-  private zones: Phaser.GameObjects.Zone[] = [];
-  private pressed = -1;
-  private wasFocused = false;
-  private on = true;
-
-  constructor(
-    scene: Phaser.Scene, private readonly list: kit.MenuList,
-    x: number, y: number, w: number, rowH: number, count: number, depth: number,
-  ) {
-    for (let i = 0; i < count; i++) {
-      const z = scene.add.zone(x, y + i * rowH, w, rowH).setOrigin(0).setDepth(depth).setInteractive({ useHandCursor: true });
-      z.on('pointerdown', () => {
-        if (!this.enabled()) return;
-        audio.unlock();
-        this.pressed = i;
-        this.wasFocused = this.list.index === i;
-        this.list.setIndex(i);
-      });
-      z.on('pointerup', () => {
-        if (!this.enabled() || this.pressed !== i) return;
-        this.pressed = -1;
-        if (this.wasFocused) this.list.select();
-      });
-      z.on('pointerout', () => { if (this.pressed === i) this.pressed = -1; });
-      this.zones.push(z);
-    }
-  }
-
-  private enabled(): boolean {
-    return this.on && this.list.container.active && this.list.container.visible;
-  }
-
-  /** Enable / disable the tap zones (mirror MenuList.setEnabled). */
-  setEnabled(on: boolean): void {
-    this.on = on;
-    if (!on) this.pressed = -1;
-  }
-
-  destroy(): void {
-    this.zones.forEach((z) => z.destroy());
-    this.zones = [];
-  }
-}
 
 // ------------------------------------------------------------------------- power row
 
@@ -99,9 +44,7 @@ export class PowerRow {
     const p = kit.panel(scene, x, y, w, h, 'inset').setDepth(MD.panel);
     const cy = Math.round(y + h / 2);
     const label = kit.text(scene, x + 8, cy, 'POWER', { size: 's', color: COLORS.accent, originY: 0.5, depth: d });
-    const arrowL = scene.textures.exists('ui_arrow_l') ? 'ui_arrow_l' : '';
-    const arrowR = scene.textures.exists('ui_arrow_r') ? 'ui_arrow_r' : '';
-    this.left = kit.iconButton(scene, x + 54, cy, arrowL, () => onChange(-1), 22, d);
+    this.left = kit.iconButton(scene, x + 54, cy, 'ui_arrow_l', () => onChange(-1), 22, d, { glyph: '<', hitW: 26, hitH: Math.max(22, h) });
     // pips: MAX_POWER cells between the arrows
     this.step = 10;
     this.pw = 8;
@@ -113,9 +56,7 @@ export class PowerRow {
     this.nextPip = scene.add.rectangle(0, this.py, this.pw, this.ph, COLORS.gold, 0.9).setOrigin(0).setDepth(d).setVisible(false);
     scene.tweens.add({ targets: this.nextPip, alpha: 0.15, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     this.flashG = scene.add.rectangle(this.px - 2, this.py - 2, gw + 4, this.ph + 4, COLORS.teal, 0).setOrigin(0).setDepth(d).setBlendMode(Phaser.BlendModes.ADD);
-    this.right = kit.iconButton(scene, this.px + gw + 15, cy, arrowR, () => onChange(1), 22, d);
-    if (!arrowL) this.left.add(kit.text(scene, 0, 0, '<', { size: 'm', color: COLORS.teal, originX: 0.5, originY: 0.5 }));
-    if (!arrowR) this.right.add(kit.text(scene, 0, 0, '>', { size: 'm', color: COLORS.teal, originX: 0.5, originY: 0.5 }));
+    this.right = kit.iconButton(scene, this.px + gw + 15, cy, 'ui_arrow_r', () => onChange(1), 22, d, { glyph: '>', hitW: 26, hitH: Math.max(22, h) });
     this.lvl = kit.text(scene, this.px + gw + 32, cy, 'P1', { size: 'm', color: COLORS.teal, originY: 0.5, depth: d });
     this.costLabel = kit.text(scene, x + w - 8, cy - 5, 'NEXT', { size: 's', color: COLORS.textDim, originX: 1, originY: 0.5, depth: d });
     this.cost = kit.text(scene, x + w - 8, cy + 5, '', { size: 's', color: COLORS.gold, originX: 1, originY: 0.5, depth: d });

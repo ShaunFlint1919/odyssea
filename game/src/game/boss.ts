@@ -403,8 +403,28 @@ export class Boss {
     return best <= maxDist * maxDist ? Math.sqrt(best) : Infinity;
   }
 
+  /**
+   * Point the player should aim at (autopilot): the pulsing weak-point core while it lives,
+   * else the body centre. false when the boss is not on screen.
+   */
+  aimPoint(out: { x: number; y: number }): boolean {
+    if (this.state !== 'fight' && this.state !== 'enter') return false;
+    out.x = this.x;
+    out.y = this.y;
+    for (let i = 0; i < this.parts.length; i++) {
+      const p = this.parts[i];
+      if (p.core && !p.dead) {
+        out.x = p.x;
+        out.y = p.y;
+        break;
+      }
+    }
+    return true;
+  }
+
   private startDeath(): void {
     const w = this.w;
+    w.metrics.bossKillT = w.time;
     this.state = 'dying';
     this.dieT = 0;
     this.dieNext = 0;

@@ -1,7 +1,8 @@
 // =====================================================================================
-//  DECOR — small visual building blocks shared by the menu scenes: screen headers, neon
-//  rules, NEW badges, scanline overlays, spark bursts, ring pulses and vignettes.
-//  Every texture is generated once (white, tinted at runtime) and cached for the session.
+//  DECOR — small visual building blocks shared by the menu scenes: neon rules, section
+//  labels, corner brackets, NEW badges, scanline overlays, spark bursts, ring pulses and
+//  vignettes. (The screen header lives in ./screen.ts.) Every texture is generated once
+//  (white, tinted at runtime) and cached for the session.
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS } from '../../config';
@@ -22,46 +23,6 @@ export function neonRule(scene: Phaser.Scene, cx: number, y: number, w: number, 
     }
   });
   return scene.add.image(Math.round(cx), Math.round(y), key).setOrigin(0.5, 0).setTint(color);
-}
-
-export interface HeaderOpts {
-  y?: number;            // top of the title (default 10)
-  sub?: string;          // small line under the rule
-  subColor?: number;     // default COLORS.teal
-  icon?: string;         // texture drawn left of the title
-  depth?: number;
-}
-
-/**
- * Screen header: big FONT.l title centred at the top, a magenta neon rule with end ticks and
- * an optional sub line. Returns the container; data 'bottom' = y below the header, data
- * 'subText' = the sub line BitmapText (when `sub` was given) for live updates.
- */
-export function header(scene: Phaser.Scene, title: string, opts: HeaderOpts = {}): Phaser.GameObjects.Container {
-  const { width } = scene.scale.gameSize;
-  const y = opts.y ?? 10;
-  const c = scene.add.container(0, 0);
-  if (opts.depth !== undefined) c.setDepth(opts.depth);
-  const tw = measure(scene, title, 'l');
-  const hasIcon = !!opts.icon && scene.textures.exists(opts.icon);
-  const total = tw + (hasIcon ? 20 : 0);
-  const left = Math.round((width - total) / 2);
-  if (hasIcon && opts.icon) c.add(scene.add.image(left, y + 8, opts.icon).setOrigin(0, 0.5));
-  c.add(text(scene, left + (hasIcon ? 20 : 0), y, title, { size: 'l' }));
-  const ruleW = Math.min(width - 24, Math.max(140, total + 64));
-  const ry = y + 20;
-  c.add(neonRule(scene, width / 2, ry, ruleW, COLORS.accent));
-  const tick = (x: number) => scene.add.rectangle(x, ry - 1, 2, 4, COLORS.accentLight).setOrigin(0.5, 0);
-  c.add([tick(Math.round(width / 2 - total / 2 - 12)), tick(Math.round(width / 2 + total / 2 + 12))]);
-  let bottom = ry + 3;
-  if (opts.sub !== undefined) {
-    const sub = text(scene, width / 2, ry + 6, opts.sub, { size: 's', color: opts.subColor ?? COLORS.teal, originX: 0.5 });
-    c.add(sub);
-    c.setData('subText', sub);
-    bottom = ry + 14;
-  }
-  c.setData('bottom', bottom);
-  return c;
 }
 
 /** Small pill badge (e.g. "NEW") with a white label; (x, y) = left / vertical centre. Pulses. */
@@ -86,22 +47,63 @@ export function badge(scene: Phaser.Scene, x: number, y: number, label: string, 
 }
 
 /**
- * CRT scanline overlay over a rectangle. Uses the art's 4x4 'ui_scanlines' tile (TileSprite)
- * when present, else a baked every-other-row texture. `alpha` = strength (0.15..0.25 typical).
+ * CRT scanline overlay over a rectangle: a TileSprite of the art's 4x4 'ui_scanlines' tile
+ * (or a baked 1x3 fallback tile). `alpha` = strength (0.3..0.6 typical), `depth` optional.
  */
 export function scanlines(
-  scene: Phaser.Scene, x: number, y: number, w: number, h: number, alpha = 0.22,
-): Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite {
-  const width = Math.max(1, Math.round(w));
-  const height = Math.max(1, Math.round(h));
-  if (scene.textures.exists('ui_scanlines')) {
-    return scene.add.tileSprite(Math.round(x), Math.round(y), width, height, 'ui_scanlines').setOrigin(0).setAlpha(Math.min(1, alpha * 3));
-  }
-  const key = cachedTexture(scene, `__w_scan_${width}x${height}`, width, height, (ctx) => {
-    ctx.fillStyle = '#000000';
-    for (let yy = 1; yy < height; yy += 2) ctx.fillRect(0, yy, width, 1);
+  scene: Phaser.Scene, x: number, y: number, w: number, h: number, alpha = 0.5, depth?: number,
+): Phaser.GameObjects.TileSprite {
+  const key = scene.textures.exists('ui_scanlines') ? 'ui_scanlines' : cachedTexture(scene, '__w_scan_tile', 1, 3, (ctx) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.fillRect(0, 2, 1, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.025)';
+    ctx.fillRect(0, 0, 1, 1);
   });
-  return scene.add.image(Math.round(x), Math.round(y), key).setOrigin(0).setAlpha(alpha);
+  const t = scene.add.tileSprite(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)), key).setOrigin(0).setAlpha(alpha);
+  if (depth !== undefined) t.setDepth(depth);
+  return t;
+}
+
+/**
+ * Section label: a small diamond marker + FONT.s caption and a thin rule running to `w`
+ * (with an end tick). (x, y) = top-left; the label is 8 px tall.
+ */
+export function sectionLabel(
+  scene: Phaser.Scene, x: number, y: number, label: string, w = 0, depth?: number, color: number = COLORS.accent,
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(Math.round(x), Math.round(y));
+  if (depth !== undefined) c.setDepth(depth);
+  const g = scene.add.graphics();
+  g.fillStyle(color, 1);
+  g.fillRect(1, 3, 3, 1); g.fillRect(2, 2, 1, 3);
+  c.add(g);
+  const t = text(scene, 7, 0, label, { size: 's', color });
+  c.add(t);
+  if (w > 0) {
+    const lx = 7 + t.width + 4;
+    if (w - lx > 4) {
+      g.fillStyle(color, 0.35);
+      g.fillRect(lx, 3, w - lx, 1);
+      g.fillStyle(color, 0.8);
+      g.fillRect(w - 2, 2, 2, 3);
+    }
+  }
+  return c;
+}
+
+/** Corner brackets (HUD framing) around a rectangle, drawn in one Graphics. */
+export function cornerBrackets(
+  scene: Phaser.Scene, x: number, y: number, w: number, h: number, color: number = COLORS.teal, len = 5, depth?: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+  if (depth !== undefined) g.setDepth(depth);
+  g.fillStyle(color, 0.9);
+  const r = (rx: number, ry: number, rw: number, rh: number) => g.fillRect(Math.round(rx), Math.round(ry), rw, rh);
+  r(x, y, len, 1); r(x, y, 1, len);
+  r(x + w - len, y, len, 1); r(x + w - 1, y, 1, len);
+  r(x, y + h - 1, len, 1); r(x, y + h - len, 1, len);
+  r(x + w - len, y + h - 1, len, 1); r(x + w - 1, y + h - len, 1, len);
+  return g;
 }
 
 /** Pixel sparks flying out from (x, y), then fading. Self-cleaning, no per-frame allocations. */
@@ -179,20 +181,4 @@ export function vignette(scene: Phaser.Scene, color = 0x000000, alpha = 0.85, de
   const v = scene.add.image(0, 0, key).setOrigin(0).setScale(width / w, height / h).setTint(color).setAlpha(alpha);
   if (depth !== undefined) v.setDepth(depth);
   return v;
-}
-
-/** Gold credits amount with the ui_icon_credits icon; (x, y) = left / vertical centre. */
-export function creditsTag(
-  scene: Phaser.Scene, x: number, y: number, label: string, opts: { size?: 's' | 'm'; color?: number; originX?: number } = {},
-): Phaser.GameObjects.Container {
-  const size = opts.size ?? 'm';
-  const c = scene.add.container(Math.round(x), Math.round(y));
-  const hasIcon = scene.textures.exists('ui_icon_credits');
-  const t = text(scene, hasIcon ? 13 : 0, 0, label, { size, color: opts.color ?? COLORS.gold, originY: 0.5 });
-  if (hasIcon) c.add(scene.add.image(0, 0, 'ui_icon_credits').setOrigin(0, 0.5));
-  c.add(t);
-  const w = (hasIcon ? 13 : 0) + t.width;
-  if (opts.originX) c.x = Math.round(x - w * opts.originX);
-  c.setSize(w, 10);
-  return c;
 }

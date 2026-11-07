@@ -1,28 +1,43 @@
 // =====================================================================================
 //  BALANCE MODEL — the numbers docs/BALANCE.md reasons with, as code so tests can hold the
-//  content to them: credit curve, reference player DPS per planet, level statistics
-//  (pacing, spawned hp, estimated credits). Pure functions, no Phaser.
+//  content to them: credit curve, level-clear bonus, hit factors, level statistics (pacing,
+//  spawned hp, estimated credits). Pure functions, no Phaser. The reference player that
+//  turns credits into a loadout and DPS lives in src/data/progression.ts.
 // =====================================================================================
 import type { BossDef, EnemyDef, LevelDef } from '../types';
 
 /** Share of spawned enemies the economy assumes a player destroys. */
 export const KILL_RATE = 0.7;
-/** Credits targeted for the first and the last campaign level (geometric in between). */
+/** Kill-credit targets of the first and the last campaign level (geometric in between). */
 export const CREDIT_CURVE = { first: 1500, last: 15000 };
 
-/** Target credits of the i-th campaign level (0-based, `n` levels in total). */
+/** Kill-credit target of the i-th campaign level (0-based, `n` levels in total). */
 export function targetLevelCredits(i: number, n = 24): number {
   return CREDIT_CURVE.first * Math.pow(CREDIT_CURVE.last / CREDIT_CURVE.first, i / Math.max(1, n - 1));
 }
 
 /**
- * Reference player firepower when reaching each planet's boss (nominal DPS of front + rear
- * + sidekicks for a player who spends the credit curve sensibly; docs/BALANCE.md
- * "Progression" derives it from the shop prices).
+ * Level-clear bonus ("mission pay", granted on completion on top of the kill credits): a share
+ * of the level's kill-credit target, bigger on boss levels. Replays of a completed level pay
+ * REPLAY_BONUS_FACTOR of it (farming still pays the full kill credits).
  */
-export const REFERENCE_DPS = [70, 82, 105, 150, 180, 230, 290, 330];
-/** Share of the nominal DPS that actually lands while dodging. */
+export const CLEAR_BONUS = { share: 0.2, bossShare: 0.35 };
+export const REPLAY_BONUS_FACTOR = 0.25;
+
+/** Clear bonus of the i-th campaign level (rounded to 10 credits). */
+export function clearBonus(i: number, bossLevel: boolean, n = 24): number {
+  const share = bossLevel ? CLEAR_BONUS.bossShare : CLEAR_BONUS.share;
+  return Math.round((targetLevelCredits(i, n) * share) / 10) * 10;
+}
+
+/**
+ * Share of a loadout's NOMINAL boss DPS (weaponFireStats, every projectile hitting) that
+ * actually lands while dodging: missed and part-absorbed shots, the moves of the boss,
+ * minus the x1.5 weak-point core. Calibrated with tools/playtest.mjs (docs/BALANCE.md §10).
+ */
 export const DPS_UPTIME = 0.7;
+/** Same for the mid-boss (one big, slow target that hovers in front of the player). */
+export const MIDBOSS_UPTIME = 0.75;
 
 /** Energy drawn per second at power p relative to power 1 (gameplay: E(p) = 1 + 0.05 (p - 1)). */
 export function energyFactor(power: number): number {
