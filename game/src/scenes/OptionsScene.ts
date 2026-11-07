@@ -4,14 +4,14 @@
 //  immediately (updateSettings + audio.setVolumes). Back returns to data.from (Title/Hangar).
 // =====================================================================================
 import Phaser from 'phaser';
-import { COLORS, SCENES, type SceneKey } from '../config';
+import { COLORS, SCENES, VERSION, type SceneKey } from '../config';
 import { DEBUG, markSceneReady } from '../debug';
 import type { Settings } from '../types';
 import { audio } from '../audio';
 import { haptic } from '../platform/haptics';
 import { eraseSave, getSave, hasSaveGame, updateSettings } from '../state/save';
-import { MenuList, confirm, fadeIn, goto, onBack, panel, starfield, statusBar, type MenuItem, type StatusBarApi } from '../ui/kit';
-import { Slider, Toggle, header } from '../ui/widgets';
+import { MenuList, confirm, fadeIn, goto, onBack, panel, statusBar, type MenuItem, type StatusBarApi } from '../ui/kit';
+import { LAYOUT, MD, Slider, Toggle, contentRect, screenBackdrop, screenHeader } from '../ui/widgets';
 
 type RowKind = 'sfx' | 'music' | 'shake' | 'vibrate' | 'autofire' | 'touch' | 'fps' | 'reset' | 'back';
 type BoolKey = 'shake' | 'vibrate' | 'autofire' | 'showFps';
@@ -32,7 +32,6 @@ const ROWS: RowDef[] = [
 /** Rows after which a thin group separator is drawn. */
 const SEPARATE_AFTER = new Set<RowKind>(['music', 'vibrate', 'touch', 'fps', 'reset']);
 
-const ROW_H = 28;
 const BOOL_OF: Partial<Record<RowKind, BoolKey>> = { shake: 'shake', vibrate: 'vibrate', autofire: 'autofire', fps: 'showFps' };
 
 /** Scenes Options may return to. */
@@ -45,6 +44,7 @@ export class OptionsScene extends Phaser.Scene {
   private sliders = new Map<number, Slider>();
   private toggles = new Map<number, Toggle>();
   private rowW = 0;
+  private rowH = 28;
 
   constructor() {
     super(SCENES.Options);
@@ -55,29 +55,31 @@ export class OptionsScene extends Phaser.Scene {
     this.sliders = new Map();
     this.toggles = new Map();
     fadeIn(this);
-    const { width } = this.scale.gameSize;
-    starfield(this, { density: 0.8, speed: 7 });
-    const head = header(this, 'OPTIONS', { y: 12, sub: 'SOUND - FEEL - CONTROLS' });
-    const top = (head.getData('bottom') as number) + 10;
-
-    const px = 8;
-    const pw = width - 16;
+    screenBackdrop(this, { stars: 0.8, speed: 7 });
+    screenHeader(this, 'OPTIONS', { back: () => this.leave(), right: `V${VERSION}` });
+    const area = contentRect(this);
+    // Rows grow a little on tall screens (bigger touch targets); the panel stays at the top.
+    this.rowH = Phaser.Math.Clamp(Math.floor((area.h - 16) / ROWS.length), 26, 30);
+    const ROW_H = this.rowH;
+    const px = area.x;
+    const pw = area.w;
+    const top = area.y;
     const ph = ROWS.length * ROW_H + 16;
-    panel(this, px, top, pw, ph, 'raised');
-    const lx = px + 18;
-    const lw = pw - 28;
+    panel(this, px, top, pw, ph, 'raised').setDepth(MD.panel);
+    const lx = px + LAYOUT.listInset;
+    const lw = pw - LAYOUT.listInset - LAYOUT.pad;
     this.rowW = lw;
     const rows = ROWS.map((r) => this.itemFor(r));
     this.status = statusBar(this, ROWS[0].help);
     this.list = new MenuList(this, {
-      x: lx, y: top + 8, width: lw, items: rows, rowHeight: ROW_H, size: 'm',
+      x: lx, y: top + 8, width: lw, items: rows, rowHeight: ROW_H, size: 'm', depth: MD.content,
       onSelect: (i) => this.activate(i),
       onFocus: (i, it) => this.focus(i, it),
       onDisabled: (i) => { if (ROWS[i].kind === 'reset') this.status.setText('No campaign in progress.'); },
       onLeft: (i) => this.adjust(i, -1),
       onRight: (i) => this.adjust(i, 1),
     });
-    const g = this.add.graphics();
+    const g = this.add.graphics().setDepth(MD.panel);
     ROWS.forEach((r, i) => {
       if (!SEPARATE_AFTER.has(r.kind)) return;
       const y = top + 8 + (i + 1) * ROW_H;
@@ -99,7 +101,7 @@ export class OptionsScene extends Phaser.Scene {
     const s = getSave().settings;
     const sliderX = 112;
     const sliderW = rowW - sliderX - 2;
-    const sy = Math.round((ROW_H - 22) / 2);
+    const sy = Math.round((this.rowH - 22) / 2);
     ROWS.forEach((r, i) => {
       const row = this.list.rowContainer(i);
       if (!row) return;

@@ -336,10 +336,10 @@ export function orbTex(scene: Phaser.Scene, color: ShotColor, tier: number): Tex
           const d = Math.hypot(dx, dy) / R0;
           if (d > 1) continue;
           const ang = Math.atan2(dy, dx);
-          const sw = Math.sin(3 * (ang - rot) + d * 5.5);
-          let h = (1 - d) * 1.22 + 0.06;
-          if (d > 0.3 && d < 0.86) h += sw > 0.55 ? 0.2 : sw < -0.6 ? -0.08 : 0;
-          if (Math.hypot(dx + R0 * 0.28, dy + R0 * 0.3) < R0 * 0.16) h += 0.3;
+          const sw = Math.sin(3 * (ang - rot) + d * 4.2);
+          let h = (1 - d) * 1.2 + 0.08;
+          if (d > 0.42 && d < 0.84) h += sw > 0.72 ? 0.17 : 0;
+          if (Math.hypot(dx + R0 * 0.26, dy + R0 * 0.28) < R0 * 0.17) h += 0.3;
           heat(r, h);
           p.set(x, y, SC, d > 0.9 ? SA * 0.55 : d > 0.8 ? SA * 0.85 : SA);
         }
@@ -544,8 +544,11 @@ export const FLAME_FRAMES = 8;
 export function flameTex(scene: Phaser.Scene, color: ShotColor): TexInfo {
   const S = 23;
   return build(scene, `ars_flame_${color}`, () => {
-    const r = rampOf(color);
-    const smoke = 0x40343a;
+    const rgb = SHOT_RGB[color] ?? SHOT_RGB.orange;
+    const hot = mix(rgb.core, rgb.glow, 0.28);
+    const red = mix(rgb.glow, 0xd8281a, 0.55);
+    const ember = mix(rgb.glow, 0x701414, 0.72);
+    const smoke = 0x2c2428;
     const frames: Pix[] = [];
     const c = S / 2;
     for (let f = 0; f < FLAME_FRAMES; f++) {
@@ -558,17 +561,18 @@ export function flameTex(scene: Phaser.Scene, color: ShotColor): TexInfo {
           const n = fbm(px / 3.2 + f * 0.7, py / 3.2 - f * 0.9, 77, 2) - 0.5;
           const d = (Math.hypot(px - c, py - c) + n * (1.5 + 3 * t)) / R0;
           if (d > 1) continue;
-          const hh = (1 - d) * (1.25 - t * 1.1) + 0.05;
+          if (d > 0.8 - t * 0.25 && bayer(x + f, y) > 0.62 - t * 0.22) continue;
+          const hh = (1 - d) * (1.3 - t * 1.05) + 0.04;
           let col: number;
           let a = 1;
-          if (hh > 0.85) col = r.w;
-          else if (hh > 0.62) col = r.c;
-          else if (hh > 0.42) col = r.l;
-          else if (hh > 0.26) col = r.g;
-          else if (hh > 0.12) col = r.d;
-          else { col = smoke; a = 0.55; }
-          a *= 1 - t * 0.45;
-          if (d > 0.82 && bayer(x, y) > 0.55) continue;
+          if (hh > 0.88) col = 0xffffff;
+          else if (hh > 0.66) col = rgb.core;
+          else if (hh > 0.48) col = hot;
+          else if (hh > 0.32) col = rgb.glow;
+          else if (hh > 0.2) col = red;
+          else if (hh > 0.1) { col = ember; a = 0.8; }
+          else { col = smoke; a = 0.42; }
+          a *= 1 - t * 0.35;
           p.set(x, y, col, a);
         }
       }
@@ -760,7 +764,7 @@ export function blastTex(scene: Phaser.Scene, color: ShotColor, radius: number):
             p.set(x, y, SC, SA * fade);
           } else if (fill > 0) {
             const k = d / ro;
-            if (bayer(x, y) < 0.75 - k * 0.4) p.set(x, y, k < 0.4 ? r.c : r.g, fill * (1.1 - k));
+            p.set(x, y, k < 0.45 ? r.l : r.g, fill * (k < 0.45 ? 1 : k < 0.75 ? 0.6 : 0.3));
           }
         }
       }
@@ -853,6 +857,24 @@ export function wardTex(scene: Phaser.Scene): TexInfo {
       frames.push(p);
     }
     return frames;
+  });
+}
+
+/** Frames of an ember. */
+export const EMBER_FRAMES = 3;
+
+/** 2x2 ember (white, tinted) that dims and shrinks to a single pixel over 3 frames. */
+export function emberTex(scene: Phaser.Scene): TexInfo {
+  return build(scene, 'ars_ember', () => {
+    const f0 = new Pix(2, 2), f1 = new Pix(2, 2), f2 = new Pix(2, 2);
+    for (let y = 0; y < 2; y++) {
+      for (let x = 0; x < 2; x++) {
+        f0.put(x, y, 0xffffff, 1);
+        f1.put(x, y, 0xffffff, x === y ? 0.85 : 0.5);
+      }
+    }
+    f2.put(0, 0, 0xffffff, 0.6);
+    return [f0, f1, f2];
   });
 }
 

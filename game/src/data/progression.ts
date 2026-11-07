@@ -90,14 +90,18 @@ export function sidekickDps(s: SidekickDef | null | undefined): number {
 
 interface GunPick { def: WeaponDef; power: number; cost: number; dps: number; eps: number }
 
-/** Strongest gun of `list` (max nominal DPS, then cheapest) whose total value fits in `budget`. */
-function bestGun(list: WeaponDef[], budget: number): GunPick | null {
+/**
+ * Strongest gun of `list` (max nominal DPS, then cheapest) whose total value fits in `budget`
+ * and whose drain fits in `maxEps` energy/s.
+ */
+function bestGun(list: WeaponDef[], budget: number, maxEps: number): GunPick | null {
   let best: GunPick | null = null;
   for (const def of list) {
     for (let p = MAX_POWER; p >= 1; p--) {
       const cost = weaponValue(def, p);
       if (cost > budget) continue;
       const st = weaponFireStats(def, p);
+      if (st.energyPerSec > maxEps + 1e-9) continue;
       if (!best || st.dps > best.dps + 1e-9 || (Math.abs(st.dps - best.dps) <= 1e-9 && cost < best.cost)) {
         best = { def, power: p, cost, dps: st.dps, eps: st.energyPerSec };
       }
@@ -131,9 +135,30 @@ interface Kit {
   front: GunPick;
   rear: GunPick | null;
   pair: PairPick;
+  /** Forward DPS: front + sidekicks + REAR_ON_TARGET x rear. */
+  dps: number;
 }
 
-const drainOf = (k: Kit) => k.front.eps + (k.rear?.eps ?? 0) + k.shield.regen * k.shield.energyPerPoint;
+const shieldDrain = (s: ShieldDef) => s.regen * s.energyPerPoint;
+const drainOf = (k: Kit) => k.front.eps + (k.rear?.eps ?? 0) + shieldDrain(k.shield);
+
+/** Weapons bought with `budget` credits that a generator of `output` energy/s can run. */
+function arm(input: ProgressionInput, fronts: WeaponDef[], rears: WeaponDef[], sks: SidekickDef[], hull: HullDef, shield: ShieldDef,
+  gen: GeneratorDef, budget: number): Kit {
+  const spare = gen.output - shieldDrain(shield);
+  const startFront = input.front.find((w) => w.id === input.startLoadout.front) ?? input.front[0];
+  const fallback = (): GunPick => {
+    const st = weaponFireStats(startFront, 1);
+    return { def: startFront, power: 1, cost: startFront.cost, dps: st.dps, eps: st.energyPerSec };
+  };
+  let front = bestGun(fronts, FRONT_SHARE * budget, spare) ?? fallback();
+  const pair = bestPair(sks, hull.sidekickSlots, SIDEKICK_SHARE * budget + Math.max(0, FRONT_SHARE * budget - front.cost));
+  const rear = bestGun(rears, budget - front.cost - pair.cost, spare - front.eps);
+  const left = budget - front.cost - pair.cost - (rear?.cost ?? 0);
+  front = bestGun(fronts, front.cost + left, spare - (rear?.eps ?? 0)) ?? front;
+  const dps = front.dps + pair.dps + REAR_ON_TARGET * (rear?.dps ?? 0);
+  return { hull, shield, gen, front, rear, pair, dps };
+}
 
 /** The reference loadout for a ship value and the items unlocked so far. */
 function allocate(input: ProgressionInput, value: number, unlocked: (d: { unlockLevel?: string }) => boolean): Kit {
@@ -144,7 +169,6 @@ function allocate(input: ProgressionInput, value: number, unlocked: (d: { unlock
   const rears = input.rear.filter(unlocked);
   const sks = input.sidekicks.filter(unlocked);
   const start = input.startLoadout;
-  const startFront = input.front.find((w) => w.id === start.front) ?? input.front[0];
 
   // 1. hull: the Lancer at LANCER_VALUE, later hulls at HULL_SHARE of the value
   let hull = input.hulls.find((h) => h.id === start.hull) ?? hulls[0];
@@ -157,40 +181,16 @@ function allocate(input: ProgressionInput, value: number, unlocked: (d: { unlock
   let shield = input.shields.find((s) => s.id === start.shield) ?? shields[0];
   for (const s of shields) if (s.cost > shield.cost && s.cost <= SHIELD_SHARE * value) shield = s;
 
-  // 3 + 4. weapons, then the cheapest generator that runs them (iterate: the generator price
-  // comes out of the weapon budget)
-  let gen = input.generators.find((g) => g.id === start.generator) ?? gens[0];
-  let kit: Kit | null = null;
-  for (let iter = 0; iter < 8; iter++) {
-    const budget = Math.max(0, value - hull.cost - shield.cost - gen.cost);
-    let front = bestGun(fronts, FRONT_SHARE * budget) ?? { def: startFront, power: 1, cost: startFront.cost, dps: weaponFireStats(startFront, 1).dps, eps: weaponFireStats(startFront, 1).energyPerSec };
-    const pair = bestPair(sks, hull.sidekickSlots, SIDEKICK_SHARE * budget + Math.max(0, FRONT_SHARE * budget - front.cost));
-    const rear = bestGun(rears, budget - front.cost - pair.cost);
-    const left = budget - front.cost - pair.cost - (rear?.cost ?? 0);
-    front = bestGun(fronts, front.cost + left) ?? front;
-    kit = { hull, shield, gen, front, rear, pair };
-    const drain = drainOf(kit);
-    const need = gens.find((g) => g.output + 1e-9 >= drain);
-    const target = need ?? gens[gens.length - 1];
-    if (target.cost <= gen.cost && gen.output + 1e-9 >= drain) break;
-    if (target === gen) break;
-    gen = target;
+  // 3 + 4. for every affordable generator, the weapons it can run with what is left; keep the
+  // strongest kit (ties: the cheaper generator)
+  let best: Kit | null = null;
+  for (const gen of gens) {
+    const budget = value - hull.cost - shield.cost - gen.cost;
+    if (budget < 0 && best) break;
+    const kit = arm(input, fronts, rears, sks, hull, shield, gen, Math.max(0, budget));
+    if (!best || kit.dps > best.dps + 1e-9) best = kit;
   }
-  // energy safety net: lower front power, then drop the rear gun, until the generator copes
-  const k = kit as Kit;
-  k.gen = gen;
-  while (drainOf(k) > gen.output + 1e-9) {
-    if (k.front.power > 1) {
-      const p = k.front.power - 1;
-      const st = weaponFireStats(k.front.def, p);
-      k.front = { def: k.front.def, power: p, cost: weaponValue(k.front.def, p), dps: st.dps, eps: st.energyPerSec };
-    } else if (k.rear) {
-      k.rear = null;
-    } else {
-      break;
-    }
-  }
-  return k;
+  return best as Kit;
 }
 
 /** Plays the campaign with the reference player (see the header). */
@@ -206,7 +206,7 @@ export function simulateProgression(input: ProgressionInput): ProgressionStep[] 
   input.levels.forEach((level, index) => {
     const kit = allocate(input, value, (d) => !d.unlockLevel || done.has(d.unlockLevel));
     const rearDps = kit.rear ? kit.rear.dps : 0;
-    const dps = kit.front.dps + kit.pair.dps + REAR_ON_TARGET * rearDps;
+    const dps = kit.dps;
     const boosted = weaponFireStats(kit.front.def, Math.min(MAX_POWER, kit.front.power + POWER_PICKUPS)).dps;
     const fightDps = dps - kit.front.dps + boosted;
     const bossHp = input.bossHp(level);

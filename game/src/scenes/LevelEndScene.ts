@@ -3,6 +3,7 @@
 //  then plays a skippable sequence: tally rows (kills, ratio, credits, score, time, bank),
 //  a rank stamp, notices (record, NEW TRANSMISSION, unlocks, new gear) and, after a boss,
 //  the "PLANET LIBERATED" flourish. CONTINUE -> Hangar, or the galaxy Map after a planet.
+//  Shared screen frame: header strip (no back arrow: back = skip / continue), status bar.
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, SCENES } from '../config';
@@ -14,10 +15,11 @@ import { haptic } from '../platform/haptics';
 import { getSave } from '../state/save';
 import { isCampaignComplete, itemsUnlockedBy } from '../state/progress';
 import { LEVELS, PLANETS } from '../data';
-import { button, fadeIn, fit, goto, onBack, panel, starfield, text, wrapText } from '../ui/kit';
+import { fadeIn, fit, goto, onBack, panel, statusBar, text, wrapText, type StatusBarApi } from '../ui/kit';
 import {
-  Board, Sequence, applyOnce, badge, burst, cachedTexture, demoResult, fmtInt, fmtTime, header, isLevelResult,
-  isPlanetFinale, levelInfo, neonRule, normalizeResult, ringPulse, type BoardRow, type SequenceStep,
+  Board, LAYOUT, MD, Sequence, applyOnce, badge, bottomButton, bottomButtonY, burst, cachedTexture, contentRect, demoResult, fmtInt,
+  fmtTime, isLevelResult, isPlanetFinale, levelInfo, neonRule, normalizeResult, ringPulse, screenBackdrop, screenHeader, sectionLabel,
+  type BoardRow, type SequenceStep,
 } from '../ui/widgets';
 
 const RANKS: { min: number; letter: string; color: number; note: string }[] = [
@@ -36,6 +38,7 @@ export class LevelEndScene extends Phaser.Scene {
   private seq: Sequence | null = null;
   private target: string = SCENES.Hangar;
   private continueReady = false;
+  private status!: StatusBarApi;
 
   constructor() {
     super(SCENES.LevelEnd);
@@ -55,12 +58,15 @@ export class LevelEndScene extends Phaser.Scene {
 
     fadeIn(this, 220);
     const { width, height } = this.scale.gameSize;
-    starfield(this, { density: 1, speed: 16 });
+    screenBackdrop(this, { stars: 1, speed: 16 });
     audio.music('victory');
     audio.sfx('level_clear');
 
-    const head = header(this, 'MISSION COMPLETE', { y: 12, sub: info.label });
-    const top = (head.getData('bottom') as number) + 10;
+    const tag = info.level && info.planet ? `${info.planet.name.toUpperCase()} ${info.level.index}` : '';
+    screenHeader(this, 'MISSION COMPLETE', { right: tag, rightColor: COLORS.teal });
+    this.status = statusBar(this, 'Tap to skip');
+    const area = contentRect(this);
+    const top = area.y;
 
     // ---- tally board
     const ratio = result.spawned > 0 ? Math.min(1, result.kills / result.spawned) : 1;
@@ -73,21 +79,24 @@ export class LevelEndScene extends Phaser.Scene {
     if (bonus > 0) rows.push({ label: 'MISSION BONUS', value: bonus, color: COLORS.gold });
     rows.push({ label: 'SCORE', value: result.score, color: COLORS.text });
     rows.push({ label: 'MISSION TIME', value: Math.round(result.timeSeconds), format: fmtTime });
-    const rowH = 20;
+    const rowH = height >= 560 ? 20 : 18;
     const bankH = 24;
-    const ph = rows.length * rowH + bankH + 22;
-    panel(this, 10, top, width - 20, ph, 'inset');
-    const board = new Board(this, 22, top + 8, width - 44, rows, rowH, 'm');
-    const sepY = top + 8 + board.height + 4;
-    this.add.rectangle(22, sepY, width - 44, 1, COLORS.panelLight, 0.9).setOrigin(0);
-    const bank = new Board(this, 22, sepY + 4, width - 44, [
+    const pad = 12;
+    const labelH = 18;
+    const ph = labelH + rows.length * rowH + 9 + bankH + 6;
+    panel(this, area.x, top, area.w, ph, 'inset');
+    sectionLabel(this, area.x + LAYOUT.pad, top + 7, fit(info.label, area.w - 2 * LAYOUT.pad - 24, 's'), area.w - 2 * LAYOUT.pad, MD.content, COLORS.teal);
+    const board = new Board(this, area.x + pad, top + labelH, area.w - 2 * pad, rows, rowH, 'm');
+    const sepY = top + labelH + board.height + 4;
+    this.add.rectangle(area.x + pad, sepY, area.w - 2 * pad, 1, COLORS.panelLight, 0.9).setOrigin(0);
+    const bank = new Board(this, area.x + pad, sepY + 4, area.w - 2 * pad, [
       { label: 'CREDITS BANKED', value: applied.creditsAfter, from: applied.creditsBefore, color: COLORS.gold, labelColor: COLORS.text, icon: 'ui_icon_credits' },
     ], bankH, 'm');
 
     // ---- rank + notices
     const rank = RANKS.find((r) => ratio >= r.min) ?? RANKS[RANKS.length - 1];
-    const ry = top + ph + 10;
-    const rankBox = this.add.container(10, ry);
+    const ry = top + ph + LAYOUT.gap;
+    const rankBox = this.add.container(area.x, ry);
     rankBox.add(panel(this, 0, 0, 64, 64, 'raised'));
     rankBox.add(text(this, 32, 8, 'RANK', { size: 's', color: COLORS.textDim, originX: 0.5 }));
     const letter = text(this, 32, 38, rank.letter, { size: 'm', color: rank.color, originX: 0.5, originY: 0.5 }).setScale(3);
@@ -98,7 +107,7 @@ export class LevelEndScene extends Phaser.Scene {
     const flourish = planetDone && (result.bossDefeated || campaignDone);
     const showCard = !flourish && real && !!nextId && nextId !== result.levelId && LEVELS.some((l) => l.id === nextId);
     const notices = this.buildNotices(result, applied, rank.note, showCard);
-    const nx = 84;
+    const nx = area.x + 64 + 10;
     const noticeObjs: Phaser.GameObjects.Container[] = notices.map((n, i) => {
       const c = this.add.container(nx, ry + 6 + i * 15);
       let tx = 0;
@@ -111,8 +120,8 @@ export class LevelEndScene extends Phaser.Scene {
     });
 
     // ---- free space between the notices and the CONTINUE button: flourish band or UP NEXT card
-    const freeTop = ry + Math.max(64, 6 + notices.length * 15) + 12;
-    const freeBottom = height - 46 - 12;
+    const freeTop = ry + Math.max(64, 6 + notices.length * 15) + LAYOUT.gap;
+    const freeBottom = bottomButtonY(this) - LAYOUT.gap;
     const bandY = Math.round(freeTop + Math.max(0, (freeBottom - freeTop - 52) / 2));
     const card = showCard ? this.upNextCard(nextId, width) : null;
     if (card) {
@@ -120,10 +129,6 @@ export class LevelEndScene extends Phaser.Scene {
       if (freeBottom - freeTop >= ch) card.setY(Math.round(freeTop + (freeBottom - freeTop - ch) / 2));
       else { card.destroy(); }
     }
-
-    // ---- continue
-    const hint = text(this, width / 2, height - 14, 'TAP TO SKIP', { size: 's', color: COLORS.textDim, originX: 0.5 });
-    this.tweens.add({ targets: hint, alpha: 0.3, duration: 500, yoyo: true, repeat: -1, ease: 'Stepped' });
 
     const steps: SequenceStep[] = [];
     for (let i = 0; i < board.count; i++) steps.push({ wait: i === 0 ? 450 : 330, run: (inst) => board.reveal(i, inst) });
@@ -148,10 +153,7 @@ export class LevelEndScene extends Phaser.Scene {
       const sub = campaignDone ? 'THE OUTER WORLDS ARE FREE' : (info.planet?.name ?? '').toUpperCase();
       steps.push({ wait: 500, run: (inst) => this.liberated(bandY, title, sub, biome, inst) });
     }
-    this.seq = new Sequence(this, steps, () => {
-      hint.destroy();
-      this.showContinue(width, height);
-    });
+    this.seq = new Sequence(this, steps, () => this.showContinue());
     this.seq.start();
 
     this.input.on('pointerdown', () => { if (this.seq && !this.seq.done) this.seq.skip(); });
@@ -206,17 +208,19 @@ export class LevelEndScene extends Phaser.Scene {
     const lv = LEVELS.find((l) => l.id === levelId);
     if (!lv) return null;
     const planet = PLANETS.find((p) => p.id === lv.planet);
-    const tx = 74;
-    const tw = width - 20 - tx - 8;
+    const x0 = LAYOUT.margin;
+    const w = width - 2 * LAYOUT.margin;
+    const tx = 70;
+    const tw = w - tx - LAYOUT.pad;
     const brief = wrapText(lv.briefing ?? '', tw, 's').split('\n').slice(0, 4).join('\n');
     const lines = brief ? brief.split('\n').length : 0;
     const h = Math.max(66, 34 + lines * 10 + 8);
     const c = this.add.container(0, 0);
-    c.add(panel(this, 10, 0, width - 20, h, 'raised'));
-    if (this.textures.exists(planetKey(lv.biome))) c.add(this.add.image(42, Math.round(h / 2), planetKey(lv.biome)));
-    c.add(text(this, 10 + tx, 9, 'UP NEXT', { size: 's', color: COLORS.accent }));
-    c.add(text(this, 10 + tx, 19, fit(`${(planet?.name ?? lv.planet).toUpperCase()} ${lv.index} - ${lv.name.toUpperCase()}`, tw, 'm'), { size: 'm', color: COLORS.teal }));
-    if (brief) c.add(text(this, 10 + tx, 34, brief, { size: 's', color: COLORS.textDim }).setLineSpacing(2));
+    c.add(panel(this, x0, 0, w, h, 'raised'));
+    if (this.textures.exists(planetKey(lv.biome))) c.add(this.add.image(x0 + 34, Math.round(h / 2), planetKey(lv.biome)));
+    c.add(sectionLabel(this, x0 + tx - 7, 8, 'UP NEXT', tw + 7));
+    c.add(text(this, x0 + tx, 19, fit(`${(planet?.name ?? lv.planet).toUpperCase()} ${lv.index} - ${lv.name.toUpperCase()}`, tw, 'm'), { size: 'm', color: COLORS.teal }));
+    if (brief) c.add(text(this, x0 + tx, 34, brief, { size: 's', color: COLORS.textDim }).setLineSpacing(2));
     c.setData('h', h);
     return c;
   }
@@ -276,11 +280,10 @@ export class LevelEndScene extends Phaser.Scene {
     });
   }
 
-  private showContinue(width: number, height: number): void {
-    const label = this.target === SCENES.Map ? 'GALAXY MAP' : 'CONTINUE';
-    const bw = 172;
-    const b = button(this, Math.round((width - bw) / 2), height - 46, bw, 28, label, () => this.leave(), { size: 'm', color: COLORS.teal });
-    text(this, width / 2, height - 12, this.target === SCENES.Map ? 'NEW ROUTES ON THE MAP' : 'RETURN TO HANGAR', { size: 's', color: COLORS.textDim, originX: 0.5 });
+  private showContinue(): void {
+    const toMap = this.target === SCENES.Map;
+    const b = bottomButton(this, toMap ? 'GALAXY MAP' : 'CONTINUE', () => this.leave());
+    this.status.setText(toMap ? 'New routes are open on the galaxy map.' : 'Return to the hangar: repair and upgrade.');
     b.container.setAlpha(0);
     b.container.y += 6;
     this.tweens.add({ targets: b.container, alpha: 1, y: b.container.y - 6, duration: 180, ease: 'Quad.easeOut' });

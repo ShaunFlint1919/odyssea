@@ -1,7 +1,8 @@
 // =====================================================================================
 //  GAME OVER — failed / aborted mission. Applies the LevelResult once (the salvage rule —
 //  50 % of the credits earned — lives in src/state/progress.ts), shows the drifting wreck,
-//  the salvage tally and a tip, then RETRY (same level) / RETURN TO HANGAR.
+//  the salvage tally and a tip, then RETRY (same level) / RETURN TO HANGAR. Shared screen
+//  frame: header strip (no back arrow: back = skip / hangar), status bar with the menu help.
 //  Optional extra field on the result: `aborted: true` (mission aborted from the pause menu).
 // =====================================================================================
 import Phaser from 'phaser';
@@ -13,10 +14,10 @@ import type { GameStartData } from '../game/contracts';
 import { audio } from '../audio';
 import { getSave } from '../state/save';
 import { FAILED_CREDIT_RATIO } from '../state/progress';
-import { MenuList, fadeIn, goto, onBack, panel, starfield, text, wrapText, type MenuItem } from '../ui/kit';
+import { MenuList, fadeIn, fit, goto, onBack, panel, statusBar, text, wrapText, type MenuItem, type StatusBarApi } from '../ui/kit';
 import {
-  Board, Sequence, applyOnce, badge, cachedTexture, demoResult, fmtInt, header, isLevelResult, levelInfo,
-  normalizeResult, vignette, type BoardRow, type SequenceStep,
+  Board, LAYOUT, MD, Sequence, applyOnce, badge, cachedTexture, contentRect, demoResult, fmtInt, isLevelResult, levelInfo,
+  normalizeResult, screenBackdrop, screenHeader, sectionLabel, vignette, type BoardRow, type SequenceStep,
 } from '../ui/widgets';
 
 const TIPS = [
@@ -35,6 +36,7 @@ export class GameOverScene extends Phaser.Scene {
   private seq: Sequence | null = null;
   private menu: MenuList | null = null;
   private levelId = '';
+  private status!: StatusBarApi;
 
   constructor() {
     super(SCENES.GameOver);
@@ -53,13 +55,14 @@ export class GameOverScene extends Phaser.Scene {
 
     fadeIn(this, 320);
     const { width, height } = this.scale.gameSize;
-    starfield(this, { density: 0.7, speed: 5 });
-    vignette(this, 0x5a0610, 0.7, -5);
+    screenBackdrop(this, { stars: 0.7, speed: 5 });
+    vignette(this, 0x5a0610, 0.7, MD.stars + 1);
     audio.music(null);
     audio.sfx('game_over');
 
-    const head = header(this, 'MISSION FAILED', { y: 12, sub: aborted ? 'MISSION ABORTED' : 'SHIP DESTROYED', subColor: COLORS.bad });
-    const top = (head.getData('bottom') as number) + 10;
+    screenHeader(this, 'MISSION FAILED', { right: aborted ? 'MISSION ABORTED' : 'SHIP DESTROYED', rightColor: COLORS.bad });
+    this.status = statusBar(this, 'Tap to skip');
+    const area = contentRect(this);
 
     // ---- salvage board
     const salvage = Math.max(0, applied.creditsAfter - applied.creditsBefore);
@@ -69,22 +72,25 @@ export class GameOverScene extends Phaser.Scene {
       { label: 'CREDITS COLLECTED', value: result.creditsEarned, color: COLORS.textDim },
       { label: `SALVAGED (${pct}%)`, value: salvage, color: COLORS.gold, format: (n) => `+${fmtInt(n)}` },
     ];
-    const by = top;
+    const by = area.y;
     const rowH = 20;
-    const ph = rows.length * rowH + 24 + 22;
-    panel(this, 10, by, width - 20, ph, 'inset');
-    const board = new Board(this, 22, by + 8, width - 44, rows, rowH, 'm');
-    const sepY = by + 8 + board.height + 4;
-    this.add.rectangle(22, sepY, width - 44, 1, COLORS.panelLight, 0.9).setOrigin(0);
-    const bank = new Board(this, 22, sepY + 4, width - 44, [
+    const pad = 12;
+    const labelH = 18;
+    const ph = labelH + rows.length * rowH + 9 + 24 + 6;
+    panel(this, area.x, by, area.w, ph, 'inset');
+    sectionLabel(this, area.x + LAYOUT.pad, by + 7, fit(info.label, area.w - 2 * LAYOUT.pad - 24, 's'), area.w - 2 * LAYOUT.pad, MD.content, COLORS.bad);
+    const board = new Board(this, area.x + pad, by + labelH, area.w - 2 * pad, rows, rowH, 'm');
+    const sepY = by + labelH + board.height + 4;
+    this.add.rectangle(area.x + pad, sepY, area.w - 2 * pad, 1, COLORS.panelLight, 0.9).setOrigin(0);
+    const bank = new Board(this, area.x + pad, sepY + 4, area.w - 2 * pad, [
       { label: 'CREDITS BANKED', value: applied.creditsAfter, from: applied.creditsBefore, color: COLORS.gold, labelColor: COLORS.text, icon: 'ui_icon_credits' },
     ], 24, 'm');
 
-    // ---- notices + tip
-    let ny = by + ph + 10;
+    // ---- notices + tip card
+    let ny = by + ph + LAYOUT.gap;
     const extras: Phaser.GameObjects.Container[] = [];
     if (applied.newIntel.length > 0) {
-      const c = this.add.container(16, ny);
+      const c = this.add.container(area.x + LAYOUT.pad, ny + 2);
       let tx = 0;
       if (this.textures.exists('ui_icon_intel')) { c.add(this.add.image(0, 5, 'ui_icon_intel').setOrigin(0, 0.5)); tx = 18; }
       const t = text(this, tx, 5, 'TRANSMISSION RECOVERED', { size: 's', color: COLORS.accentLight, originY: 0.5 });
@@ -93,18 +99,23 @@ export class GameOverScene extends Phaser.Scene {
       extras.push(c);
       ny += 18;
     }
-    const tip = this.add.container(16, ny);
-    tip.add(text(this, 0, 0, 'TIP', { size: 's', color: COLORS.accent }));
-    const tipText = text(this, 24, 0, wrapText(TIPS[Math.floor(Math.random() * TIPS.length)], width - 48, 's'), { size: 's', color: COLORS.textDim });
+    const tipStr = wrapText(TIPS[Math.floor(Math.random() * TIPS.length)], area.w - 2 * LAYOUT.pad, 's');
+    const tipLines = tipStr.split('\n').length;
+    const tipH = 20 + tipLines * 10 + 4;
+    const tip = this.add.container(area.x, ny);
+    tip.add(panel(this, 0, 0, area.w, tipH, 'raised'));
+    tip.add(sectionLabel(this, LAYOUT.pad, 7, 'TIP', area.w - 2 * LAYOUT.pad));
+    const tipText = text(this, LAYOUT.pad, 19, tipStr, { size: 's', color: COLORS.textDim });
     tipText.setLineSpacing(2);
     tip.add(tipText);
     tip.setAlpha(0);
     extras.push(tip);
-    const contentBottom = ny + tipText.height + 4;
+    const contentBottom = ny + tipH;
 
     // ---- the wreck drifts in the space left between the tip and the menu
-    const menuY = height - 2 * ROW_H - 16 - 34;
-    const wreckY = Math.round(Math.max(contentBottom + 36, (contentBottom + menuY) / 2));
+    const menuH = 2 * ROW_H + 16;
+    const menuY = height - LAYOUT.statusH - LAYOUT.gap - menuH;
+    const wreckY = Math.round((contentBottom + menuY) / 2);
     if (menuY - contentBottom > 76) this.buildWreck(width / 2, wreckY);
 
     // ---- sequence, then the menu
@@ -115,7 +126,7 @@ export class GameOverScene extends Phaser.Scene {
       wait: 300,
       run: (inst) => { if (inst) o.setAlpha(1); else this.tweens.add({ targets: o, alpha: 1, duration: 200 }); },
     }));
-    this.seq = new Sequence(this, steps, () => this.showMenu(width, menuY));
+    this.seq = new Sequence(this, steps, () => this.showMenu(menuY));
     this.seq.start();
     this.input.on('pointerdown', () => { if (this.seq && !this.seq.done) this.seq.skip(); });
     this.input.keyboard?.on('keydown', (e: KeyboardEvent) => {
@@ -159,24 +170,21 @@ export class GameOverScene extends Phaser.Scene {
     }
   }
 
-  private showMenu(width: number, y: number): void {
+  private showMenu(y: number): void {
     const items: MenuItem[] = [
       { label: 'RETRY MISSION', color: COLORS.teal, help: 'Fly this mission again.' },
       { label: 'RETURN TO HANGAR', help: 'Repair, upgrade and try another route.' },
     ];
-    const pw = 220;
-    const px = Math.round((width - pw) / 2);
+    const area = contentRect(this);
     const box = this.add.container(0, 0);
-    box.add(panel(this, px, y, pw, items.length * ROW_H + 16, 'raised'));
-    const help = text(this, width / 2, y + items.length * ROW_H + 24, '', { size: 's', color: COLORS.teal, originX: 0.5 });
-    box.add(help);
+    box.add(panel(this, area.x, y, area.w, items.length * ROW_H + 16, 'raised'));
     this.menu = new MenuList(this, {
-      x: px + 18, y: y + 8, width: pw - 30, items, rowHeight: ROW_H, size: 'm',
+      x: area.x + LAYOUT.listInset, y: y + 8, width: area.w - LAYOUT.listInset - LAYOUT.pad, items, rowHeight: ROW_H, size: 'm',
       onSelect: (i) => {
         if (i === 0) goto(this, SCENES.Game, { levelId: this.levelId } satisfies GameStartData);
         else goto(this, SCENES.Hangar);
       },
-      onFocus: (_i, it) => help.setText(it.help ?? ''),
+      onFocus: (_i, it) => this.status.setText(it.help ?? ''),
     });
     box.add(this.menu.container);
     box.setAlpha(0);

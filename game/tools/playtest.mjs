@@ -381,18 +381,23 @@ function printModel(data) {
     return;
   }
   const steps = data.referenceProgression();
-  const head = ['level', 'value', 'front', 'side L/R', 'rear', 'gen', 'shield', 'DPS', 'e/s use/out', 'boss TTK', 'mid TTK'];
+  const head = ['level', 'value', 'income', 'hull', 'front', 'side L/R', 'rear', 'gen', 'shield', 'DPS', 'fight', 'e/s use/out', 'boss hp', 'boss TTK', 'mid hp', 'mid TTK'];
   const rows = steps.map((s) => [
     s.levelId,
     String(Math.round(s.value)),
+    String(Math.round(s.income)),
+    s.loadout.hull,
     `${s.loadout.front} p${s.loadout.frontPower}`,
     `${s.loadout.sidekickL ?? '-'}/${s.loadout.sidekickR ?? '-'}`,
     s.loadout.rear ? `${s.loadout.rear} p${s.loadout.rearPower}` : '-',
     s.loadout.generator,
     s.loadout.shield,
     s.dps.toFixed(0),
+    s.fightDps.toFixed(0),
     `${s.energyUse.toFixed(1)}/${s.energyOut.toFixed(0)}`,
+    s.bossHp ? String(s.bossHp) : '',
     s.bossTtk ? `${s.bossTtk.toFixed(0)} s` : '',
+    s.midbossHp ? String(s.midbossHp) : '',
     s.midbossTtk ? `${s.midbossTtk.toFixed(0)} s` : '',
   ]);
   const widths = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));

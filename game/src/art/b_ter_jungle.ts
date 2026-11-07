@@ -258,7 +258,7 @@ function paintTemple(c: Chunk, cls: Uint8Array, st: Site, MID: Float32Array, G: 
 function placeJungleDoodads(c: Chunk, cls: Uint8Array, H: Float32Array, ruins: Site[]): void {
   const W = c.w, M = c.M, S = c.S;
   const at = (x: number, r: number) => cls[(Math.max(0, Math.min(CH - 1, r | 0))) * W + Math.max(0, Math.min(W - 1, x | 0))];
-  for (let k = 0; k < ruins.length; k++) c.add('dd_jungle_ruin', ruins[k].wx, ruins[k].r);
+  for (let k = 0; k < ruins.length; k++) if (at(ruins[k].wx, ruins[k].r) === K_RUIN) c.add('dd_jungle_ruin', ruins[k].wx, ruins[k].r);
   eachCell(c, 40, 701, (x, r, h1, h2) => {
     const kind = at(x, r);
     if (kind === K_GROUND && farFromDoodads(c, x, r, 20)) {

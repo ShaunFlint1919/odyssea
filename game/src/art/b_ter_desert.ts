@@ -382,11 +382,12 @@ function placeDoodads(c: Chunk, cls: Uint8Array, oases: Site[], ruins: Ruin[]): 
     const R = ruins[q];
     const corners = [1, 1, R.w - 2, 1, 1, R.h - 2, R.w - 2, R.h - 2, R.cx + 1, R.cy + 1];
     for (let j = 0; j < 5; j++) {
-      if (hash2(j, R.id, s + 7) < 0.55) c.add('dd_ruin_pillar', R.x0 + corners[j * 2], R.r0 + corners[j * 2 + 1]);
+      const px = R.x0 + corners[j * 2], pr = R.r0 + corners[j * 2 + 1];
+      if (hash2(j, R.id, s + 7) < 0.55 && at(px, pr) !== K_WATER) c.add('dd_ruin_pillar', px, pr);
     }
     if (hash2(R.id, 9, s) < 0.6) {
-      const qx = R.x0 + (R.cx < R.w / 2 ? R.cx + (R.w - R.cx) / 2 : R.cx / 2);
-      c.add('dd_ruin_pyramid', qx, R.r0 + R.cy + (R.h - R.cy) / 2 + 2);
+      const qx = R.x0 + (R.cx < R.w / 2 ? R.cx + (R.w - R.cx) / 2 : R.cx / 2), qr = R.r0 + R.cy + (R.h - R.cy) / 2 + 2;
+      if (at(qx, qr) !== K_WATER && at(qx - 14, qr) !== K_WATER && at(qx + 14, qr) !== K_WATER) c.add('dd_ruin_pyramid', qx, qr);
     }
   }
   eachCell(c, 52, 501, (x, r, h1, h2) => {

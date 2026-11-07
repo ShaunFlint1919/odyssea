@@ -20,7 +20,7 @@ import { audio } from '../audio';
 import { haptic, type HapticKind } from '../platform/haptics';
 import { addAppStateListener } from '../platform/device';
 import { Controls, type ControlsState } from '../input/controls';
-import { createHud } from '../ui/Hud';
+import { createHud, hudButtonAt } from '../ui/Hud';
 import { ensureFonts } from '../ui/kit';
 import { HUD_EVENTS, PAUSE_EVENTS, type GameStartData, type HudApi, type HudModel } from '../game/contracts';
 import { createArsenal } from '../game/arsenal';
@@ -48,6 +48,16 @@ const HAPTIC_GAP: Record<HapticKind, number> = { light: 90, medium: 140, heavy: 
 const FALLBACK_HULL: HullDef = { id: 'sparrow', name: 'Sparrow', cost: 0, armor: 20, speed: 150, hitRadius: 4, sidekickSlots: 1, desc: '' };
 const FALLBACK_SHIELD: ShieldDef = { id: 'sh_veil', name: 'Veil', cost: 0, capacity: 10, regen: 1.5, energyPerPoint: 2, color: 'cyan', desc: '' };
 const FALLBACK_GEN: GeneratorDef = { id: 'gen_cell', name: 'Cell', cost: 0, capacity: 50, output: 15, desc: '' };
+
+/**
+ * Where a steering drag may START: the whole screen (the HUD panel is a natural thumb rest)
+ * EXCEPT the HUD's touch buttons, so tapping pause / rear never nudges the ship.
+ */
+class DragArea extends Phaser.Geom.Rectangle {
+  override contains(x: number, y: number): boolean {
+    return super.contains(x, y) && hudButtonAt(x, y) === null;
+  }
+}
 
 function safe<T>(fn: () => T, fallback: T): T {
   try {
@@ -183,7 +193,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.hud = createHud(this);
     this.model = this.buildModel();
     this.controls = new Controls(this, {
-      dragArea: new Phaser.Geom.Rectangle(0, 0, W, H),
+      dragArea: new DragArea(0, 0, W, H),
       sensitivity: settings.touchSensitivity,
       autofire: settings.autofire,
     });
@@ -325,8 +335,9 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.pauseGame();
   }
 
+  /** Rear-gun mode toggle (HUD button, X / Shift, gamepad B / X): ignored without a rear gun. */
   private onRearToggle(): void {
-    if (this.finished || !this.ship.alive) return;
+    if (this.finished || !this.ship.alive || !this.loadout.rear) return;
     this.arsenal.toggleRearMode();
     this.sfx('rear_toggle');
   }

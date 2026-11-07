@@ -8,7 +8,8 @@ import { getSave } from '../state/save';
 import { loadoutValue } from '../state/economy';
 import * as kit from '../ui/kit';
 import { blueprintGrid, ensureMetaArt, schematic } from '../ui/meta/art';
-import { HEADER_H, MD, backdrop, cornerBrackets, header, scanlines, sectionLabel } from '../ui/meta/chrome';
+import { HEADER_H, MD, cornerBrackets, sectionLabel } from '../ui/meta/chrome';
+import { scanlines, screenBackdrop, screenHeader } from '../ui/widgets';
 import { catalogMax, dec, findGenerator, findHull, findShield, findSidekick, findWeapon, fmt, signed, upper } from '../ui/meta/common';
 import { energyBalance, sidekickStats, toughness, totalDps, weaponStats, type GunStats } from '../ui/meta/stats';
 
@@ -25,10 +26,10 @@ export class SpecsScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale.gameSize;
     const save = getSave();
     const l = save.loadout;
-    backdrop(this);
+    screenBackdrop(this);
     const leave = () => kit.goto(this, SCENES.Hangar);
     const back = () => { audio.sfx('ui_back'); leave(); };
-    header(this, 'SHIP SPECS', { onBack: back, credits: save.credits });
+    screenHeader(this, 'SHIP SPECS', { back, credits: save.credits });
     const status = kit.statusBar(this, 'NOMINAL: EVERY SHOT HITS, GUNS FIRE NONSTOP');
     kit.onBack(this, back);
 
@@ -129,7 +130,7 @@ export class SpecsScene extends Phaser.Scene {
     gfx.fillRect(cx - dl / 2, by + box - 9, dl, 1);
     gfx.fillRect(cx - dl / 2, by + box - 11, 1, 5);
     gfx.fillRect(cx + dl / 2 - 1, by + box - 11, 1, 5);
-    scanlines(this, bx + 3, by + 3, box - 6, box - 6, MD.overlay, 0.4);
+    scanlines(this, bx + 3, by + 3, box - 6, box - 6, 0.4, MD.overlay);
     cornerBrackets(this, bx + 4, by + 4, box - 8, box - 8, COLORS.teal, 4, MD.overlay);
     kit.text(this, bx + 6, by + 5, 'SCHEMATIC', { size: 's', color: COLORS.teal, depth: MD.overlay });
 

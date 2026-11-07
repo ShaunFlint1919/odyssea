@@ -17,7 +17,8 @@ import { PLANETS as PLANET_LIST } from './planets';
 import { LEVELS as LEVEL_LIST } from './levels';
 import { INTEL as INTEL_LIST } from './intel';
 import { validateBundle } from './validate';
-import { levelStats, type LevelStats } from './balance';
+import { REPLAY_BONUS_FACTOR, clearBonus, levelStats, type LevelStats } from './balance';
+import { simulateProgression, type ProgressionStep } from './progression';
 
 export const HULLS: HullDef[] = HULL_LIST;
 export const SHIELDS: ShieldDef[] = SHIELD_LIST;
@@ -92,9 +93,50 @@ export function getLevelStats(levelId: string): LevelStats {
   const tryBoss = (id: string) => BOSSES.find((b) => b.id === id);
   return levelStats(getLevel(levelId), tryEnemy, tryBoss);
 }
-/** Credits a player can expect from a level (70 % of the wave enemies + mid-boss + boss). */
+/** Credits a player can expect from a level's kills (70 % of the wave enemies + mid-boss + boss). */
 export function estimateLevelCredits(levelId: string): number {
   return getLevelStats(levelId).estCredits;
+}
+
+/**
+ * Level-clear bonus credited when a level is COMPLETED (on top of the kill credits): a share
+ * of the level's credit target, bigger on boss levels (docs/BALANCE.md §3). Pass
+ * `replay = true` for a level that was already completed before: farming pays
+ * REPLAY_BONUS_FACTOR of the bonus. Unknown level ids pay 0.
+ */
+export function levelClearBonus(levelId: string, bossDefeated: boolean, replay = false): number {
+  const i = levelOrder().indexOf(levelId);
+  if (i < 0) return 0;
+  const bossLevel = bossDefeated && !!getLevel(levelId).boss;
+  const full = clearBonus(i, bossLevel, levelOrder().length);
+  return replay ? Math.round((full * REPLAY_BONUS_FACTOR) / 10) * 10 : full;
+}
+
+/** Expected credits of a first clear: kill credits + clear bonus. */
+export function estimateLevelIncome(levelId: string): number {
+  return estimateLevelCredits(levelId) + levelClearBonus(levelId, !!getLevel(levelId).boss);
+}
+
+let progression: ProgressionStep[] | null = null;
+/** The reference player's campaign (src/data/progression.ts), one step per level, cached. */
+export function referenceProgression(): ProgressionStep[] {
+  if (!progression) {
+    progression = simulateProgression({
+      hulls: HULLS, shields: SHIELDS, generators: GENERATORS, front: FRONT_WEAPONS, rear: REAR_WEAPONS, sidekicks: SIDEKICKS,
+      levels: levelOrder().map((id) => getLevel(id)),
+      startCredits: START_CREDITS,
+      startLoadout: START_LOADOUT,
+      income: (l) => estimateLevelIncome(l.id),
+      bossHp: (l) => (l.boss ? getBoss(l.boss).hp : 0),
+      midbossHp: (l) => (l.midboss ? getEnemy(l.midboss.enemy).hp : 0),
+    });
+  }
+  return progression;
+}
+/** The reference player's loadout when it starts `levelId` (START_LOADOUT for unknown ids). */
+export function referenceLoadout(levelId: string): Loadout {
+  const step = referenceProgression().find((s) => s.levelId === levelId);
+  return step ? { ...step.loadout } : { ...START_LOADOUT };
 }
 
 /** Cross-reference validation of all content. Returns a list of human-readable errors. */
@@ -106,8 +148,23 @@ export function validateContent(): string[] {
   });
 }
 
+/**
+ * Reference boss-fight DPS per planet (campaign order): the reference player's nominal DPS
+ * (front with POWER_PICKUPS in-level power + sidekicks + a share of the rear gun) when it
+ * meets each planet boss. Fight length = boss hp / (REFERENCE_DPS x DPS_UPTIME).
+ */
+export const REFERENCE_DPS: number[] = PLANETS.map((p) => {
+  const id = p.levels[p.levels.length - 1];
+  const step = referenceProgression().find((s) => s.levelId === id);
+  return step ? Math.round(step.fightDps * 10) / 10 : 0;
+});
+
 export type { LevelStats } from './balance';
-export { DPS_UPTIME, KILL_RATE, REFERENCE_DPS, energyFactor, targetLevelCredits } from './balance';
+export type { ProgressionStep } from './progression';
+export {
+  CLEAR_BONUS, CREDIT_CURVE, DPS_UPTIME, KILL_RATE, MIDBOSS_UPTIME, REPLAY_BONUS_FACTOR, energyFactor, targetLevelCredits,
+} from './balance';
+export { POWER_PICKUPS, sidekickDps, weaponValue } from './progression';
 export { BIOME_PALETTES, BIOME_BULLET_COLORS, LAND_BIOMES, PLANET_PALETTES, SEA_BIOMES } from './helpers';
 export { ENEMY_MUZZLES, type SpriteMuzzles } from './muzzles';
 export { nominalDps, powerFactor, PROJECTILES_AT_P1 } from './weapons';

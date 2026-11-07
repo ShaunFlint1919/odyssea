@@ -1,7 +1,8 @@
 // =====================================================================================
 //  TITLE — animated logo over a parallax starfield with a big planet and occasional ship
 //  flybys. First visit of the session: "TAP TO START" (unlocks audio), then the main menu:
-//  CONTINUE (when a campaign exists) / NEW GAME (difficulty choice) / OPTIONS.
+//  CONTINUE (when a campaign exists) / NEW GAME (difficulty choice) / OPTIONS. The help of
+//  the focused entry and the version show in the shared status bar.
 //  Android back on the main menu is NOT consumed (the platform exits the app).
 // =====================================================================================
 import Phaser from 'phaser';
@@ -13,8 +14,8 @@ import { audio } from '../audio';
 import { getSave, hasSaveGame, newGame } from '../state/save';
 import { DIFFICULTY_SCALES } from '../state/progress';
 import { LEVELS, PLANETS } from '../data';
-import { MenuList, confirm, fadeIn, goto, onBackIf, panel, starfield, text, type MenuItem } from '../ui/kit';
-import { cachedTexture, neonRule } from '../ui/widgets';
+import { MenuList, confirm, fadeIn, goto, onBackIf, panel, starfield, statusBar, text, type MenuItem, type StatusBarApi } from '../ui/kit';
+import { LAYOUT, cachedTexture, neonRule } from '../ui/widgets';
 
 /** Atmosphere glow colour per biome (title planet halo). */
 const BIOME_GLOW: Record<Biome, number> = {
@@ -43,6 +44,7 @@ export class TitleScene extends Phaser.Scene {
   private menu: MenuList | null = null;
   private trail: Phaser.GameObjects.Image[] = [];
   private trailIdx = 0;
+  private status!: StatusBarApi;
 
   constructor() {
     super(SCENES.Title);
@@ -59,7 +61,7 @@ export class TitleScene extends Phaser.Scene {
     starfield(this, { density: 1.3, speed: 8 });
     this.buildPlanets(width, height);
     this.buildLogo(width, height);
-    text(this, width - 4, height - 3, `v${VERSION}`, { size: 's', color: COLORS.textDim, originX: 1, originY: 1 }).setDepth(20);
+    this.status = statusBar(this, '', { right: `V${VERSION}`, depth: 30 });
     audio.music('title');
     this.buildTrailPool();
     this.time.delayedCall(1400 + Math.random() * 1600, () => this.flyby());
@@ -319,6 +321,7 @@ export class TitleScene extends Phaser.Scene {
 
   private showPressStart(width: number, height: number): void {
     this.mode = 'press';
+    this.status.setText(this.sys.game.device.os.desktop ? 'Tap or press any key to start' : 'Tap anywhere to start');
     const prompt = text(this, width / 2, Math.round(height * 0.62), 'TAP TO START', { size: 'm', color: COLORS.teal, originX: 0.5, originY: 0.5 })
       .setDepth(20);
     const keyHint = this.sys.game.device.os.desktop
@@ -425,17 +428,10 @@ export class TitleScene extends Phaser.Scene {
       box.add(text(this, width / 2, y - 12, title, { size: 's', color: COLORS.accentLight, originX: 0.5 }));
     }
     box.add(panel(this, x, y, MENU_W, h, 'raised'));
-    const backing = this.add.rectangle(width / 2, y + h + 12, 10, 14, COLORS.bg, 0.72);
-    const help = text(this, width / 2, y + h + 8, '', { size: 's', color: COLORS.teal, originX: 0.5, maxWidth: width - 24, align: 'center' });
-    box.add([backing, help]);
-    const setHelp = (str: string) => {
-      help.setText(str);
-      backing.setSize(help.width + 10, help.height + 6).setOrigin(0.5, 0).setPosition(width / 2, y + h + 5).setVisible(str.length > 0);
-    };
     const list = new MenuList(this, {
-      x: x + 18, y: y + 8, width: MENU_W - 30, items, rowHeight: ROW_H, size: 'm', startIndex: start,
+      x: x + LAYOUT.listInset, y: y + 8, width: MENU_W - LAYOUT.listInset - LAYOUT.pad, items, rowHeight: ROW_H, size: 'm', startIndex: start,
       onSelect: (i) => onSelect(i),
-      onFocus: (_i, it) => setHelp(it.help ?? ''),
+      onFocus: (_i, it) => this.status.setText(it.help ?? ''),
     });
     box.add(list.container);
     this.menu = list;

@@ -9,7 +9,8 @@ import { getSave, saveNow } from '../state/save';
 import { isCompleted, isUnlocked } from '../state/progress';
 import * as kit from '../ui/kit';
 import { META, ensureMetaArt, frameIcon, iconOr, nebulaBackdrop } from '../ui/meta/art';
-import { HEADER_H, MD, cornerBrackets, header, scanlines, sectionLabel, toast } from '../ui/meta/chrome';
+import { HEADER_H, MD, cornerBrackets, sectionLabel, toast } from '../ui/meta/chrome';
+import { scanlines, screenHeader } from '../ui/widgets';
 import { findLevel, fmt, nextMissionId, planetOfLevel, setHangarFocus, upper, wrapLines } from '../ui/meta/common';
 import { RouteRenderer, type RouteState } from '../ui/meta/galaxy';
 import { BIOME_TINT, planetScale, planetTexture } from '../ui/meta/planets';
@@ -65,7 +66,7 @@ export class MapScene extends Phaser.Scene {
 
     this.add.image(0, 0, nebulaBackdrop(this, W, H)).setOrigin(0).setScale(2).setDepth(MD.bg);
     kit.starfield(this, { density: 0.45, speed: 2, depth: MD.stars });
-    header(this, 'GALAXY MAP', { onBack: () => this.back(), credits: save.credits });
+    screenHeader(this, 'GALAXY MAP', { back: () => this.back(), credits: save.credits });
     this.status = kit.statusBar(this, 'TAP A PLANET OR USE THE ARROWS - ENTER: MISSIONS');
 
     // ------------------------------------------------------------ layout
@@ -343,7 +344,7 @@ export class MapScene extends Phaser.Scene {
       onDisabled: () => toast(this, 'LOCKED', COLORS.bad, ly + 40, 'CLEAR THE PREVIOUS MISSION FIRST'),
     });
     this.drawBriefing(n, this.panelList.index, px, by, pw, py + ph - by - 6);
-    add(scanlines(this, px + 3, py + 3, pw - 6, ph - 6, d, 0.25));
+    add(scanlines(this, px + 3, py + 3, pw - 6, ph - 6, 0.25, d));
     add(cornerBrackets(this, px + 2, py + 2, pw - 4, ph - 4, tint, 6, d + 1));
 
     // entrance

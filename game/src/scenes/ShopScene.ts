@@ -13,13 +13,14 @@ import {
 import { GENERATORS, SHIELDS } from '../data';
 import * as kit from '../ui/kit';
 import { META, ensureMetaArt, frameIcon, generatorChip, iconOr, shieldChip, weaponChip } from '../ui/meta/art';
-import { HEADER_H, MD, backdrop, cornerBrackets, header, scanlines, sectionLabel, toast, type HeaderApi } from '../ui/meta/chrome';
+import { HEADER_H, MD, cornerBrackets, sectionLabel, toast } from '../ui/meta/chrome';
+import { scanlines, screenBackdrop, screenHeader, type ScreenHeaderApi } from '../ui/widgets';
 import {
   dec, equippedId, equippedName, findGenerator, findHull, findShield, findSidekick, findWeapon, fmt, loadoutWith, shotGlow, unlockHint, upper, wrapLines,
 } from '../ui/meta/common';
 import { ShipBay } from '../ui/meta/shipBay';
 import { energyBalance, sidekickStats, weaponStats } from '../ui/meta/stats';
-import { PowerRow, TapGuard, compareGrid, type CompareCell } from '../ui/meta/widgets';
+import { PowerRow, compareGrid, type CompareCell } from '../ui/meta/widgets';
 
 interface ShopData { category?: string; focus?: string }
 
@@ -40,10 +41,9 @@ const isGun = (c: ShopCategory | null): c is 'front' | 'rear' => c === 'front' |
 export class ShopScene extends Phaser.Scene {
   private cat: ShopCategory | null = null;
   private startFocus: ShopCategory | null = null;
-  private hdr!: HeaderApi;
+  private hdr!: ScreenHeaderApi;
   private status!: kit.StatusBarApi;
   private page: Phaser.GameObjects.GameObject[] = [];
-  private pageDispose: (() => void)[] = [];
   private infoObjs: Phaser.GameObjects.GameObject[] = [];
   private list?: kit.MenuList;
   private preview?: WeaponPreviewApi;
@@ -69,10 +69,9 @@ export class ShopScene extends Phaser.Scene {
     audio.music('hangar');
     ensureMetaArt(this);
     this.page = [];
-    this.pageDispose = [];
     this.infoObjs = [];
-    backdrop(this);
-    this.hdr = header(this, 'UPGRADE SHIP', { onBack: () => this.back(), credits: getSave().credits });
+    screenBackdrop(this);
+    this.hdr = screenHeader(this, 'UPGRADE SHIP', { back: () => this.back(), credits: getSave().credits });
     this.status = kit.statusBar(this, '');
     kit.onBack(this, () => this.back());
     this.showPage(this.cat, this.startFocus, false);
@@ -109,8 +108,6 @@ export class ShopScene extends Phaser.Scene {
     this.list?.destroy();
     this.list = undefined;
     this.buyBtn = undefined;
-    this.pageDispose.forEach((d) => d());
-    this.pageDispose = [];
     this.tweens.killTweensOf(this.page);
     this.page.forEach((o) => o.destroy());
     this.page = [];
@@ -167,7 +164,7 @@ export class ShopScene extends Phaser.Scene {
       try { api?.destroy(); } catch { /* stub */ }
       this.bay = new ShipBay(this, { x: x + 3, y: y + 3, w: dw - 6, h: h - 6, frame: false, gauges: false, nameplate: false, depth: MD.panel, scale: h >= 150 ? 3 : 2 }, loadout);
     }
-    this.track(scanlines(this, x + 3, y + 3, dw - 6, h - 6, MD.overlay, 0.45));
+    this.track(scanlines(this, x + 3, y + 3, dw - 6, h - 6, 0.45, MD.overlay));
     this.track(cornerBrackets(this, x + 4, y + 4, dw - 8, h - 8, COLORS.teal, 5, MD.overlay));
     const t = this.track(kit.text(this, x + 9, y + 7, tag, { size: 's', color: COLORS.teal, depth: MD.overlay }));
     const led = this.track(this.add.rectangle(x + 9 + t.width + 4, y + 10, 3, 3, COLORS.bad).setDepth(MD.overlay));
@@ -346,7 +343,7 @@ export class ShopScene extends Phaser.Scene {
     }
     const ly = y;
     this.track(kit.panel(this, px, ly, pw, listH, 'raised').setDepth(MD.panel));
-    this.track(scanlines(this, px + 3, ly + 3, pw - 6, listH - 6, MD.panel, 0.3));
+    this.track(scanlines(this, px + 3, ly + 3, pw - 6, listH - 6, 0.3, MD.panel));
     const listX = px + 20, listW = pw - 28;
     this.toastY = ly + listH / 2;
     this.info = { x: px, y: ly + listH + gap, w: pw, h: infoH };
@@ -354,14 +351,13 @@ export class ShopScene extends Phaser.Scene {
 
     this.list = new kit.MenuList(this, {
       x: listX, y: ly + 6, width: listW, items: this.itemRows(cat), rowHeight: rowH, size: 'm', depth: MD.content, startIndex: eqIdx,
+      tapMode: 'focusThenSelect',
       onFocus: (i, it) => this.onItemFocus(i, it),
       onSelect: (i) => this.tryBuy(i),
       onDisabled: (i) => this.explainDisabled(i),
       onLeft: gun ? () => this.changePower(-1) : undefined,
       onRight: gun ? () => this.changePower(1) : undefined,
     });
-    const guard = new TapGuard(this, this.list, listX - 16, ly + 6, listW + 20, rowH, this.items.length, MD.content + 1);
-    this.pageDispose.push(() => guard.destroy());
     this.refreshPower();
     this.onItemFocus(this.list.index, this.list.item);
   }
