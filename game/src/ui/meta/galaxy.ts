@@ -31,7 +31,7 @@ export class RouteRenderer {
   private t = 0;
   private acc = 0;
 
-  constructor(private readonly scene: Phaser.Scene, depth: number) {
+  constructor(scene: Phaser.Scene, depth: number) {
     this.gfx = scene.add.graphics().setDepth(depth);
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.tick, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.UPDATE, this.tick, this));

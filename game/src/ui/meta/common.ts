@@ -101,7 +101,6 @@ export const signed = (n: number, digits = 1): string => (n > 0 ? `+${dec(n, dig
 
 /** Glow colour (0xRRGGBB) of a shot colour, with a safe default. */
 export const shotGlow = (c: ShotColor | undefined): number => (c && SHOT_RGB[c] ? SHOT_RGB[c].glow : COLORS.shield);
-export const shotCore = (c: ShotColor | undefined): number => (c && SHOT_RGB[c] ? SHOT_RGB[c].core : 0xffffff);
 
 /** Word-wrap `str` into at most `maxLines` lines of `maxChars` characters ("..." when cut). */
 export function wrapLines(str: string, maxChars: number, maxLines: number): string[] {

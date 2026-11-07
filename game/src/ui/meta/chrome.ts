@@ -1,7 +1,7 @@
 // =====================================================================================
 //  META SCREENS — shared chrome built on the UI kit: backdrop, header strip with a back
 //  button and an animated credits readout, recessed "screens" with scanlines and corner
-//  brackets, section labels, multi-colour text lines and feedback toasts.
+//  brackets, section labels, feedback toasts and badges.
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS, DEPTH } from '../../config';
@@ -222,24 +222,6 @@ export function sectionLabel(scene: Phaser.Scene, x: number, y: number, label: s
   return c;
 }
 
-/** One line of text made of differently coloured segments. Returns the container (width in .width). */
-export function richLine(
-  scene: Phaser.Scene, x: number, y: number, segs: [string, number][],
-  opts: { size?: kit.FontSize; originY?: number; depth?: number; gap?: number } = {},
-): Phaser.GameObjects.Container {
-  const c = scene.add.container(Math.round(x), Math.round(y));
-  if (opts.depth !== undefined) c.setDepth(opts.depth);
-  let cx = 0;
-  for (const [s, color] of segs) {
-    if (!s) continue;
-    const t = kit.text(scene, cx, 0, s, { size: opts.size ?? 's', color, originY: opts.originY ?? 0 });
-    c.add(t);
-    cx += t.width + (opts.gap ?? 0);
-  }
-  c.setSize(cx, 8);
-  return c;
-}
-
 // ------------------------------------------------------------------------- feedback
 
 const activeToast = new WeakMap<Phaser.Scene, Phaser.GameObjects.Container>();
@@ -289,12 +271,4 @@ export function badge(scene: Phaser.Scene, x: number, y: number, n: number, dept
   c.add(kit.text(scene, 0, 0, label, { size: 's', color: 0xffffff, originX: 0.5, originY: 0.5 }));
   scene.tweens.add({ targets: c, scale: 1.15, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
   return c;
-}
-
-/** Horizontal neon rule (1px line + soft glow). */
-export function neonRule(scene: Phaser.Scene, x: number, y: number, w: number, color: number = COLORS.teal, depth: number = MD.content): Phaser.GameObjects.Graphics {
-  const g = scene.add.graphics().setDepth(depth);
-  g.fillStyle(color, 0.9).fillRect(Math.round(x), Math.round(y), Math.round(w), 1);
-  g.fillStyle(color, 0.25).fillRect(Math.round(x), Math.round(y) + 1, Math.round(w), 1);
-  return g;
 }

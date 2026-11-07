@@ -26,9 +26,8 @@ export class TapGuard {
   private on = true;
 
   constructor(
-    private readonly scene: Phaser.Scene, private readonly list: kit.MenuList,
-    private readonly x: number, private readonly y: number, private readonly w: number, private readonly rowH: number,
-    count: number, depth: number,
+    scene: Phaser.Scene, private readonly list: kit.MenuList,
+    x: number, y: number, w: number, rowH: number, count: number, depth: number,
   ) {
     for (let i = 0; i < count; i++) {
       const z = scene.add.zone(x, y + i * rowH, w, rowH).setOrigin(0).setDepth(depth).setInteractive({ useHandCursor: true });

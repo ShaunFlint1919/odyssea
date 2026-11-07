@@ -25,8 +25,6 @@ export const META = {
   arc: 'meta_arc',
   glow: 'meta_glow',
   ring: 'meta_ring',
-  dot: 'meta_dot',
-  px: 'meta_px',
   shadow: 'meta_shadow',
   flame: 'meta_flame',
   chevron: 'meta_chevron',
@@ -243,8 +241,6 @@ export function ensureMetaArt(scene: Phaser.Scene): void {
   if (!scene.textures.exists(META.arc)) addTexture(scene, META.arc, shieldArc(54, 54));
   if (!scene.textures.exists(META.glow)) addTexture(scene, META.glow, softGlow(32));
   if (!scene.textures.exists(META.ring)) addTexture(scene, META.ring, ringTexture(32, 2));
-  if (!scene.textures.exists(META.dot)) addTexture(scene, META.dot, dotTexture());
-  if (!scene.textures.exists(META.px)) addTexture(scene, META.px, solid(2, 2));
   if (!scene.textures.exists(META.shadow)) addTexture(scene, META.shadow, shadowEllipse(64, 16));
   if (!scene.textures.exists(META.flame)) addTexture(scene, META.flame, flameFallback());
   if (!scene.textures.exists(META.reticle)) addTexture(scene, META.reticle, reticleTexture(28));
@@ -271,13 +267,6 @@ export const iconOr = (scene: Phaser.Scene, key: string, fallback: string): stri
 
 // ------------------------------------------------------------------------- small textures
 
-function solid(w: number, h: number): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(w, h);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, h);
-  return canvas;
-}
-
 /** 1x3 CRT scanline tile (every third row darkened). */
 function scanlineTile(): HTMLCanvasElement {
   const { canvas, ctx } = makeCanvas(1, 3);
@@ -285,17 +274,6 @@ function scanlineTile(): HTMLCanvasElement {
   ctx.fillRect(0, 2, 1, 1);
   ctx.fillStyle = 'rgba(255,255,255,0.025)';
   ctx.fillRect(0, 0, 1, 1);
-  return canvas;
-}
-
-/** 3x3 route dot with a soft rim (white, tinted at runtime). */
-function dotTexture(): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(3, 3);
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.fillRect(0, 1, 3, 1);
-  ctx.fillRect(1, 0, 1, 3);
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(1, 1, 1, 1);
   return canvas;
 }
 
