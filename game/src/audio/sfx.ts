@@ -364,10 +364,11 @@ export class SfxEngine {
     const dest = def.crunch ? this.g.crunchBus : this.g.sfxBus;
     const panned = this.g.canPan && Math.abs(panV) > 0.01;
     const chain = panned ? null : this.chainFor(key, def.max + CHAIN_SPARE, dest, now);
+    const clear = chain !== null && chain.busyAfter(now);
     let level: GainNode;
     if (chain) {
       level = chain.level;
-      level.gain.cancelScheduledValues(now);
+      if (clear) level.gain.cancelScheduledValues(now);
       level.gain.setValueAtTime(gain, now);
     } else {
       level = ctx.createGain();
@@ -381,7 +382,7 @@ export class SfxEngine {
         level.connect(dest);
       }
     }
-    const b: Build = { g: this.g, ctx, t: now, p, out: level, end: now, srcs: [], nodes: [], last: null, rnd: this.rnd, chain, ni: 0 };
+    const b: Build = { g: this.g, ctx, t: now, p, out: level, end: now, srcs: [], nodes: [], last: null, rnd: this.rnd, chain, ni: 0, clear };
     def.build(b);
     const voice = this.pool.add(key, def.prio, b, level, pan, gain);
     if (chain) {

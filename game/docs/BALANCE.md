@@ -34,7 +34,12 @@ predicts.
 * **Bosses (gameplay rules).**
   * Shots hit destroyable parts first, and parts absorb that damage.
   * The pulsing core passes ×1.5 to the body.
-  * A piercing shot damages the boss once per shot (the first element it touches).
+  * Shots are tested along the segment they travel each step, so small, fast units take every
+    hit (no tunnelling).
+  * A piercing shot damages the boss once per shot (the first element it touches). Splash
+    skips the struck target and counts a boss as one target, and prism shards share their
+    bolt's damage. So every weapon deals exactly its `weaponFireStats()` damage (mortar shells,
+    mines and Skyhook Rockets used to hit a boss twice).
   * In-level `power` pickups add +1 front power for the rest of the level (capped at 10).
 * **Enemy bullets.** Damage is fixed per sprite by `ENEMY_BULLET_DAMAGE`: dot 2, orb 3,
   needle 3, ring 4, bigorb 6, missile 7, laser 1 per 0.1 s. Content picks the sprite by
@@ -290,8 +295,8 @@ Reading the curve:
 | thalassa | 5-12 | 38-50 | 190-300 | 2000 (450) | 13 |
 | umbra | 7-13 | 46-74 | - | 2100 (600) | 13 |
 | cinder | 7-13 | 58-76 | 240-290 | 2200 (820) | 14 |
-| glacia | 9-14 | 62-86 | - | 5300 (1100) | 14 |
-| rift | 9-14 | 66-86 | 280-390 | 5600 (1500) | 15 |
+| glacia | 9-14 | 62-86 | - | 5000 (1100) | 14 |
+| rift | 9-14 | 66-86 | 280-390 | 5100 (1500) | 15 |
 | axiom | 10-14 | 66-90 | 380-450 | 10500 (2000) | 17 |
 
 * **Weight classes.** small 4..14, medium 30..90, heavy 150..450, mid-boss 700..11000. No
@@ -338,21 +343,22 @@ Reading the curve:
 
 **Fight length.** fight = hp / (reference fight DPS × uptime). Uptime is the share of the
 nominal single-target DPS the autopilot lands, measured per fight with the reference kit (§10).
-* Core bosses take ~1.0 with the Kestrel or homing drones.
+* Core bosses take 0.9-0.97 with the Kestrel. The rocket and lance kits from Cinder on take
+  0.76-0.91 (re-measured after the single-splash fix).
 * The core-less Dreadnought takes 0.56, its six parts eating the stream.
 * Mid-bosses take 0.35-0.9: the carriers' fighters and the escorts soak fire.
 * A human lands about `HUMAN_AIM` = 80 % of the autopilot's hits ("human est.").
 
 | boss | planet | hp | parts hp | credits | ref fight power | ref fight DPS | uptime | model fight | human est. |
 | --- | --- | --: | --: | --: | --: | --: | --: | --: | --: |
-| Sandmaw Colossus | Kessra | 3100 | 860 | 380 | 6.4 | 115 | 0.97 | 28 s | 35 s |
+| Sandmaw Colossus | Kessra | 2950 | 820 | 380 | 6.4 | 115 | 0.97 | 26 s | 33 s |
 | Thornback Hydra | Verdance | 5350 | 1440 | 620 | 6.4 | 127 | 0.9 | 47 s | 58 s |
 | Brine Dreadnought | Thalassa | 5400 | 1740 | 850 | 10 | 182 | 0.56 | 53 s | 66 s |
 | Gloam Matriarch | Umbra Deep | 6400 | 1120 | 1100 | 10 | 176 | 0.69 | 53 s | 66 s |
-| Crucible Forge | Cinder | 12400 | 1960 | 1500 | 10 | 216 | 1.06 | 54 s | 68 s |
-| Rime Sentinel | Glacia | 17250 | 2220 | 2050 | 6 | 304 | 1.03 | 55 s | 69 s |
-| Vesper Voidcarrier | The Rift | 24500 | 4700 | 2800 | 7.5 | 453 | 0.95 | 57 s | 71 s |
-| The Architect | Axiom Citadel | 31500 | 4960 | 3750 | 8.9 | 521 | 1.02 | 59 s | 74 s |
+| Crucible Forge | Cinder | 9050 | 1420 | 1500 | 10 | 216 | 0.76 | 55 s | 69 s |
+| Rime Sentinel | Glacia | 15200 | 1960 | 2050 | 6 | 304 | 0.91 | 55 s | 69 s |
+| Vesper Voidcarrier | The Rift | 21700 | 4160 | 2800 | 7.5 | 453 | 0.84 | 57 s | 71 s |
+| The Architect | Axiom Citadel | 26800 | 4220 | 3750 | 8.9 | 521 | 0.9 | 57 s | 71 s |
 
 | mid-boss | level | hp | credits | ref fight power | ref fight DPS | uptime | model fight | human est. |
 | --- | --- | --: | --: | --: | --: | --: | --: | --: |
@@ -360,20 +366,20 @@ nominal single-target DPS the autopilot lands, measured per fight with the refer
 | Canopy Carrier | verdance-2 | 1950 | 340 | 4.9 | 106 | 0.64 | 29 s | 36 s |
 | Tidewall Destroyer | thalassa-2 | 2000 | 450 | 8.4 | 159 | 0.57 | 22 s | 28 s |
 | Gloam Frigate | umbra-2 | 2100 | 600 | 10 | 176 | 0.42 | 28 s | 36 s |
-| Furnace Carrier | cinder-2 | 2200 | 820 | 10 | 196 | 0.38 | 30 s | 37 s |
-| Blizzard Frigate | glacia-2 | 5300 | 1100 | 3.9 | 282 | 0.88 | 21 s | 27 s |
-| Lamprey Carrier | rift-2 | 5600 | 1500 | 6.8 | 334 | 0.67 | 25 s | 31 s |
-| Prefect Frigate | axiom-2 | 10500 | 2000 | 7 | 435 | 0.87 | 28 s | 35 s |
+| Furnace Carrier | cinder-2 | 2200 | 820 | 10 | 196 | 0.45 | 25 s | 31 s |
+| Blizzard Frigate | glacia-2 | 5000 | 1100 | 3.9 | 282 | 0.83 | 21 s | 27 s |
+| Lamprey Carrier | rift-2 | 5100 | 1500 | 6.8 | 334 | 0.55 | 28 s | 35 s |
+| Prefect Frigate | axiom-2 | 10500 | 2000 | 7 | 435 | 0.86 | 28 s | 35 s |
 
 * **Planet 1 is tuned for the start gun.** With the Kestrel at p2 / p3 (the start gun plus one
-  or two upgrades or pickups), the model gives the Colossus 74 / 56 s and the Sirocco Frigate
+  or two upgrades or pickups), the model gives the Colossus 70 / 53 s and the Sirocco Frigate
   22 / 16 s. A player who re-bought everything (Kestrel p5 + pod) beats the tutorial planet
   about twice as fast. From Verdance on, the reference kit is the target: bosses 45-75 s,
   mid-bosses 20-35 s (tests).
-* **HP curve.** HP grows every planet (3100 → 31500 for bosses, 750 → 10500 for mid-bosses).
+* **HP curve.** HP grows every planet (2950 → 26800 for bosses, 750 → 10500 for mid-bosses).
   The steps follow the reference kit's DPS, not a fixed ratio:
   * the plateau from Thalassa to Umbra is the maxed Kestrel;
-  * the Cinder jump is the homing Skyhook Rockets;
+  * the Cinder step (×1.4) is two Skyhook Rockets joining the maxed Kestrel;
   * the Rift / Axiom jump is the Lance plus 3-4 power pickups.
 * **Parts.** Destroyable parts keep about 15-30 % of the body hp: they scale with the body
   when it is retuned. Destroying them first removes their guns (they are optional).
@@ -535,35 +541,50 @@ aim driver.
   and gave the per-fight uptimes in `src/data/balance.ts`.
 * **Full levels.** Full-level runs with real waves and pickups then validated each fight and
   recalibrated the mid-boss uptimes, which are lower with escorts on screen.
+* **Run C.** After the gameplay fix (swept shot collisions, single splash hit, shared prism
+  damage), every Cinder-to-Axiom fight was re-measured on full levels with the reference kits.
+  The rocket double splash had inflated the uptimes: Forge 1.06 → 0.76, Rime Sentinel
+  1.03 → 0.91, Voidcarrier 0.95 → 0.84, Architect 1.02 → 0.90. Mid-bosses: Furnace
+  Carrier 0.45, Blizzard Frigate 0.83, Lamprey Carrier 0.55, Prefect Frigate 0.86. HP was
+  scaled to match (Forge 12400 → 9050, Rime Sentinel 17250 → 15200, Voidcarrier
+  24500 → 21700, Architect 31500 → 26800, Blizzard Frigate 5300 → 5000, Lamprey Carrier
+  5600 → 5100). The Kestrel-kit fights of Kessra to Umbra did not move (Colossus 77.9 →
+  78.1 s at p2); the Colossus was then trimmed 3100 → 2950 so that p2 lands at ~75 s.
 
 
 **Measured, before → after** (autopilot; boss = `bossKill`, entrance → kill; mid-boss = spawn
-→ kill; seed = level seed unless noted). Before = the catalogue at the start of this pass
-(Kestrel 5 × 5/s, Colossus 3500 → Architect 40000, mid-bosses 1500 → 4000), with the
-piercing double-hit then present. After = final data, mortal bot at speed 2 unless "god".
+→ kill; level seed unless noted; mortal bot at speed 2 or god at speed 3).
+* "Start of pass" is the catalogue before this tuning: Kestrel 5 × 5/s, Colossus 3500 →
+  Architect 40000, mid-bosses 1500 → 4000, with the old piercing double-hit.
+* "Collision fix, old tuning" is the swept-collision / single-splash build with the previous
+  tuning.
+* "Final" is the current data.
 
-| fight | kit | before | after |
-| --- | --- | --: | --: |
-| Colossus (kessra-3) | start loadout, no pickups | 156.5 s (god) | 108.8 s at p1; 77.9 s when one pickup drops (p2) |
-| Colossus (kessra-3) | start gun + 1-2 upgrades (p3) | — | 57.6 / 58.3 s (at 3000 hp; ≈ 60 s at 3100) |
-| Colossus (kessra-3) | reference (Kestrel p5 + pod) | 35.1 s (god) | 31.6 s (god, skip) |
-| Sirocco Frigate (kessra-2) | start loadout | escaped | 32.6 s |
-| Sirocco Frigate (kessra-2) | start gun p2 | — | 16.9 s (at 800 hp, one pickup → p3) |
-| Hydra / Dreadnought / Matriarch | reference | — / 62.1 s / — | 48.6 / 56.8 / 57.4 s |
-| Forge / Rime Sentinel | reference | — | 57.0 / 53.5 s (god) |
-| Voidcarrier (rift-3) | reference | 82.0 s (god) | 65.7 s (49.5 s god, another run) |
-| Architect (axiom-3) | reference | 58.3 s (god, double-hit; ~110 s without) | 58.8 s |
-| Tidewall Destroyer (thalassa-2) | reference | escaped (14 s on screen) | 25.0 s (god) |
-| Canopy / Gloam / Furnace (v2 / u2 / c2) | reference | — | 28.9 / 28.2 / 27.2 s (god) |
-| Blizzard / Lamprey / Prefect (g2 / r2 / a2) | reference | — / — / 14.1 s | 21.3 / 16-40 / 26.4 s (god) |
+| fight | kit | start of pass | collision fix, old tuning | final |
+| --- | --- | --: | --: | --: |
+| Colossus (kessra-3) | start loadout | 156.5 s (p1) | 78.1 s (p2, 3100 hp) | 74.3 s (p2, one pickup) |
+| Colossus (kessra-3) | start gun p3 | — | 57.6 / 58.3 s (pre-fix) | 46.4 s (p4 with one pickup) |
+| Sirocco Frigate (kessra-2) | start loadout | escaped | 23.1 s | 33.1 s (p1) |
+| Hydra / Dreadnought / Matriarch | reference | — / 62.1 s / — | — | 48.6 / 56.8 / 57.4 s (Kestrel kits, unaffected) |
+| Crucible Forge (cinder-3) | reference | — | 79.1 s | 59.4 s |
+| Rime Sentinel (glacia-3) | reference | — | 65.7 s | 58.1 s |
+| Vesper Voidcarrier (rift-3) | reference | 82.0 s | 64.9 s | 47.5 s (p10, many pickups) |
+| The Architect (axiom-3) | reference | 58.3 s (double hit) | 83.5 s | 66.0 s (p8) |
+| Tidewall Destroyer (thalassa-2) | reference | escaped (14 s on screen) | — | 25.0 s |
+| Canopy / Gloam (v2 / u2) | reference | — | — | 28.9 / 28.2 s (Kestrel kits) |
+| Furnace Carrier (cinder-2) | reference | — | 23.1 s | 23.1 s (hp unchanged) |
+| Blizzard Frigate (glacia-2) | reference | — | 28.0 s | 20.6 / 18.3 s (2 seeds) |
+| Lamprey Carrier (rift-2) | reference | — | 40.1 s | 18.1 / 42.4 s (2 seeds) |
+| Prefect Frigate (axiom-2) | reference | 14.1 s | 29.0 s | 29.0 s (hp unchanged) |
 
-* **Model.** The model's boss fights went from 71-174 s to 47-59 s (planets 2-8), and its
-  mid-boss fights from 12-25 s to 20-30 s.
-* **Spread.** The Lamprey Carrier is the noisiest fight: its launched fighters soak 0.5-0.9 of
-  the fire, depending on the run. Its hp sits at the mean.
-* **Damage.** The mortal autopilot finished every validation level, taking 0-12 raw damage
+* **Model.** The model's boss fights went from 71-174 s to 47-57 s (planets 2-8), and its
+  mid-boss fights from 12-25 s to 21-29 s.
+* **Spread.** The Lamprey Carrier is bimodal: when the homing seekers and rockets lock onto
+  its launched fighters, it lands only 0.45 of the fire instead of 0.83. Its hp sits at the
+  mean, under the 45 s retreat.
+* **Damage.** The mortal autopilot finished every validation level, taking 0-15 raw damage
   (it dodges very well). Kessra shooters were made 20-30 % more aggressive in response.
-* **Start kit.** Kill ratio with the start loadout went from 52 / 38 / 46 % to 79 / 37-40 /
-  49-57 % on kessra-1/2/3, with 917 / 599 / 1475 → 1337 / 610-686 / 1513-1806 credits
-  (2-7 % of gems are lost off-screen).
-* **Reference kit.** With the reference kits, levels clear 70-100 % of the spawns.
+* **Start kit.** With the start loadout, kessra-1/2/3 kill ratios went from 52 / 38 / 46 % to
+  68-79 / 37-40 / 49-57 %. Credits went from 917 / 599 / 1475 to 1205-1337 / 610-811 /
+  1513-1806 (2-7 % of gems are lost off-screen).
+* **Reference kit.** With the reference kits, levels clear 88-100 % of the spawns.

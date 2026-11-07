@@ -4,6 +4,9 @@
 //  songs      -> musicBus ------------------------------- mix -> high-shelf -> low-pass
 //             -> DynamicsCompressor -> soft-clip ceiling (< 0 dBFS) -> destination
 //  Everything here works on any BaseAudioContext (live AudioContext or OfflineAudioContext).
+//  The context-free tables (noise as 48 kHz AudioBuffers, wave coefficients, shaper curves) are
+//  module-wide: prepareAudioTables() builds them in idle slices before the first gesture, and
+//  createGraph() builds whatever is still missing.
 // =====================================================================================
 
 /** Oscillator timbres: native types + custom PeriodicWaves (pulse duty cycles, 4-bit triangle). */
@@ -42,19 +45,22 @@ export function mulberry32(seed: number): () => number {
 
 const HARMONICS = 64;
 
+/** Fourier coefficients of a custom wave (cos / sin terms), as createPeriodicWave takes them. */
+interface WaveCoeffs { re: Float32Array<ArrayBuffer>; im: Float32Array<ArrayBuffer> }
+
 /** Band-limited pulse wave of the given duty cycle (Fourier series of a bipolar pulse). */
-function pulseWave(ctx: BaseAudioContext, duty: number): PeriodicWave {
+function pulseCoeffs(duty: number): WaveCoeffs {
   const re = new Float32Array(HARMONICS + 1);
   const im = new Float32Array(HARMONICS + 1);
   for (let n = 1; n <= HARMONICS; n++) {
     re[n] = (2 * Math.sin(2 * Math.PI * n * duty)) / (Math.PI * n);
     im[n] = (2 * (1 - Math.cos(2 * Math.PI * n * duty))) / (Math.PI * n);
   }
-  return ctx.createPeriodicWave(re, im);
+  return { re, im };
 }
 
 /** 32-step / 16-level staircase triangle (classic chip bass), as an exact Fourier series. */
-function stairTriangle(ctx: BaseAudioContext): PeriodicWave {
+function stairCoeffs(): WaveCoeffs {
   const steps = 32;
   const vals: number[] = [];
   for (let k = 0; k < steps; k++) {
@@ -76,51 +82,215 @@ function stairTriangle(ctx: BaseAudioContext): PeriodicWave {
     re[n] = a / (Math.PI * n);
     im[n] = b / (Math.PI * n);
   }
-  return ctx.createPeriodicWave(re, im);
+  return { re, im };
 }
 
 /** Mellow square (odd harmonics rolled off faster than 1/n) for soft leads. */
-function softSquare(ctx: BaseAudioContext): PeriodicWave {
+function softCoeffs(): WaveCoeffs {
   const re = new Float32Array(HARMONICS + 1);
   const im = new Float32Array(HARMONICS + 1);
   for (let n = 1; n <= HARMONICS; n += 2) im[n] = 1 / Math.pow(n, 1.7);
-  return ctx.createPeriodicWave(re, im);
+  return { re, im };
 }
 
-function makeNoise(ctx: BaseAudioContext, kind: NoiseName): AudioBuffer {
-  const sr = ctx.sampleRate;
-  const len = Math.floor(sr * (kind === 'brown' ? 2 : 1));
-  const buf = ctx.createBuffer(1, len, sr);
-  const d = buf.getChannelData(0);
-  const rnd = mulberry32(kind === 'white' ? 1234 : kind === 'brown' ? 777 : 4321);
-  if (kind === 'white') {
-    for (let i = 0; i < len; i++) d[i] = rnd() * 2 - 1;
-  } else if (kind === 'brown') {
-    let last = 0;
-    let peak = 0;
-    for (let i = 0; i < len; i++) {
-      last = (last + 0.02 * (rnd() * 2 - 1)) / 1.02;
-      d[i] = last;
-      peak = Math.max(peak, Math.abs(last));
+const WAVE_COEFFS: Record<CustomWave, () => WaveCoeffs> = {
+  pulse12: () => pulseCoeffs(0.125),
+  pulse25: () => pulseCoeffs(0.25),
+  tri4: stairCoeffs,
+  soft: softCoeffs,
+};
+
+/** Rate of the shared noise tables (an AudioBuffer plays at its own rate on any context). */
+const NOISE_RATE = 48000;
+const NOISE_SEED: Record<NoiseName, number> = { white: 1234, lfsr: 4321, metal: 4321, brown: 777 };
+
+/** Generator state of one noise table, so that it can be filled in idle slices. */
+interface NoiseFill {
+  kind: NoiseName;
+  d: Float32Array;
+  table: NoiseTable;
+  /** Next sample to generate, then (brown noise) next sample to normalise. */
+  i: number;
+  norm: number;
+  /** mulberry32 state, brown-noise integrator / peak, LFSR register / output. */
+  a: number;
+  last: number;
+  peak: number;
+  reg: number;
+  out: number;
+}
+
+/** mulberry32 step on a state word: next state in `rngOut[0]`, returns a sample in [-1, 1). */
+const rngOut = new Uint32Array(1);
+function rng(a: number): number {
+  a = (a + 0x6d2b79f5) >>> 0;
+  rngOut[0] = a;
+  let t = a;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
+}
+
+function fillWhite(f: NoiseFill, end: number): void {
+  const d = f.d;
+  let a = f.a;
+  for (let i = f.i; i < end; i++) {
+    d[i] = rng(a);
+    a = rngOut[0];
+  }
+  f.a = a;
+}
+
+function fillBrown(f: NoiseFill, end: number): void {
+  const d = f.d;
+  let a = f.a;
+  let last = f.last;
+  let peak = f.peak;
+  for (let i = f.i; i < end; i++) {
+    last = (last + 0.02 * rng(a)) / 1.02;
+    a = rngOut[0];
+    d[i] = last;
+    const m = last < 0 ? -last : last;
+    if (m > peak) peak = m;
+  }
+  f.a = a;
+  f.last = last;
+  f.peak = peak;
+}
+
+/** 15-bit LFSR noise as on 8/16-bit sound chips. 'metal' uses the short (93-step) loop. */
+function fillLfsr(f: NoiseFill, end: number): void {
+  const d = f.d;
+  const metal = f.kind === 'metal';
+  const tap = metal ? 6 : 1;
+  const hold = Math.max(1, Math.round(NOISE_RATE / (metal ? 24000 : 14000)));
+  let reg = f.reg;
+  let out = f.out;
+  for (let i = f.i; i < end; i++) {
+    if (i % hold === 0) {
+      const fb = (reg ^ (reg >> tap)) & 1;
+      reg = (reg >> 1) | (fb << 14);
+      out = reg & 1 ? 0.8 : -0.8;
     }
-    const norm = peak > 0 ? 0.95 / peak : 1;
-    for (let i = 0; i < len; i++) d[i] *= norm;
-  } else {
-    // 15-bit LFSR noise as on 8/16-bit sound chips. 'metal' uses the short (93-step) loop.
-    const tap = kind === 'metal' ? 6 : 1;
-    const hold = Math.max(1, Math.round(sr / (kind === 'metal' ? 24000 : 14000)));
-    let reg = 1;
-    let out = 1;
-    for (let i = 0; i < len; i++) {
-      if (i % hold === 0) {
-        const fb = (reg ^ (reg >> tap)) & 1;
-        reg = (reg >> 1) | (fb << 14);
-        out = reg & 1 ? 0.8 : -0.8;
-      }
-      d[i] = out;
+    d[i] = out;
+  }
+  f.reg = reg;
+  f.out = out;
+}
+
+/** Processes up to `n` more samples of `f` (generation, then brown-noise normalisation); true when complete. */
+function fillNoise(f: NoiseFill, n: number): boolean {
+  const d = f.d;
+  const len = d.length;
+  if (f.i < len) {
+    const end = Math.min(len, f.i + n);
+    if (f.kind === 'white') fillWhite(f, end);
+    else if (f.kind === 'brown') fillBrown(f, end);
+    else fillLfsr(f, end);
+    f.i = end;
+    return end === len && f.kind !== 'brown';
+  }
+  const end = Math.min(len, f.norm + n);
+  const k = f.peak > 0 ? 0.95 / f.peak : 1;
+  for (let i = f.norm; i < end; i++) d[i] *= k;
+  f.norm = end;
+  return end === len;
+}
+
+type BufferCtor = new (opts: AudioBufferOptions) => AudioBuffer;
+
+let bufferCtor: BufferCtor | null | undefined;
+
+/** The context-free AudioBuffer constructor (Chrome 55+), or null (probed once). */
+function audioBufferCtor(): BufferCtor | null {
+  if (bufferCtor !== undefined) return bufferCtor;
+  const C = (globalThis as { AudioBuffer?: unknown }).AudioBuffer;
+  bufferCtor = null;
+  if (typeof C === 'function') {
+    try {
+      new (C as BufferCtor)({ length: 1, sampleRate: NOISE_RATE, numberOfChannels: 1 });
+      bufferCtor = C as BufferCtor;
+    } catch {
+      /* old engine: tables stay raw samples, copied into context buffers by createGraph() */
     }
   }
+  return bufferCtor;
+}
+
+/** A noise table made before any context exists: an AudioBuffer when possible, else raw samples. */
+type NoiseTable = AudioBuffer | Float32Array<ArrayBuffer>;
+
+/** Tables shared by every graph (live context, offline renders): prepareAudioTables() or on demand. */
+const tables = {
+  waves: {} as Partial<Record<CustomWave, WaveCoeffs>>,
+  noise: {} as Partial<Record<NoiseName, NoiseTable>>,
+  clip: null as Float32Array<ArrayBuffer> | null,
+  crunch: null as Float32Array<ArrayBuffer> | null,
+};
+
+const NOISE_KINDS: NoiseName[] = ['white', 'lfsr', 'metal', 'brown'];
+const CUSTOM_WAVES = Object.keys(WAVE_COEFFS) as CustomWave[];
+/** Samples processed per warm-up slice (a fraction of a ms at 1x CPU). */
+const NOISE_SLICE = 4096;
+const fills: Partial<Record<NoiseName, NoiseFill>> = {};
+
+function startNoise(kind: NoiseName): NoiseFill {
+  const len = Math.floor(NOISE_RATE * (kind === 'brown' ? 2 : 1));
+  const C = audioBufferCtor();
+  let table: NoiseTable;
+  let d: Float32Array;
+  if (C) {
+    const buf = new C({ length: len, sampleRate: NOISE_RATE, numberOfChannels: 1 });
+    table = buf;
+    d = buf.getChannelData(0);
+  } else {
+    d = table = new Float32Array(len);
+  }
+  return { kind, d, table, i: 0, norm: 0, a: NOISE_SEED[kind] >>> 0, last: 0, peak: 0, reg: 1, out: 1 };
+}
+
+/** The noise table of `kind`, processing at most `budget` more samples (all of them by default); null while unfinished. */
+function noiseTable(kind: NoiseName, budget = Infinity): NoiseTable | null {
+  const ready = tables.noise[kind];
+  if (ready) return ready;
+  const f = (fills[kind] ??= startNoise(kind));
+  let done = fillNoise(f, budget);
+  while (!done && budget === Infinity) done = fillNoise(f, budget);
+  if (!done) return null;
+  delete fills[kind];
+  return (tables.noise[kind] = f.table);
+}
+
+function tablesReady(): boolean {
+  return NOISE_KINDS.every((k) => tables.noise[k]) && CUSTOM_WAVES.every((w) => tables.waves[w]) && !!tables.clip && !!tables.crunch;
+}
+
+/**
+ * Does one small slice of the context-free preparation (noise tables, wave coefficients, shaper
+ * curves). Call it from idle time before the first gesture so that createGraph() mostly creates
+ * nodes. Returns true once everything is ready; createGraph() builds whatever is still missing.
+ */
+export function prepareAudioTables(): boolean {
+  const noise = NOISE_KINDS.find((k) => !tables.noise[k]);
+  const wave = CUSTOM_WAVES.find((w) => !tables.waves[w]);
+  if (noise) noiseTable(noise, NOISE_SLICE);
+  else if (wave) tables.waves[wave] = WAVE_COEFFS[wave]();
+  else if (!tables.clip) tables.clip = softClipCurve(0.62);
+  else if (!tables.crunch) tables.crunch = saturateCurve(1.4);
+  return tablesReady();
+}
+
+function noiseBuffer(ctx: BaseAudioContext, kind: NoiseName): AudioBuffer {
+  const t = noiseTable(kind) as NoiseTable;
+  if (!(t instanceof Float32Array)) return t;
+  const buf = ctx.createBuffer(1, t.length, NOISE_RATE);
+  buf.getChannelData(0).set(t);
   return buf;
+}
+
+function periodicWave(ctx: BaseAudioContext, w: CustomWave): PeriodicWave {
+  const c = (tables.waves[w] ??= WAVE_COEFFS[w]());
+  return ctx.createPeriodicWave(c.re, c.im);
 }
 
 /** Transparent below |x| = knee, then a tanh shoulder; the ceiling stays below 0 dBFS. */
@@ -146,13 +316,13 @@ function saturateCurve(k: number, n = 1024): Float32Array<ArrayBuffer> {
   return c;
 }
 
-/** Builds the whole bus graph + wave tables + noise tables on a context. */
+/** Builds the whole bus graph on a context; wave / noise tables and curves come from `tables` (built now if missing). */
 export function createGraph(ctx: BaseAudioContext): Graph {
   const sfxBus = ctx.createGain();
   const musicBus = ctx.createGain();
   const crunchBus = ctx.createGain();
   const crunch = ctx.createWaveShaper();
-  crunch.curve = saturateCurve(1.4);
+  crunch.curve = (tables.crunch ??= saturateCurve(1.4));
   crunchBus.gain.value = 1.15;
   crunchBus.connect(crunch);
   crunch.connect(sfxBus);
@@ -180,7 +350,7 @@ export function createGraph(ctx: BaseAudioContext): Graph {
   const makeup = ctx.createGain();
   makeup.gain.value = 1.1;
   const clip = ctx.createWaveShaper();
-  clip.curve = softClipCurve(0.62);
+  clip.curve = (tables.clip ??= softClipCurve(0.62));
 
   mix.connect(shelf);
   shelf.connect(lp);
@@ -189,16 +359,16 @@ export function createGraph(ctx: BaseAudioContext): Graph {
   makeup.connect(clip);
 
   const waves: Record<CustomWave, PeriodicWave> = {
-    pulse12: pulseWave(ctx, 0.125),
-    pulse25: pulseWave(ctx, 0.25),
-    tri4: stairTriangle(ctx),
-    soft: softSquare(ctx),
+    pulse12: periodicWave(ctx, 'pulse12'),
+    pulse25: periodicWave(ctx, 'pulse25'),
+    tri4: periodicWave(ctx, 'tri4'),
+    soft: periodicWave(ctx, 'soft'),
   };
   const noise: Record<NoiseName, AudioBuffer> = {
-    white: makeNoise(ctx, 'white'),
-    lfsr: makeNoise(ctx, 'lfsr'),
-    metal: makeNoise(ctx, 'metal'),
-    brown: makeNoise(ctx, 'brown'),
+    white: noiseBuffer(ctx, 'white'),
+    lfsr: noiseBuffer(ctx, 'lfsr'),
+    metal: noiseBuffer(ctx, 'metal'),
+    brown: noiseBuffer(ctx, 'brown'),
   };
   const canPan = typeof (ctx as { createStereoPanner?: unknown }).createStereoPanner === 'function';
   return { ctx, sfxBus, crunchBus, musicBus, output: clip, waves, noise, canPan };

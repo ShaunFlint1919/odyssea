@@ -35,11 +35,12 @@ export function clearBonus(i: number, bossLevel: boolean, n = 24): number {
  * single-target share) that lands on each planet boss while the autopilot dodges: missed
  * shots, shots eaten by destroyable parts and minions, the boss moves, plus the x1.5 weak-point
  * core. Measured with tools/playtest.mjs for the reference kit of each boss level
- * (docs/BALANCE.md §10, run B): homing kits and the Kestrel on a core boss land ~1.0, the
- * Kestrel on the core-less Dreadnought only 0.56. DPS_UPTIME is the default.
+ * (docs/BALANCE.md §10, run B, re-measured after the swept-collision / single-splash fix):
+ * the Kestrel on a core boss lands ~0.9-0.97, rocket and lance kits 0.76-0.91, the Kestrel on
+ * the core-less Dreadnought only 0.56. DPS_UPTIME is the default.
  */
 export const BOSS_UPTIME: Record<string, number> = {
-  colossus: 0.97, hydra: 0.9, dreadnought: 0.56, hive: 0.69, forge: 1.06, cryo: 1.03, voidcarrier: 0.95, architect: 1.02,
+  colossus: 0.97, hydra: 0.9, dreadnought: 0.56, hive: 0.69, forge: 0.76, cryo: 0.91, voidcarrier: 0.84, architect: 0.9,
 };
 export const DPS_UPTIME = 0.85;
 /**
@@ -48,7 +49,7 @@ export const DPS_UPTIME = 0.85;
  * hitboxes (carriers 0.35-0.66). MIDBOSS_UPTIME is the default.
  */
 export const MIDBOSS_UPTIME_BY_ID: Record<string, number> = {
-  k_frigate: 0.8, v_carrier: 0.64, t_tidewall: 0.57, u_frigate: 0.42, c_carrier: 0.38, g_frigate: 0.88, r_carrier: 0.67, a_frigate: 0.87,
+  k_frigate: 0.8, v_carrier: 0.64, t_tidewall: 0.57, u_frigate: 0.42, c_carrier: 0.45, g_frigate: 0.83, r_carrier: 0.55, a_frigate: 0.86,
 };
 export const MIDBOSS_UPTIME = 0.75;
 /** A human pilot lands about this share of what the autopilot lands (fights ~25 % longer). */

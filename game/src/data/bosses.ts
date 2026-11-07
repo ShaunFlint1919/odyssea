@@ -39,7 +39,7 @@ export const BOSSES: BossDef[] = [
   {
     // desert crawler fortress: twin side turrets, missile pods, twin bow guns
     id: 'colossus', name: 'Sandmaw Colossus', title: 'Siege Crawler of Kessra', sprite: 'boss_colossus', palette: 'crimson',
-    hp: 3100, score: 21000, credits: 380,
+    hp: 2950, score: 21000, credits: 380,
     phases: [
       {
         untilHp: 0.6, move: 'anchor', speed: 20,
@@ -57,10 +57,10 @@ export const BOSSES: BossDef[] = [
       },
     ],
     parts: [
-      { sprite: 'part_turret', offset: COL('turret', 0), hp: 230, attack: atk('aimed', 0.7, 100, 'eb_dot', 'violet') },
-      { sprite: 'part_turret', offset: COL('turret', 1), hp: 230, attack: atk('aimed', 0.7, 100, 'eb_dot', 'violet') },
-      { sprite: 'part_pod', offset: COL('pod', 0), hp: 200, attack: atk('missile', 0.2, 70, 'eb_missile', 'pink') },
-      { sprite: 'part_pod', offset: COL('pod', 1), hp: 200, attack: atk('missile', 0.2, 70, 'eb_missile', 'pink') },
+      { sprite: 'part_turret', offset: COL('turret', 0), hp: 220, attack: atk('aimed', 0.7, 100, 'eb_dot', 'violet') },
+      { sprite: 'part_turret', offset: COL('turret', 1), hp: 220, attack: atk('aimed', 0.7, 100, 'eb_dot', 'violet') },
+      { sprite: 'part_pod', offset: COL('pod', 0), hp: 190, attack: atk('missile', 0.2, 70, 'eb_missile', 'pink') },
+      { sprite: 'part_pod', offset: COL('pod', 1), hp: 190, attack: atk('missile', 0.2, 70, 'eb_missile', 'pink') },
       { sprite: 'part_core', offset: COL('core', 0), hp: 0 },
     ],
   },
@@ -168,7 +168,7 @@ export const BOSSES: BossDef[] = [
   {
     // lava forge reactor: four flak / needle turrets around a glowing core
     id: 'forge', name: 'Crucible Forge', title: 'Heart of Cinder', sprite: 'boss_forge', palette: 'steel',
-    hp: 12400, score: 85000, credits: 1500,
+    hp: 9050, score: 85000, credits: 1500,
     phases: [
       {
         untilHp: 0.75, move: 'anchor', speed: 18,
@@ -197,17 +197,17 @@ export const BOSSES: BossDef[] = [
       },
     ],
     parts: [
-      { sprite: 'part_turret', offset: FOR('turret', 2), hp: 540, attack: atk('flak', 0.35, 85, 'eb_orb', 'violet') },
-      { sprite: 'part_turret', offset: FOR('turret', 3), hp: 540, attack: atk('flak', 0.35, 85, 'eb_orb', 'violet') },
-      { sprite: 'part_turret', offset: FOR('turret', 0), hp: 440, attack: atk('aimed', 0.8, 130, 'eb_needle', 'white') },
-      { sprite: 'part_turret', offset: FOR('turret', 1), hp: 440, attack: atk('aimed', 0.8, 130, 'eb_needle', 'white') },
+      { sprite: 'part_turret', offset: FOR('turret', 2), hp: 390, attack: atk('flak', 0.35, 85, 'eb_orb', 'violet') },
+      { sprite: 'part_turret', offset: FOR('turret', 3), hp: 390, attack: atk('flak', 0.35, 85, 'eb_orb', 'violet') },
+      { sprite: 'part_turret', offset: FOR('turret', 0), hp: 320, attack: atk('aimed', 0.8, 130, 'eb_needle', 'white') },
+      { sprite: 'part_turret', offset: FOR('turret', 1), hp: 320, attack: atk('aimed', 0.8, 130, 'eb_needle', 'white') },
       { sprite: 'part_core', offset: FOR('core', 0), hp: 0 },
     ],
   },
   {
     // ice crystal sentinel: crystal wings, brow turrets, five prism muzzles
     id: 'cryo', name: 'Rime Sentinel', title: 'Keeper of Glacia', sprite: 'boss_cryo', palette: 'violet',
-    hp: 17250, score: 120000, credits: 2050,
+    hp: 15200, score: 120000, credits: 2050,
     phases: [
       {
         untilHp: 0.7, move: 'hoverSway', speed: 30,
@@ -228,17 +228,17 @@ export const BOSSES: BossDef[] = [
       },
     ],
     parts: [
-      { sprite: 'part_wing', offset: CRY('wing', 0), hp: 650, attack: atk('spread3', 0.5, 115, 'eb_needle', 'pink') },
-      { sprite: 'part_wing', offset: CRY('wing', 1), hp: 650, attack: atk('spread3', 0.5, 115, 'eb_needle', 'pink') },
-      { sprite: 'part_turret', offset: CRY('turret', 0), hp: 460, attack: atk('burst', 0.7, 135, 'eb_needle', 'red') },
-      { sprite: 'part_turret', offset: CRY('turret', 1), hp: 460, attack: atk('burst', 0.7, 135, 'eb_needle', 'red') },
+      { sprite: 'part_wing', offset: CRY('wing', 0), hp: 570, attack: atk('spread3', 0.5, 115, 'eb_needle', 'pink') },
+      { sprite: 'part_wing', offset: CRY('wing', 1), hp: 570, attack: atk('spread3', 0.5, 115, 'eb_needle', 'pink') },
+      { sprite: 'part_turret', offset: CRY('turret', 0), hp: 410, attack: atk('burst', 0.7, 135, 'eb_needle', 'red') },
+      { sprite: 'part_turret', offset: CRY('turret', 1), hp: 410, attack: atk('burst', 0.7, 135, 'eb_needle', 'red') },
       { sprite: 'part_core', offset: CRY('core', 0), hp: 0 },
     ],
   },
   {
     // space carrier: missile launch pods, wing plates, flank turrets, hangar maw (muzzle 2)
     id: 'voidcarrier', name: 'Vesper Voidcarrier', title: 'Shepherd of the Rift', sprite: 'boss_voidcarrier', palette: 'steel',
-    hp: 24500, score: 170000, credits: 2800,
+    hp: 21700, score: 170000, credits: 2800,
     phases: [
       {
         untilHp: 0.75, move: 'anchor', speed: 20,
@@ -268,18 +268,18 @@ export const BOSSES: BossDef[] = [
       },
     ],
     parts: [
-      { sprite: 'part_pod', offset: VOI('pod', 0), hp: 790, attack: atk('missile', 0.3, 85, 'eb_missile', 'orange') },
-      { sprite: 'part_pod', offset: VOI('pod', 1), hp: 790, attack: atk('missile', 0.3, 85, 'eb_missile', 'orange') },
-      { sprite: 'part_turret', offset: VOI('turret', 2), hp: 860, attack: atk('spread3', 0.7, 125, 'eb_orb', 'red') },
-      { sprite: 'part_turret', offset: VOI('turret', 3), hp: 860, attack: atk('spread3', 0.7, 125, 'eb_orb', 'red') },
-      { sprite: 'part_wing', offset: VOI('wing', 0), hp: 700 },
-      { sprite: 'part_wing', offset: VOI('wing', 1), hp: 700 },
+      { sprite: 'part_pod', offset: VOI('pod', 0), hp: 700, attack: atk('missile', 0.3, 85, 'eb_missile', 'orange') },
+      { sprite: 'part_pod', offset: VOI('pod', 1), hp: 700, attack: atk('missile', 0.3, 85, 'eb_missile', 'orange') },
+      { sprite: 'part_turret', offset: VOI('turret', 2), hp: 760, attack: atk('spread3', 0.7, 125, 'eb_orb', 'red') },
+      { sprite: 'part_turret', offset: VOI('turret', 3), hp: 760, attack: atk('spread3', 0.7, 125, 'eb_orb', 'red') },
+      { sprite: 'part_wing', offset: VOI('wing', 0), hp: 620 },
+      { sprite: 'part_wing', offset: VOI('wing', 1), hp: 620 },
     ],
   },
   {
     // techno core: glowing core, keel cannon, wing batteries, flank turrets
     id: 'architect', name: 'The Architect', title: 'Mind of the Directorate', sprite: 'boss_architect', palette: 'crimson',
-    hp: 31500, score: 250000, credits: 3750,
+    hp: 26800, score: 250000, credits: 3750,
     phases: [
       {
         untilHp: 0.75, move: 'hoverSway', speed: 28,
@@ -312,11 +312,11 @@ export const BOSSES: BossDef[] = [
     ],
     parts: [
       { sprite: 'part_core', offset: ARC('core', 0), hp: 0 },
-      { sprite: 'part_cannon', offset: ARC('cannon', 0), hp: 1180, attack: atk('spread5', 0.6, 125, 'eb_ring', 'pink') },
-      { sprite: 'part_wing', offset: ARC('wing', 0), hp: 1100, attack: atk('spread3', 0.6, 130, 'eb_orb', 'yellow') },
-      { sprite: 'part_wing', offset: ARC('wing', 1), hp: 1100, attack: atk('spread3', 0.6, 130, 'eb_orb', 'yellow') },
-      { sprite: 'part_turret', offset: ARC('turret', 2), hp: 790, attack: atk('burst', 0.9, 150, 'eb_needle', 'orange') },
-      { sprite: 'part_turret', offset: ARC('turret', 3), hp: 790, attack: atk('burst', 0.9, 150, 'eb_needle', 'orange') },
+      { sprite: 'part_cannon', offset: ARC('cannon', 0), hp: 1000, attack: atk('spread5', 0.6, 125, 'eb_ring', 'pink') },
+      { sprite: 'part_wing', offset: ARC('wing', 0), hp: 940, attack: atk('spread3', 0.6, 130, 'eb_orb', 'yellow') },
+      { sprite: 'part_wing', offset: ARC('wing', 1), hp: 940, attack: atk('spread3', 0.6, 130, 'eb_orb', 'yellow') },
+      { sprite: 'part_turret', offset: ARC('turret', 2), hp: 670, attack: atk('burst', 0.9, 150, 'eb_needle', 'orange') },
+      { sprite: 'part_turret', offset: ARC('turret', 3), hp: 670, attack: atk('burst', 0.9, 150, 'eb_needle', 'orange') },
     ],
   },
 ];

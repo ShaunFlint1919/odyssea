@@ -255,10 +255,10 @@ describe('balance', () => {
     expect(REFERENCE_DPS[7] / REFERENCE_DPS[0]).toBeGreaterThan(3.5);
   });
 
-  it('boss hp climbs from 3100 to 31500 with 2-4 phases and 2-6 parts', () => {
+  it('boss hp climbs from 2950 to 26800 with 2-4 phases and 2-6 parts', () => {
     const hp = CAMPAIGN.map((c) => getBoss(c.boss).hp);
-    expect(hp[0]).toBe(3100);
-    expect(hp[hp.length - 1]).toBe(31500);
+    expect(hp[0]).toBe(2950);
+    expect(hp[hp.length - 1]).toBe(26800);
     for (let i = 1; i < hp.length; i++) expect(hp[i]).toBeGreaterThan(hp[i - 1]);
     for (const b of BOSSES) {
       expect(b.phases.length).toBeGreaterThanOrEqual(2);

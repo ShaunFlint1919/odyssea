@@ -3,10 +3,11 @@
 //  a voice pool with a global cap, priority-aware stealing (oldest first) and automatic
 //  disconnection when the last source of a voice ends.
 //  A build may run on a Chain: the persistent level / envelope / filter nodes of an earlier
-//  voice of the same key, wired once and reprogrammed (their automation is cleared from the
-//  new start time). Sources (oscillators, noise players) and the gains that modulate a
-//  source's own params (FM depth, vibrato) are created per play. Builds are deterministic per
-//  key, so the n-th node a build asks for always plays the same role.
+//  voice of the same key, wired once and reprogrammed for the new start time (automation left
+//  by a voice that was stolen and disposed early is cleared first). Sources (oscillators, noise
+//  players) and the gains that modulate a source's own params (FM depth, vibrato) are created
+//  per play, so a fight mostly creates sources only. Builds are deterministic per key: the
+//  n-th node a build asks for always plays the same role.
 // =====================================================================================
 import { setWave, type Graph, type NoiseName, type WaveName } from './engine';
 
@@ -31,6 +32,8 @@ export interface Build {
   chain: Chain | null;
   /** Index of the next pooled node the build asks for. */
   ni: number;
+  /** The chain's previous voice was cut short and still has automation after `t`: clear it first. */
+  clear: boolean;
 }
 
 /** Persistent nodes of one voice slot of an SFX key (see the header). */
@@ -53,6 +56,11 @@ export class Chain {
   freeAt(t: number): boolean {
     const v = this.voice;
     return !v || v.dead || t >= v.until;
+  }
+
+  /** True when the previous voice's automation reaches past `t` (disposed early after a steal). */
+  busyAfter(t: number): boolean {
+    return this.voice !== null && this.voice.until > t;
   }
 }
 
@@ -151,13 +159,13 @@ function silentGain(ctx: BaseAudioContext): GainNode {
   return g;
 }
 
-/** Envelope gain: the chain's next pooled gain (automation cleared from the voice start) or a new one. */
+/** Envelope gain: the chain's next pooled gain or a new (silent) one. */
 function gainNode(b: Build): GainNode {
   const c = b.chain;
   if (!c) return own(b, silentGain(b.ctx));
   let g = c.nodes[b.ni] as GainNode | undefined;
-  if (g) g.gain.cancelScheduledValues(b.t);
-  else c.nodes.push((g = silentGain(b.ctx)));
+  if (!g) c.nodes.push((g = silentGain(b.ctx)));
+  else if (b.clear) g.gain.cancelScheduledValues(b.t);
   b.ni++;
   return g;
 }
@@ -167,7 +175,7 @@ function filterNode(b: Build, type: BiquadFilterType, q: number): BiquadFilterNo
   const c = b.chain;
   let f = c ? (c.nodes[b.ni] as BiquadFilterNode | undefined) : undefined;
   if (f) {
-    f.frequency.cancelScheduledValues(b.t);
+    if (b.clear) f.frequency.cancelScheduledValues(b.t);
   } else {
     f = b.ctx.createBiquadFilter();
     f.type = type;

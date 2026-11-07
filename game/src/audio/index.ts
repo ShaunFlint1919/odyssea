@@ -2,12 +2,14 @@
 //  AUDIO FACADE — 100 % procedural WebAudio (no audio files).
 //  The AudioContext is created lazily by unlock() (first user gesture; the module also
 //  arms one-shot gesture listeners on first use as a safety net) — never at import time.
+//  Before that gesture, idle slices prepare everything that needs no context (noise tables,
+//  wave coefficients, shaper curves, the wanted song), so the first tap mostly creates nodes.
 //  Every call is a silent no-op when WebAudio is unavailable or blocked: nothing throws.
 //  Files: engine.ts (graph / master bus), voices.ts + sfx.ts (SFX), compile.ts +
 //  songs.ts + sequencer.ts (music), diagnostics.ts (offline measurement for tests).
 // =====================================================================================
 import type { MusicTrack, SfxKey } from '../types';
-import { audioContextCtor, createGraph, faderGain, MUSIC_LEVEL, quiet, SFX_LEVEL, type Graph } from './engine';
+import { audioContextCtor, createGraph, faderGain, MUSIC_LEVEL, prepareAudioTables, quiet, SFX_LEVEL, type Graph } from './engine';
 import { SfxEngine, type SfxStats } from './sfx';
 import { getSong, MusicManager, type PlayerStats } from './sequencer';
 import { SONGS } from './songs';
@@ -33,8 +35,40 @@ const st = {
   wanted: null as MusicTrack | null,
   armed: false,
   primed: false,
+  warming: false,
   lastError: null as string | null,
 };
+
+/** Budget kept free in an idle period (ms): a warm-up slice never runs into the next frame. */
+const IDLE_SLACK_MS = 6;
+
+type IdleWindow = Window & { requestIdleCallback?: (cb: (d: IdleDeadline) => void, opts?: { timeout: number }) => number };
+
+/** Starts the idle-time warm-up (once): tables, then the wanted song; stops when a context exists. */
+function warmUp(): void {
+  if (st.warming || typeof window === 'undefined') return;
+  st.warming = true;
+  const w = window as IdleWindow;
+  const next = (): void => {
+    if (typeof w.requestIdleCallback === 'function') w.requestIdleCallback(slice, { timeout: 2000 });
+    else setTimeout(slice, 50);
+  };
+  const slice = (deadline?: IdleDeadline): void => {
+    try {
+      if (st.live) return; // createGraph() built whatever was still missing
+      let done = prepareAudioTables();
+      while (!done && deadline && !deadline.didTimeout && deadline.timeRemaining() > IDLE_SLACK_MS) done = prepareAudioTables();
+      if (!done) {
+        next();
+        return;
+      }
+      if (st.wanted) getSong(st.wanted); // compiled once and cached
+    } catch (e) {
+      note(e);
+    }
+  };
+  next();
+}
 
 function note(e: unknown): void {
   st.lastError = String((e as Error)?.message ?? e);
@@ -120,6 +154,7 @@ function arm(): void {
   if (st.armed || typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
   if (!audioContextCtor()) return;
   st.armed = true;
+  if (!st.live) warmUp();
   for (const e of GESTURES) window.addEventListener(e, onGesture, { capture: true, passive: true });
 }
 

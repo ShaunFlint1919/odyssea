@@ -185,7 +185,7 @@ const GLACIA: EnemyDef[] = [
   mk(G, 'g_battery', 'Icecap Battery', 'gr_twin', 'violet', { hp: 84, speed: 0, move: 'ground', fire: 'spread5', rate: 0.4, bs: 115, b: 'eb_orb', c: 'pink' }),
   mk(G, 'g_relay', 'Frost Relay', 'gr_radar', 'crimson', { hp: 12, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
   mk(G, 'g_loot', 'Aurora Disc', 'en_saucer', 'amber', { hp: 13, speed: 75, move: 'strafe', drops: LOOT_POWER_SHIELD, loot: true }),
-  mk(G, 'g_frigate', 'Blizzard Frigate', 'en_frigate', 'crimson', { hp: 5300, speed: 24, move: 'hover', fire: 'spread5', rate: 0.7, bs: 115, b: 'eb_needle', c: 'red', credits: 1100, drops: MIDBOSS_DROP }),
+  mk(G, 'g_frigate', 'Blizzard Frigate', 'en_frigate', 'crimson', { hp: 5000, speed: 24, move: 'hover', fire: 'spread5', rate: 0.7, bs: 115, b: 'eb_needle', c: 'red', credits: 1100, drops: MIDBOSS_DROP }),
 ];
 
 // ------------------------------------------------------------ 7. THE RIFT (space) violet / steel
@@ -205,7 +205,7 @@ const RIFT: EnemyDef[] = [
   mk(R, 'r_monolith', 'Rift Monolith', 'hz_rock_l', 'toxic', { hp: 280, speed: 28, move: 'drift', contact: 24, drops: [{ kind: 'armor', chance: 0.3 }] }),
   mk(R, 'r_courier', 'Ghost Courier', 'en_saucer', 'amber', { hp: 13, speed: 75, move: 'strafe', drops: INTEL_DROP, loot: true }),
   mk(R, 'r_loot', 'Salvage Disc', 'en_saucer', 'steel', { hp: 13, speed: 75, move: 'strafe', drops: LOOT_POWER_SHIELD, loot: true }),
-  mk(R, 'r_carrier', 'Lamprey Carrier', 'en_carrier', 'amber', { hp: 5600, speed: 22, move: 'hover', fire: 'flak', rate: 0.6, bs: 95, b: 'eb_orb', c: 'orange', credits: 1500, drops: MIDBOSS_DROP }),
+  mk(R, 'r_carrier', 'Lamprey Carrier', 'en_carrier', 'amber', { hp: 5100, speed: 22, move: 'hover', fire: 'flak', rate: 0.6, bs: 95, b: 'eb_orb', c: 'orange', credits: 1500, drops: MIDBOSS_DROP }),
 ];
 
 // ------------------------------------------------------------ 8. AXIOM CITADEL (techno) crimson / toxic / violet
