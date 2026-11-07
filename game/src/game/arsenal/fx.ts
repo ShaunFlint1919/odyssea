@@ -1,15 +1,22 @@
 // =====================================================================================
-//  ARSENAL FX — pooled short-lived visuals: impact sparks, glow flashes, splash rings,
-//  muzzle flashes (following their gun) and exhaust trails. Frames are stepped manually
-//  (no Phaser anim objects), everything is additive, nothing allocates after warm-up.
+//  ARSENAL FX — pooled short-lived visuals: impact sparks, flashes, splash rings, muzzle
+//  flashes that follow their barrel, embers, smoke puffs and crackle.
+//
+//  Every effect is a frame sheet from ./art.ts played once over its life (growth and fade
+//  are baked into the frames): update() only ages items, steps frames when the index
+//  changes and moves the few that have a velocity or follow an anchor. No Phaser anims,
+//  no per-frame scale / alpha writes, nothing allocates after warm-up. One pool = one
+//  fixed depth + blend mode (impacts: additive above the shots; smoke: normal below them;
+//  muzzles: additive above the ship).
 // =====================================================================================
 import Phaser from 'phaser';
 import { ImageGroup, type AnchorSource, type ArsenalEnv } from './env';
-import { fxTexture, type TexInfo } from './textures';
+import { emberTex } from './art';
+import type { TexInfo } from './textures';
 import { HALF_PI } from './scaling';
 
-/** One live effect. */
-class FxItem {
+/** One live effect (pooled). */
+export class FxItem {
   img: Phaser.GameObjects.Image | null = null;
   age = 0;
   life = 1;
@@ -20,10 +27,7 @@ class FxItem {
   y = 0;
   vx = 0;
   vy = 0;
-  s0 = 1;
-  s1 = 1;
-  a0 = 1;
-  a1 = 0;
+  drag = 0;
   anchor = -1;
   ox = 0;
   oy = 0;
@@ -31,10 +35,11 @@ class FxItem {
 }
 
 const MAX_SLOTS = 64;
+const WHITE = 0xffffff;
 
 /** Muzzle slot ranges (one flash per gun barrel, re-triggered on every volley). */
-export const SLOT_FRONT = 0;   // 0..23
-export const SLOT_REAR = 24;   // 24..47
+export const SLOT_FRONT = 0;     // 0..23
+export const SLOT_REAR = 24;     // 24..47
 export const SLOT_SIDEKICK = 48; // 48..63
 
 export class FxPool {
@@ -42,122 +47,81 @@ export class FxPool {
   private readonly free: FxItem[] = [];
   private readonly slots: (FxItem | null)[] = [];
   private readonly group: ImageGroup;
-  private readonly sparkTex: TexInfo;
-  private readonly glowTex: TexInfo;
-  private readonly muzzleTex: TexInfo;
-  private readonly ringTex: TexInfo;
-  private readonly ringRadius: number;
 
-  constructor(env: ArsenalEnv, depth: number, private readonly anchors: AnchorSource, initial: number) {
-    const scene = env.scene;
-    this.sparkTex = fxTexture(scene, 'fx_spark');
-    this.glowTex = fxTexture(scene, 'fx_glow');
-    this.muzzleTex = fxTexture(scene, 'fx_muzzle');
-    this.ringTex = fxTexture(scene, 'fx_shockwave');
-    // The last shockwave frame shows a ring of ~0.48 x the texture size in radius.
-    this.ringRadius = Math.max(8, this.ringTex.w * 0.48);
-    this.group = new ImageGroup(env, depth, Phaser.BlendModes.ADD, initial, this.glowTex.key);
+  constructor(env: ArsenalEnv, depth: number, blend: Phaser.BlendModes, private readonly anchors: AnchorSource, initial: number) {
+    const init = emberTex(env.scene);
+    this.group = new ImageGroup(env, depth, blend, initial, init.key);
     for (let i = 0; i < MAX_SLOTS; i++) this.slots.push(null);
     for (let i = 0; i < initial; i++) this.free.push(new FxItem());
   }
 
-  private spawn(tex: TexInfo, x: number, y: number, life: number): FxItem {
+  /**
+   * Plays `tex` once over `ms` at (x, y) (tint / alpha / rotation fixed for its life).
+   * Returns the pooled item so callers can give it a velocity (vx, vy px/s, drag 1/s).
+   */
+  play(tex: TexInfo, x: number, y: number, ms: number, tint = WHITE, alpha = 1, rotation = 0): FxItem {
     const it = this.free.pop() ?? new FxItem();
     const img = this.group.take(tex.key, tex.first);
+    if (tint !== WHITE) img.setTint(tint);
+    if (alpha !== 1) img.setAlpha(alpha);
+    if (rotation !== 0) img.setRotation(rotation);
+    img.x = x;
+    img.y = y;
     it.img = img;
     it.age = 0;
-    it.life = life;
+    it.life = ms > 1 ? ms : 1;
     it.frames = tex.frames;
-    it.frameMs = life / tex.frames;
+    it.frameMs = it.life / tex.frames;
     it.frame = 0;
     it.x = x;
     it.y = y;
     it.vx = 0;
     it.vy = 0;
-    it.s0 = 1;
-    it.s1 = 1;
-    it.a0 = 1;
-    it.a1 = 0;
+    it.drag = 0;
     it.anchor = -1;
     it.ox = 0;
     it.oy = 0;
     it.slot = -1;
-    img.x = x;
-    img.y = y;
     this.items.push(it);
     return it;
   }
 
-  /** Small 4-frame impact star. */
-  spark(x: number, y: number, tint: number, scale = 1): void {
-    const it = this.spawn(this.sparkTex, x, y, 150);
-    it.s0 = scale;
-    it.s1 = scale * 1.15;
-    it.a0 = 1;
-    it.a1 = 0.6;
-    const img = it.img as Phaser.GameObjects.Image;
-    img.setTint(tint);
-    img.setRotation((Math.random() * 4 | 0) * HALF_PI * 0.5);
-    img.setScale(scale);
-  }
-
-  /** Soft additive glow flash of `size` px (diameter), fading over `ms`. */
-  flash(x: number, y: number, tint: number, size: number, ms = 120, alpha = 0.9): void {
-    const it = this.spawn(this.glowTex, x, y, ms);
-    const s = size / this.glowTex.w;
-    it.s0 = s * 0.6;
-    it.s1 = s;
-    it.a0 = alpha;
-    it.a1 = 0;
-    const img = it.img as Phaser.GameObjects.Image;
-    img.setTint(tint);
-    img.setScale(it.s0);
-    img.setAlpha(alpha);
-  }
-
-  /** Expanding shockwave ring reaching `radius` px (splash visual). */
-  ring(x: number, y: number, radius: number, tint: number, ms = 280): void {
-    const it = this.spawn(this.ringTex, x, y, ms);
-    const s = radius / this.ringRadius;
-    it.s0 = s;
-    it.s1 = s * 1.05;
-    it.a0 = 1;
-    it.a1 = 0.5;
-    const img = it.img as Phaser.GameObjects.Image;
-    img.setTint(tint);
-    img.setScale(s);
-  }
-
-  /** Exhaust / trail dot drifting with (vx, vy) px/s. */
-  trail(x: number, y: number, tint: number, size: number, vx: number, vy: number, ms = 200): void {
-    const it = this.spawn(this.glowTex, x, y, ms);
-    const s = size / this.glowTex.w;
-    it.s0 = s;
-    it.s1 = s * 0.35;
-    it.a0 = 0.75;
-    it.a1 = 0;
+  /** A moving particle (ember, exhaust dot): plays `tex` over `ms` while drifting with drag. */
+  particle(tex: TexInfo, x: number, y: number, vx: number, vy: number, drag: number, ms: number, tint: number, alpha = 1): void {
+    const it = this.play(tex, x, y, ms, tint, alpha, 0);
     it.vx = vx;
     it.vy = vy;
-    const img = it.img as Phaser.GameObjects.Image;
-    img.setTint(tint);
-    img.setScale(s);
-    img.setAlpha(0.75);
+    it.drag = drag;
+  }
+
+  /** `n` embers bursting from (x, y) at ~`speed` px/s. */
+  burst(tex: TexInfo, x: number, y: number, n: number, speed: number, tint: number): void {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = speed * (0.45 + Math.random() * 0.75);
+      this.particle(tex, x, y, Math.cos(a) * s, Math.sin(a) * s, 4.5, 170 + Math.random() * 170, tint);
+    }
   }
 
   /**
    * Muzzle flash on gun `slot`, following `anchor` at offset (ox, oy), pointing along `angle`.
    * Re-triggers the slot's flash if it is still visible (one flash per barrel).
    */
-  muzzle(slot: number, anchor: number, ox: number, oy: number, angle: number, tint: number, scale = 1): void {
-    let it = slot >= 0 && slot < MAX_SLOTS ? this.slots[slot] : null;
+  muzzle(slot: number, anchor: number, ox: number, oy: number, angle: number, tex: TexInfo, ms: number): void {
     const x = this.anchors.anchorX(anchor) + ox;
     const y = this.anchors.anchorY(anchor) + oy;
-    if (it) {
+    let it = slot >= 0 && slot < MAX_SLOTS ? this.slots[slot] : null;
+    if (it && it.img) {
+      const img = it.img;
+      if (img.texture.key !== tex.key) img.setTexture(tex.key, tex.first);
+      else if (it.frame !== 0) img.setFrame(tex.first ?? 0);
       it.age = 0;
       it.frame = 0;
-      (it.img as Phaser.GameObjects.Image).setFrame(this.muzzleTex.first ?? '__BASE');
+      it.life = ms;
+      it.frames = tex.frames;
+      it.frameMs = ms / tex.frames;
     } else {
-      it = this.spawn(this.muzzleTex, x, y, 75);
+      it = this.play(tex, x, y, ms);
       if (slot >= 0 && slot < MAX_SLOTS) {
         it.slot = slot;
         this.slots[slot] = it;
@@ -166,15 +130,8 @@ export class FxPool {
     it.anchor = anchor;
     it.ox = ox;
     it.oy = oy;
-    it.s0 = scale;
-    it.s1 = scale * 0.8;
-    it.a0 = 0.9;
-    it.a1 = 0.45;
     const img = it.img as Phaser.GameObjects.Image;
-    img.setTint(tint);
-    img.setRotation(angle + HALF_PI);
-    img.setScale(scale);
-    img.setAlpha(0.9);
+    img.rotation = angle + HALF_PI;
     img.x = x;
     img.y = y;
   }
@@ -191,25 +148,27 @@ export class FxPool {
         continue;
       }
       const img = it.img as Phaser.GameObjects.Image;
-      const t = it.age / it.life;
       if (it.anchor >= 0) {
         img.x = this.anchors.anchorX(it.anchor) + it.ox;
         img.y = this.anchors.anchorY(it.anchor) + it.oy;
       } else if (it.vx !== 0 || it.vy !== 0) {
+        if (it.drag > 0) {
+          const k = it.drag * dt < 1 ? 1 - it.drag * dt : 0;
+          it.vx *= k;
+          it.vy *= k;
+        }
         it.x += it.vx * dt;
         it.y += it.vy * dt;
         img.x = it.x;
         img.y = it.y;
       }
       if (it.frames > 1) {
-        const f = Math.min(it.frames - 1, (it.age / it.frameMs) | 0);
-        if (f !== it.frame) {
+        const f = (it.age / it.frameMs) | 0;
+        if (f !== it.frame && f < it.frames) {
           it.frame = f;
           img.setFrame(f);
         }
       }
-      if (it.s0 !== it.s1) img.setScale(it.s0 + (it.s1 - it.s0) * t);
-      img.setAlpha(it.a0 + (it.a1 - it.a0) * t);
     }
   }
 

@@ -321,7 +321,7 @@ export class TitleScene extends Phaser.Scene {
 
   private showPressStart(width: number, height: number): void {
     this.mode = 'press';
-    this.status.setText(this.sys.game.device.os.desktop ? 'Tap or press any key to start' : 'Tap anywhere to start');
+    this.status.setText('Drag anywhere to steer - your guns fire on their own');
     const prompt = text(this, width / 2, Math.round(height * 0.62), 'TAP TO START', { size: 'm', color: COLORS.teal, originX: 0.5, originY: 0.5 })
       .setDepth(20);
     const keyHint = this.sys.game.device.os.desktop
