@@ -168,13 +168,13 @@ export class FxPool {
     it.oy = oy;
     it.s0 = scale;
     it.s1 = scale * 0.8;
-    it.a0 = 1;
-    it.a1 = 0.7;
+    it.a0 = 0.9;
+    it.a1 = 0.45;
     const img = it.img as Phaser.GameObjects.Image;
     img.setTint(tint);
     img.setRotation(angle + HALF_PI);
     img.setScale(scale);
-    img.setAlpha(1);
+    img.setAlpha(0.9);
     img.x = x;
     img.y = y;
   }

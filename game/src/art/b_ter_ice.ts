@@ -155,11 +155,11 @@ function placeIceDoodads(c: Chunk, cls: Uint8Array, lakes: Site[]): void {
     const kind = at(x, r);
     if (!farFromDoodads(c, x, r, 20)) return;
     if (kind === K_SNOW && at(x - 8, r) === K_SNOW && at(x + 8, r) === K_SNOW) {
-      if (h1 < 0.22) {
+      if (h1 < 0.18) {
         c.add('dd_pine', x, r, h2 < 0.5, 0.85 + h2 * 0.3);
         if (h2 < 0.6 && at(x + 11, r + 6) === K_SNOW) c.add('dd_pine', x + 11, r + 6, h2 < 0.3, 0.75);
-      } else if (h1 < 0.32) c.add('dd_snow_rock', x, r, h2 < 0.5, 0.8 + h2 * 0.4);
-      else if (h1 < 0.35) c.add('dd_frozen_wreck', x, r, h2 < 0.5);
+      } else if (h1 < 0.25) c.add('dd_snow_rock', x, r, h2 < 0.5, 0.8 + h2 * 0.4);
+      else if (h1 < 0.27) c.add('dd_frozen_wreck', x, r, h2 < 0.5);
     } else if (kind === K_ICE && h1 < 0.22) c.add('dd_ice_spire', x, r, h2 < 0.5, 0.8 + h2 * 0.4);
   });
   for (let k = 0; k < lakes.length; k++) {

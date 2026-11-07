@@ -184,7 +184,8 @@ export function computeLayout(height: number): HudLayout {
     px: PLAY_W,
     pw: HUD_W,
     pause,
-    pauseHit: rect(0, 0, HUD_W, pause.y + pause.h + 2),
+    // generous touch target: plate + level LCD + progress strip (top-right corner)
+    pauseHit: rect(0, 0, HUD_W, prog.y + prog.h + 2),
     lcd, lcdWin, prog, progIn,
     energy: { box: energyBox, legend: 'ENERGY' },
     energyBar,

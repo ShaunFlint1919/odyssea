@@ -6,6 +6,7 @@
 //  Energy: host.trySpendEnergy(energy) before every volley (false -> the volley is skipped,
 //  the cadence continues). energy = def.energyPerShot * E(p) / R(p), i.e. the generator
 //  drain per second grows only by E(p) = 1 + 0.05 (p - 1) while cadence rises with R(p).
+//  Priority: while the front gun is starved, the rear gun does not draw energy.
 // =====================================================================================
 import type { SfxKey, WeaponDef } from '../../../types';
 import { SHOT_RGB } from '../../../art/keys';
@@ -29,6 +30,11 @@ export interface ArsenalCore extends AnchorSource {
   /** Front-gun muzzle point of the current hull, relative to the ship centre. */
   readonly noseX: number;
   readonly noseY: number;
+  /**
+   * Energy priority: true while the front gun's last volley was skipped for lack of energy.
+   * The rear gun holds fire meanwhile, so cheap rapid rear volleys cannot starve the main gun.
+   */
+  frontStarved: boolean;
 }
 
 export abstract class Gun {
@@ -37,6 +43,8 @@ export abstract class Gun {
   /** Energy drawn per volley. */
   energy = 0;
   sfx: SfxKey | null = null;
+  /** Rear guns yield the energy to a starved front gun (see ArsenalCore.frontStarved). */
+  protected isRear = false;
   /**
    * Sub-volleys per volley: one paid volley is fired as `subs` evenly spaced bursts spread
    * over `subSpread` x interval (dense streams / ripple-fired missiles at the same DPS).
@@ -53,9 +61,13 @@ export abstract class Gun {
 
   constructor(protected readonly core: ArsenalCore) {}
 
-  /** Advances the cadence; fires while `active` (trigger held and ship able to fire). */
-  update(dtMs: number, active: boolean): void {
-    // the remaining sub-volleys of a paid volley always complete
+  /**
+   * Advances the cadence; fires while `active` (trigger held and ship able to fire).
+   * The remaining sub-volleys of a paid volley complete even if the trigger is released,
+   * but are dropped when the ship cannot fire (`canFire` false: death, cut-scene).
+   */
+  update(dtMs: number, active: boolean, canFire: boolean): void {
+    if (!canFire) this.subLeft = 0;
     if (this.subLeft > 0) {
       this.subTimer -= dtMs;
       while (this.subLeft > 0 && this.subTimer <= 0) {
@@ -97,12 +109,21 @@ export abstract class Gun {
     this.subLeft = 0;
   }
 
+  /** Drops the sub-volleys still pending from the last paid volley (shots cleared). */
+  cancelPending(): void {
+    this.subLeft = 0;
+  }
+
   private subStep(): number {
     return (this.interval * this.subSpread) / this.subs;
   }
 
   private trigger(lateMs: number): void {
-    if (!this.core.host.trySpendEnergy(this.energy)) return;
+    const core = this.core;
+    if (this.isRear && core.frontStarved) return;
+    const ok = core.host.trySpendEnergy(this.energy);
+    if (!this.isRear) core.frontStarved = !ok;
+    if (!ok) return;
     this.subIndex = 0;
     this.volley(lateMs, 0);
     if (this.subs > 1) {
@@ -132,6 +153,7 @@ export abstract class WeaponGun extends Gun {
     this.def = def;
     this.p = clampPower(power);
     this.mode = mode;
+    this.isRear = def.slot === 'rear';
     this.sfx = def.sfx;
     const rgb = SHOT_RGB[def.color] ?? SHOT_RGB.white;
     this.glow = rgb.glow;

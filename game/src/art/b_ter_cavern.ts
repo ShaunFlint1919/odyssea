@@ -201,6 +201,6 @@ function placeCavernDoodads(c: Chunk, cls: Uint8Array, crystals: Site[], nests: 
     if (kind !== K_FLOOR || !farFromDoodads(c, x, r, 20)) return;
     const nearWall = at(x - 14, r) === K_WALL || at(x + 14, r) === K_WALL || at(x, r - 14) === K_FACE || at(x, r - 14) === K_WALL;
     if (nearWall && h1 < 0.5) c.add('dd_stalagmite', x, r, h2 < 0.5, 0.8 + h2 * 0.4);
-    else if (h1 < 0.22) c.add('dd_boulder', x, r, h2 < 0.5, 0.7 + h2 * 0.4);
+    else if (h1 < 0.14) c.add('dd_boulder', x, r, h2 < 0.5, 0.7 + h2 * 0.4);
   });
 }

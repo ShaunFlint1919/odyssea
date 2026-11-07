@@ -379,15 +379,15 @@ function placeDoodads(c: Chunk, cls: Uint8Array, oases: Site[], ruins: Ruin[]): 
       c.add('dd_ruin_pyramid', qx, R.r0 + R.cy + (R.h - R.cy) / 2 + 2);
     }
   }
-  eachCell(c, 46, 501, (x, r, h1, h2) => {
+  eachCell(c, 52, 501, (x, r, h1, h2) => {
     const kind = at(x, r);
-    if (kind === K_SAND && clear(x, r, 8, K_SAND) && farFromDoodads(c, x, r, 22)) {
-      if (h1 < 0.3) c.add('dd_dune_rock', x, r, h2 < 0.5, 0.8 + h2 * 0.4);
-      else if (h1 < 0.42) c.add('dd_cactus', x, r, h2 < 0.5);
-      else if (h1 < 0.48) c.add('dd_bones', x, r, h2 < 0.5);
-    } else if (kind === K_MESA && h1 < 0.18 && clear(x, r, 6, K_MESA) && farFromDoodads(c, x, r, 20)) {
+    if (kind === K_SAND && clear(x, r, 8, K_SAND) && farFromDoodads(c, x, r, 26)) {
+      if (h1 < 0.2) c.add('dd_dune_rock', x, r, h2 < 0.5, 0.8 + h2 * 0.4);
+      else if (h1 < 0.28) c.add('dd_cactus', x, r, h2 < 0.5, 0.9 + h2 * 0.2);
+      else if (h1 < 0.315) c.add('dd_bones', x, r, h2 < 0.5);
+    } else if (kind === K_MESA && h1 < 0.14 && clear(x, r, 6, K_MESA) && farFromDoodads(c, x, r, 24)) {
       c.add('dd_dune_rock', x, r, h2 < 0.5, 0.7 + h2 * 0.3);
-    } else if (kind === K_BED && h1 < 0.22 && farFromDoodads(c, x, r, 20)) {
+    } else if (kind === K_BED && h1 < 0.16 && farFromDoodads(c, x, r, 24)) {
       c.add('dd_bones', x, r, h2 < 0.5, 0.8);
     }
   });

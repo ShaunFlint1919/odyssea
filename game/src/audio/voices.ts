@@ -107,6 +107,11 @@ export interface MelSpec {
 
 const FLOOR = 0.0004;
 
+/** Clamps an oscillator frequency into (0, 0.45 * sampleRate] (no aliasing / range warnings). */
+function hz(b: Build, f: number): number {
+  return Math.min(b.ctx.sampleRate * 0.45, Math.max(1, f));
+}
+
 function track(b: Build, src: AudioScheduledSourceNode, stop: number): void {
   b.srcs.push(src);
   if (stop >= b.end || !b.last) {
@@ -168,7 +173,7 @@ export function tone(b: Build, s: ToneSpec): void {
   setWave(b.g, osc, s.w);
   if (s.det) osc.detune.value = s.det;
   const env = b.ctx.createGain();
-  sweep(osc.frequency, t0, s.f * b.p, s.to === undefined ? undefined : s.to * b.p, s.sw ?? s.dur, s.lin);
+  sweep(osc.frequency, t0, hz(b, s.f * b.p), s.to === undefined ? undefined : hz(b, s.to * b.p), s.sw ?? s.dur, s.lin);
   const end = envelope(env.gain, t0, s.a ?? 0.002, s.hold ?? 0, s.dur, s.v);
   env.connect(b.out);
   osc.connect(filterInto(b, s.flt, t0, s.dur, env, b.p));
@@ -201,13 +206,13 @@ export function noise(b: Build, s: NoiseSpec): void {
 /** Two-operator FM (sine carrier, sine modulator) for metallic / bell tones. */
 export function fm(b: Build, s: FmSpec): void {
   const t0 = b.t + (s.at ?? 0);
-  const fc = s.f * b.p;
+  const fc = hz(b, s.f * b.p);
   const car = b.ctx.createOscillator();
   const mod = b.ctx.createOscillator();
   const modGain = b.ctx.createGain();
   const env = b.ctx.createGain();
-  sweep(car.frequency, t0, fc, s.to === undefined ? undefined : s.to * b.p, s.dur);
-  mod.frequency.setValueAtTime(fc * s.ratio, t0);
+  sweep(car.frequency, t0, fc, s.to === undefined ? undefined : hz(b, s.to * b.p), s.dur);
+  mod.frequency.setValueAtTime(hz(b, fc * s.ratio), t0);
   const d0 = Math.max(1, s.i0 * fc * s.ratio);
   const d1 = Math.max(1, (s.i1 ?? s.i0) * fc * s.ratio);
   modGain.gain.setValueAtTime(d0, t0);
@@ -241,7 +246,7 @@ export function seq(b: Build, s: SeqSpec): void {
   for (let i = 0; i < s.notes.length; i++) {
     const tn = t0 + i * s.step;
     const len = i === s.notes.length - 1 ? s.last ?? nd : nd;
-    osc.frequency.setValueAtTime(s.notes[i] * b.p, tn);
+    osc.frequency.setValueAtTime(hz(b, s.notes[i] * b.p), tn);
     g.setValueAtTime(0, tn);
     g.linearRampToValueAtTime(s.v, tn + a);
     g.exponentialRampToValueAtTime(FLOOR, tn + Math.max(len, a + 0.004));
@@ -267,9 +272,9 @@ export function mel(b: Build, s: MelSpec): void {
   const gate = s.gate ?? 0.92;
   g.setValueAtTime(0, t0);
   let tn = t0;
-  for (const [hz, d] of s.notes) {
+  for (const [f, d] of s.notes) {
     const len = Math.max(a + 0.01, d * gate);
-    osc.frequency.setValueAtTime(hz * b.p, tn);
+    osc.frequency.setValueAtTime(hz(b, f * b.p), tn);
     g.setValueAtTime(0, tn);
     g.linearRampToValueAtTime(s.v, tn + a);
     g.setValueAtTime(s.v, tn + a + 0.001);

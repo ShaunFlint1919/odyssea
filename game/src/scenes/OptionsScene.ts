@@ -174,13 +174,13 @@ export class OptionsScene extends Phaser.Scene {
         eraseSave();
         audio.sfx('ui_sell');
         this.cameras.main.flash(160, 255, 64, 64);
-        this.status.setText('Campaign erased.');
         const i = ROWS.findIndex((r) => r.kind === 'reset');
         this.sliders.clear();
         this.toggles.clear();
         this.list.setItems(ROWS.map((r) => this.itemFor(r)), true);
         this.attachWidgets(this.rowW);
         this.list.setIndex(i, false);
+        this.status.setText('Campaign erased.');
         if (this.from === SCENES.Hangar || this.from === SCENES.Map) {
           this.from = SCENES.Title;
           this.time.delayedCall(700, () => goto(this, SCENES.Title));

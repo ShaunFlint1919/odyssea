@@ -262,7 +262,10 @@ export class MapScene extends Phaser.Scene {
     // planet header
     add(this.add.image(px + 34, py + 36, META.glow).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.5).setDisplaySize(84, 84).setDepth(d));
     const globe = add(this.add.image(px + 34, py + 36, planetTexture(this, n.def.biome, 52)).setDepth(d));
-    if (!n.unlocked) globe.setTint(0x55526a);
+    if (!n.unlocked) {
+      globe.setTint(0x55526a);
+      add(this.add.image(px + 34, py + 36, iconOr(this, 'ui_icon_lock', META.icLock)).setDepth(d).setScale(2));
+    }
     const tx = px + 68;
     add(kit.text(this, tx, py + 10, kit.fit(upper(n.def.name), pw - 76, 'l'), { size: 'l', depth: d }));
     const sub = `${BIOME_LABEL[n.def.biome] ?? ''}  ${n.cleared}/${n.def.levels.length} CLEARED`;

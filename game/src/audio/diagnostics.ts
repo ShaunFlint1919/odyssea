@@ -27,6 +27,10 @@ export interface RenderReport {
   maxWindowRmsDb: number;
   /** Samples at or above 0.999 (digital clipping). */
   clipped: number;
+  /** Ungated integrated loudness, K-weighted per ITU-R BS.1770 (LUFS; NaN unless 48 kHz). */
+  lufs: number;
+  /** Loudest 400 ms block (momentary loudness, LUFS; NaN unless 48 kHz). */
+  momentaryMaxLufs: number;
   sfxStarted: number;
   sfxPeakVoices: number;
   sfxRateLimited: number;
@@ -35,12 +39,50 @@ export interface RenderReport {
 
 const db = (x: number): number => (x > 0 ? 20 * Math.log10(x) : -Infinity);
 
+/** BS.1770 K-weighting (pre-filter shelf + RLB high-pass), 48 kHz coefficients, in place. */
+function kWeight(x: Float32Array): Float64Array {
+  const out = new Float64Array(x.length);
+  const st = [
+    [1.53512485958697, -2.69169618940638, 1.19839281085285, -1.69065929318241, 0.73248077421585],
+    [1.0, -2.0, 1.0, -1.99004745483398, 0.99007225036621],
+  ];
+  for (let i = 0; i < x.length; i++) out[i] = x[i];
+  for (const [b0, b1, b2, a1, a2] of st) {
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < out.length; i++) {
+      const x0 = out[i];
+      const y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+      x2 = x1; x1 = x0; y2 = y1; y1 = y0;
+      out[i] = y0;
+    }
+  }
+  return out;
+}
+
+function loudness(chans: Float32Array[], sr: number): { lufs: number; momentaryMax: number } {
+  if (sr !== 48000) return { lufs: NaN, momentaryMax: NaN };
+  const k = chans.map(kWeight);
+  const n = k[0].length;
+  let total = 0;
+  for (const c of k) for (let i = 0; i < n; i++) total += c[i] * c[i];
+  const block = Math.floor(0.4 * sr);
+  const hop = Math.floor(0.1 * sr);
+  let maxMs = 0;
+  for (let s = 0; s + block <= n; s += hop) {
+    let ms = 0;
+    for (const c of k) for (let i = s; i < s + block; i++) ms += c[i] * c[i];
+    maxMs = Math.max(maxMs, ms / block);
+  }
+  const lu = (ms: number): number => (ms > 0 ? -0.691 + 10 * Math.log10(ms) : -Infinity);
+  return { lufs: lu(total / n), momentaryMax: lu(maxMs) };
+}
+
 /** Renders a scenario offline; resolves null when OfflineAudioContext is unavailable. */
 export async function renderOffline(req: RenderRequest): Promise<RenderReport | null> {
   const Ctor = offlineContextCtor();
   if (!Ctor) return null;
   const seconds = Math.min(120, Math.max(0.5, req.seconds ?? 6));
-  const sr = req.sampleRate ?? 44100;
+  const sr = req.sampleRate ?? 48000;
   const ctx = new Ctor(2, Math.ceil(seconds * sr), sr);
   const g = createGraph(ctx);
   g.output.connect(ctx.destination);
@@ -83,6 +125,7 @@ export async function renderOffline(req: RenderRequest): Promise<RenderReport | 
   }
   const rms = Math.sqrt(sum / buf.length);
   const st = sfx.stats(seconds);
+  const ld = loudness(chans, sr);
   return {
     seconds,
     peak,
@@ -91,6 +134,8 @@ export async function renderOffline(req: RenderRequest): Promise<RenderReport | 
     rmsDb: db(rms),
     maxWindowRmsDb: db(maxWin),
     clipped,
+    lufs: ld.lufs,
+    momentaryMaxLufs: ld.momentaryMax,
     sfxStarted: st.started,
     sfxPeakVoices: st.peak,
     sfxRateLimited: st.rateLimited,

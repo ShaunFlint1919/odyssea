@@ -92,6 +92,8 @@ export interface SongDef {
   bar?: number;
   /** Delay applied to odd steps, fraction of a step. */
   swing?: number;
+  /** Song mix gain (loudness matching between tracks, default 1). */
+  gain?: number;
   inst: { lead: InstDef; bass: InstDef; arp: InstDef };
   kit: DrumKitDef;
   echo?: EchoDef;

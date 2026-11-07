@@ -75,6 +75,7 @@ export class Ship {
     this.shadow = scene.add.image(this.x + SHADOW_DX, this.y + SHADOW_DY, shadowTex, this.shadowFrames > 1 ? 0 : undefined)
       .setDepth(DEPTH.shadows);
     if (shadowTex === key) this.shadow.setTintFill(0x000000).setAlpha(0.4);
+    this.shadow.setVisible(w.shadows);
     this.flameAnim = new FrameAnim(scene, ANIM.engine, 'fx_engine', 'glow', 18, true);
     const engines = HULL_MOUNTS[hull.id]?.engines ?? [[0, 13]];
     let minX = Infinity, maxX = -Infinity, minGap = Infinity;

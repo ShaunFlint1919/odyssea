@@ -16,6 +16,13 @@ import { Mask, PixBuf, fillPolygon } from './a_ui_buf';
 import { ICON_COLORS, ICON_MAPS } from './a_ui_icons';
 import { buildLogo } from './a_ui_logo';
 
+/** Extra UI texture keys produced here (not in UI_SPRITES). */
+export const UI_EXTRA = {
+  buttonDown: 'ui_button_down', // 24x24, same art as ui_button frame 1 (9-slice, 8px corners)
+  scanlines: 'ui_scanlines',    // 4x4 tileable overlay (use with a TileSprite)
+  glowLine: 'ui_glow_line',     // 1x8 teal glow strip (stretch horizontally, ADD blend optional)
+} as const;
+
 const INK = '#0a0810';
 const PLATE = '#232030';
 const TEAL = '#2ee6c8';
@@ -87,18 +94,17 @@ function panelTile(): PixBuf {
 
 /** Recessed dark screen with a subtle teal scanline tint. */
 function insetTile(): PixBuf {
-  return paintTile(24, 2, (r, x, y) => {
+  return paintTile(24, 2, (r, _x, y) => {
     switch (r.d) {
       case 0: return INK;
       case 1: return pick(r.light, '#0c0a12', '#100e17', '#1f1c2c', '#38344c', '#4a4462');
       case 2: return r.light > 0 ? '#06050a' : '#110f19';
       default: {
-        if (r.d === 3 && r.light > 0) return '#070c0f';
-        if (r.d === 4 && r.dx <= 6 && r.dy <= 6 && (r.dx === 4 || r.dy === 4)) return '#0f4a46';
-        return y % 2 === 0 ? '#0e1c21' : '#0a1317';
+        if (r.d === 3 && r.dx <= 4 && r.dy <= 4) return '#167a70'; // tiny corner ticks
+        if (r.d === 3 && r.light > 0) return '#070c0f';             // inner shadow under the bezel
+        return y % 2 === 0 ? '#0e1c21' : '#0a1317';                 // teal-tinted scanlines
       }
     }
-    void x;
   });
 }
 
@@ -205,10 +211,10 @@ export function generateUiArt(scene: Phaser.Scene): void {
   addTexture(scene, 'ui_panel_inset', insetTile().toCanvas());
   const down = buttonTile(true).toCanvas();
   addSheet(scene, 'ui_button', [buttonTile(false).toCanvas(), down]);
-  addTexture(scene, 'ui_button_down', down);
+  addTexture(scene, UI_EXTRA.buttonDown, down);
   addTexture(scene, 'ui_bar_frame', barFrameTile().toCanvas());
-  addTexture(scene, 'ui_scanlines', scanlines().toCanvas());
-  addTexture(scene, 'ui_glow_line', glowLine().toCanvas());
+  addTexture(scene, UI_EXTRA.scanlines, scanlines().toCanvas());
+  addTexture(scene, UI_EXTRA.glowLine, glowLine().toCanvas());
 
   for (const key of Object.keys(ICON_MAPS)) addTexture(scene, key, iconCanvas(key));
   addTexture(scene, 'ui_arrow_l', outlineCanvas(mapToCanvas(flipH(ICON_MAPS.ui_arrow_r), ICON_COLORS), INK, false));

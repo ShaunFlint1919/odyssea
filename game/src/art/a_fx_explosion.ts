@@ -1,10 +1,11 @@
 // =====================================================================================
 //  A-FX EXPLOSIONS — procedural multi-lobe fireballs rendered frame by frame.
 //  Model: a union of noise-warped fire lobes (some ignite late at the rim for a rolling,
-//  secondary blast). Each lobe flashes white, swells, cools from its rim inwards (fire
-//  pockets retreat to the lobe centres) and leaves a lit smoke cloud that erodes away with
-//  ordered dithering. Colours are quantised to fixed ramps (no anti-aliasing), lit from the
-//  top-left, plus a spiky flash, flying embers and dark debris chunks for bigger sizes.
+//  secondary blast). Each lobe flashes white, swells, then cools from its rim inwards so
+//  fire pockets retreat to the lobe centres. Sphere-lit smoke billows (round puffs, lit
+//  from the top-left) grow over the cooling fire, hide it except through gaps, then shrink
+//  and dither away. Colours are quantised to fixed ramps (no anti-aliasing); frame 0 adds
+//  a spiky flash, flying embers and dark debris chunks add motion on bigger sizes.
 // =====================================================================================
 import { PixBuf, clamp, smoothstep, easeOut } from './a_fx_core';
 import { bayer } from './pixel';

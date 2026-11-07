@@ -239,7 +239,7 @@ export class Enemies {
     e.anim = this.animFor(def, key);
     e.img.setTexture(key, e.anim ? 0 : undefined).clearTint().setAlpha(1).setScale(1).setVisible(true).setPosition(x, y);
     if (e.shadow) {
-      const sk = this.tex(shadowKey(key));
+      const sk = w.shadows ? this.tex(shadowKey(key)) : '';
       e.hasShadow = sk !== '';
       e.shadowAnimated = e.hasShadow && !!e.anim && frameCount(scene, sk) > 1;
       if (e.hasShadow) e.shadow.setTexture(sk, e.shadowAnimated ? 0 : undefined).setVisible(true);

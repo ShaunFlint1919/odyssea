@@ -15,9 +15,9 @@ import { dec, fmt } from './common';
 // ------------------------------------------------------------------------- tap guard
 
 /**
- * Interactive zones laid over the rows of a MenuList (which never scrolls). A tap on an
- * unfocused row only focuses it; a tap on the focused row selects it. Hover focuses on
- * desktop. Keyboard handling stays with the MenuList.
+ * Interactive zones laid over the rows of a MenuList (which never scrolls). A tap / click on
+ * an unfocused row only focuses it; a tap on the focused row selects it (no hover focus, so
+ * a purchase always takes a deliberate second tap). Keyboard handling stays with the MenuList.
  */
 export class TapGuard {
   private zones: Phaser.GameObjects.Zone[] = [];
@@ -32,7 +32,6 @@ export class TapGuard {
   ) {
     for (let i = 0; i < count; i++) {
       const z = scene.add.zone(x, y + i * rowH, w, rowH).setOrigin(0).setDepth(depth).setInteractive({ useHandCursor: true });
-      z.on('pointerover', (p: Phaser.Input.Pointer) => { if (!p.wasTouch && this.enabled()) this.list.setIndex(i); });
       z.on('pointerdown', () => {
         if (!this.enabled()) return;
         audio.unlock();

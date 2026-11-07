@@ -112,7 +112,7 @@ class WeaponPreviewImpl implements WeaponPreview {
 
     // ship
     this.shipX = x + w / 2;
-    this.shipY = y + h - Math.min(34, h * 0.2);
+    this.shipY = this.baseShipY();
     const hullTex = bodyTexture(scene, hullKey(loadout.hull), 32, 0x2ee6c8);
     this.hull = scene.make.image({ x: this.shipX, y: this.shipY, key: hullTex, frame: texInfo(scene, hullTex).first }, false);
     this.hull.setDepth(D_SHIP);
@@ -238,6 +238,12 @@ class WeaponPreviewImpl implements WeaponPreview {
     }
   }
 
+  /** Ship rest height: near the bottom, higher when a rear gun needs room behind it. */
+  private baseShipY(): number {
+    const { y, h } = this;
+    return this.loadout.rear ? y + h * 0.66 : y + h - Math.min(34, h * 0.2);
+  }
+
   // ---------------------------------------------------------------- fake host
 
   private nearest(px: number, py: number, maxDist: number): Readonly<{ x: number; y: number }> | null {
@@ -326,7 +332,7 @@ class WeaponPreviewImpl implements WeaponPreview {
     // ship sway + engines
     const sway = Math.min(26, w * 0.16);
     this.shipX = x + w / 2 + Math.sin(this.t * 1.3) * sway;
-    this.shipY = y + h - Math.min(34, h * 0.2) + Math.sin(this.t * 2.1) * 2;
+    this.shipY = this.baseShipY() + Math.sin(this.t * 2.1) * 2;
     this.hull.x = this.shipX;
     this.hull.y = this.shipY;
     for (let i = 0; i < this.engines.length; i++) {

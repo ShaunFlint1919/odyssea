@@ -38,6 +38,8 @@ describe('content validation', () => {
       ['level 2 without mid-boss', (c) => { delete c.levels[1].midboss; }, /level 2 must have a mid-boss/],
       ['weak mid-boss', (c) => { c.levels[1].midboss = { t: 43, enemy: 'k_tank' }; }, /mid-boss sprite gr_tank/],
       ['boss part outside the body', (c) => { c.bosses[0].parts![0].offset = [70, 0]; }, /outside the 112px body/],
+      ['boss part off its socket', (c) => { c.bosses[0].parts![0].offset = [10, 10]; }, /not on a turret socket/],
+      ['boss gun off the art', (c) => { c.bosses[0].phases[0].attacks[0].from = [3, 3]; }, /not a muzzle \/ socket/],
       ['unknown enemy sprite', (c) => { c.enemies[0].sprite = 'en_ufo'; }, /unknown sprite en_ufo/],
       ['unknown bullet sprite', (c) => { c.enemies[1].bulletSprite = 'eb_blob'; }, /unknown bullet sprite eb_blob/],
       ['duplicate id', (c) => { c.enemies[1].id = c.enemies[0].id; }, /duplicate id/],
@@ -141,14 +143,18 @@ describe('balance', () => {
         : (e.hp >= 4 && e.hp <= 14) || (e.hp >= 30 && e.hp <= 90) || (e.hp >= 150 && e.hp <= 450);
       expect(ok, `${e.id} hp ${e.hp}`).toBe(true);
     }
+    // same sprite + same weight class never gets weaker on a later planet
     const tierOf = (id: string) => 'kvtucgra'.indexOf(id.charAt(0));
+    const classOf = (hp: number) => (hp <= 14 ? 0 : hp <= 90 ? 1 : 2);
     for (const sprite of Object.keys(ENEMY_SPRITES)) {
-      let prevMax = 0;
-      for (let t = 0; t < 8; t++) {
-        const hps = ENEMIES.filter((e) => e.sprite === sprite && tierOf(e.id) === t && !midbosses.has(e.id)).map((e) => e.hp);
-        if (!hps.length) continue;
-        expect(Math.max(...hps), `${sprite} tier ${t}`).toBeGreaterThanOrEqual(prevMax);
-        prevMax = Math.max(...hps);
+      for (let k = 0; k < 3; k++) {
+        let prevMax = 0;
+        for (let t = 0; t < 8; t++) {
+          const hps = ENEMIES.filter((e) => e.sprite === sprite && tierOf(e.id) === t && !midbosses.has(e.id) && classOf(e.hp) === k).map((e) => e.hp);
+          if (!hps.length) continue;
+          expect(Math.max(...hps), `${sprite} class ${k} tier ${t}`).toBeGreaterThanOrEqual(prevMax);
+          prevMax = Math.max(...hps);
+        }
       }
     }
     const mb = LEVELS.filter((l) => l.midboss).map((l) => getEnemy(l.midboss!.enemy).hp);

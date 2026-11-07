@@ -211,9 +211,10 @@ export class ShotPool {
     this.glowSize = glow.w;
     this.dummy = makeSpec(glow.key, WHITE, WHITE);
     const d = env.depths.shots;
-    this.halos = new ImageGroup(env, d - 0.2, Phaser.BlendModes.ADD, Math.ceil(initial * 0.3), glow.key);
-    this.bodies = new ImageGroup(env, d, Phaser.BlendModes.NORMAL, Math.ceil(initial * 0.7), glow.key);
-    this.bodiesAdd = new ImageGroup(env, d + 0.1, Phaser.BlendModes.ADD, Math.ceil(initial * 0.3), glow.key);
+    // Images are pre-created for a typical peak (the groups grow on demand); Shot objects for `initial`.
+    this.halos = new ImageGroup(env, d - 0.2, Phaser.BlendModes.ADD, Math.ceil(initial * 0.2), glow.key);
+    this.bodies = new ImageGroup(env, d, Phaser.BlendModes.NORMAL, Math.ceil(initial * 0.5), glow.key);
+    this.bodiesAdd = new ImageGroup(env, d + 0.1, Phaser.BlendModes.ADD, Math.ceil(initial * 0.25), glow.key);
     for (let i = 0; i < initial; i++) this.free.push(new Shot(this, this.dummy));
   }
 

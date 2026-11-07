@@ -64,7 +64,7 @@ export function header(scene: Phaser.Scene, title: string, opts: HeaderOpts = {}
   return c;
 }
 
-/** Small pill badge (e.g. "NEW") with a dark label; (x, y) = left / vertical centre. Pulses. */
+/** Small pill badge (e.g. "NEW") with a white label; (x, y) = left / vertical centre. Pulses. */
 export function badge(scene: Phaser.Scene, x: number, y: number, label: string, color: number = COLORS.accent, pulse = true): Phaser.GameObjects.Container {
   const w = measure(scene, label, 's') + 6;
   const h = 10;
@@ -72,12 +72,14 @@ export function badge(scene: Phaser.Scene, x: number, y: number, label: string, 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(1, 0, w - 2, h);
     ctx.fillRect(0, 1, w, h - 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.fillRect(1, h - 2, w - 2, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillRect(2, 1, w - 4, 1);
   });
   const c = scene.add.container(Math.round(x), Math.round(y));
   c.add(scene.add.image(0, 0, key).setOrigin(0, 0.5).setTint(color));
-  c.add(text(scene, 3, 0, label, { size: 's', color: COLORS.bg, originY: 0.5 }));
+  c.add(text(scene, 3, 0, label, { size: 's', color: 0xffffff, originY: 0.5 }));
   c.setSize(w, h);
   if (pulse) scene.tweens.add({ targets: c, alpha: 0.55, duration: 460, yoyo: true, repeat: -1, ease: 'Stepped', easeParams: [2] });
   return c;

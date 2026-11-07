@@ -83,8 +83,8 @@ function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEA
       let kind = K_ROCK;
       if (gap < 1.7) {
         // crack: dim red glow in hot zones, a few brighter seams at the hottest spots
-        if (heat > 0.62) {
-          const k = (heat - 0.62) * 3.2 + (gap < 0.8 ? 0.12 : 0);
+        if (heat > 0.66) {
+          const k = (heat - 0.66) * 3.4 + (gap < 0.8 ? 0.12 : 0);
           col = tone(LAVA, 0.08 + k * 0.55 + (g - 0.5) * 0.08, d);
         } else col = tone(BASALT, 0.02, d);
       } else {
@@ -97,7 +97,7 @@ function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEA
           col = tone(ASH, t - 0.05 + (ash - 0.62) * 0.7, d);
         } else col = tone(BASALT, t, d);
         // hot cracks bleed a faint glow onto the plate edge
-        if (heat > 0.66 && gap < 3.6 && d < (heat - 0.66) * 3) col = mixPacked(col, GLOW, 0.3);
+        if (heat > 0.7 && gap < 3.6 && d < (heat - 0.7) * 3) col = mixPacked(col, GLOW, 0.3);
       }
       // radiant glow on rock next to lava
       if (lv < 7) {
@@ -155,10 +155,10 @@ function placeLavaDoodads(c: Chunk, cls: Uint8Array, HEAT: Float32Array, ASHF: F
     if (!solid(x, r, 12) || !farFromDoodads(c, x, r, 22)) return;
     const i = (Math.round(r) + M) * S + Math.round(x) + M;
     const kind = at(x, r);
-    if (kind === K_EDGE && h1 < 0.45) c.add('dd_lava_rock', x, r, h2 < 0.5, 0.8 + h2 * 0.4);
-    else if (kind === K_ASH && h1 < 0.4) c.add('dd_ash_tree', x, r, h2 < 0.5, 0.85 + h2 * 0.3);
-    else if (HEAT[i] > 0.58 && h1 < 0.35) c.add('dd_vent', x, r, h2 < 0.5);
-    else if (h1 < 0.22) c.add('dd_obsidian', x, r, h2 < 0.5, 0.8 + h2 * 0.35);
-    else if (ASHF[i] > 0.5 && h1 < 0.3) c.add('dd_lava_rock', x, r, h2 < 0.5, 0.7);
+    if (kind === K_EDGE && h1 < 0.4) c.add('dd_lava_rock', x, r, h2 < 0.5, 0.8 + h2 * 0.4);
+    else if (kind === K_ASH && h1 < 0.32) c.add('dd_ash_tree', x, r, h2 < 0.5, 0.85 + h2 * 0.3);
+    else if (HEAT[i] > 0.64 && h1 < 0.2) c.add('dd_vent', x, r, h2 < 0.5);
+    else if (h1 < 0.14) c.add('dd_obsidian', x, r, h2 < 0.5, 0.8 + h2 * 0.35);
+    else if (ASHF[i] > 0.5 && h1 < 0.22) c.add('dd_lava_rock', x, r, h2 < 0.5, 0.7);
   });
 }

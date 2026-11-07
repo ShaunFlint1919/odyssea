@@ -163,11 +163,11 @@ export function createGraph(ctx: BaseAudioContext): Graph {
 
   const shelf = ctx.createBiquadFilter();
   shelf.type = 'highshelf';
-  shelf.frequency.value = 6500;
+  shelf.frequency.value = Math.min(6500, ctx.sampleRate * 0.4);
   shelf.gain.value = -4;
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.value = 15000;
+  lp.frequency.value = Math.min(15000, ctx.sampleRate * 0.45);
   lp.Q.value = 0.5;
 
   const comp = ctx.createDynamicsCompressor();
@@ -210,10 +210,10 @@ export function setWave(g: Graph, osc: OscillatorNode, w: WaveName): void {
   else osc.setPeriodicWave(g.waves[w]);
 }
 
-/** Perceptual fader taper for the 0..1 settings sliders. */
+/** Perceptual fader taper for the 0..1 settings sliders (0.6 -> -6.2 dB, 0.8 -> -2.7 dB). */
 export function faderGain(v: number): number {
   const x = Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0));
-  return x * x;
+  return Math.pow(x, 1.4);
 }
 
 /** Nominal bus levels at full slider position (music sits under the SFX). */

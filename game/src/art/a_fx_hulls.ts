@@ -136,7 +136,7 @@ export const HULL_ART: Record<string, HullArt> = {
     },
     fuselage: 5,
     engines: [[-7, 12], [7, 12]],
-    nose: [0, -13],
+    nose: [0, -14],
     half: [
       '................',
       '................',
@@ -229,7 +229,7 @@ export const HULL_ART: Record<string, HullArt> = {
       neon: ['#118aa0', '#6cfaff'],
     },
     fuselage: 4,
-    engines: [[-1.5, 13], [1.5, 13]],
+    engines: [[0, 13]],
     nose: [0, -14],
     half: [
       '................',

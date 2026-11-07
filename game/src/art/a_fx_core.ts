@@ -1,6 +1,6 @@
 // =====================================================================================
 //  A-FX CORE — small shared helpers for the player / projectile / pickup / FX art modules:
-//  an RGBA pixel buffer with alpha-over blending, ramp shading, convex polygon rasteriser
+//  an RGBA pixel buffer, strip-sheet packing, colour helpers, a convex polygon rasteriser
 //  (used by the faceted gems) and char-map utilities used by the hull banking transform.
 //  Everything is pixel exact (no anti-aliasing) unless a caller deliberately writes alpha.
 // =====================================================================================
@@ -29,41 +29,9 @@ export class PixBuf {
     d[i + 3] = alpha >= 1 ? c[3] : Math.round(c[3] * (alpha > 0 ? alpha : 0));
   }
 
-  /** Alpha-over a colour onto a pixel. */
-  blend(x: number, y: number, hex: string, alpha = 1): void {
-    x |= 0; y |= 0;
-    if (!this.inside(x, y)) return;
-    const c = parseColor(hex);
-    const r = c[0], g = c[1], b = c[2], a0 = c[3];
-    const sa = (a0 / 255) * Math.max(0, Math.min(1, alpha));
-    if (sa <= 0) return;
-    const i = (y * this.w + x) * 4;
-    const da = this.data[i + 3] / 255;
-    const oa = sa + da * (1 - sa);
-    const k = oa > 0 ? 1 / oa : 0;
-    this.data[i] = (r * sa + this.data[i] * da * (1 - sa)) * k;
-    this.data[i + 1] = (g * sa + this.data[i + 1] * da * (1 - sa)) * k;
-    this.data[i + 2] = (b * sa + this.data[i + 2] * da * (1 - sa)) * k;
-    this.data[i + 3] = oa * 255;
-  }
-
-  /** Keep the max alpha of what is there and the new colour (used for soft glows under cores). */
-  under(x: number, y: number, hex: string, alpha = 1): void {
-    x |= 0; y |= 0;
-    if (!this.inside(x, y)) return;
-    const i = (y * this.w + x) * 4;
-    if (this.data[i + 3] > 0) return;
-    this.put(x, y, hex, alpha);
-  }
-
   alphaAt(x: number, y: number): number {
     if (!this.inside(x | 0, y | 0)) return 0;
     return this.data[((y | 0) * this.w + (x | 0)) * 4 + 3];
-  }
-
-  clear(x: number, y: number): void {
-    if (!this.inside(x | 0, y | 0)) return;
-    this.data[((y | 0) * this.w + (x | 0)) * 4 + 3] = 0;
   }
 
   /** Pixel-exact filled rectangle. */
@@ -136,13 +104,6 @@ export function saturate(hex: string, f: number): string {
   const l = 0.299 * r + 0.587 * g + 0.114 * b;
   const c = (v: number) => Math.max(0, Math.min(255, Math.round(l + (v - l) * f))).toString(16).padStart(2, '0');
   return `#${c(r)}${c(g)}${c(b)}`;
-}
-
-/** Copy a canvas into a bigger transparent canvas at (ox, oy). */
-export function placeCanvas(src: HTMLCanvasElement, w: number, h: number, ox: number, oy: number): HTMLCanvasElement {
-  const { canvas, ctx } = makeCanvas(w, h);
-  ctx.drawImage(src, ox, oy);
-  return canvas;
 }
 
 // ------------------------------------------------------------------ convex polygon raster
@@ -238,17 +199,6 @@ export function renderPolyhedron(
 }
 
 // ------------------------------------------------------------------ char-map utilities
-
-/** Validate that every row of a pixel map has the expected width (dev warning only). */
-export function checkMap(name: string, map: string[], w: number, h?: number): string[] {
-  if (import.meta.env?.DEV) {
-    map.forEach((row, i) => {
-      if (row.length !== w) console.warn(`[art] map ${name} row ${i} has ${row.length} chars (expected ${w})`);
-    });
-    if (h !== undefined && map.length !== h) console.warn(`[art] map ${name} has ${map.length} rows (expected ${h})`);
-  }
-  return map.map((r) => r.padEnd(w, '.').slice(0, w));
-}
 
 /** Ordered ramps of chars; shiftChar moves a char along its ramp. */
 export function makeShifter(ramps: string[]): (ch: string, d: number) => string {

@@ -321,6 +321,9 @@ export class TitleScene extends Phaser.Scene {
     this.mode = 'press';
     const prompt = text(this, width / 2, Math.round(height * 0.62), 'TAP TO START', { size: 'm', color: COLORS.teal, originX: 0.5, originY: 0.5 })
       .setDepth(20);
+    const keyHint = this.sys.game.device.os.desktop
+      ? text(this, width / 2, Math.round(height * 0.62) + 12, 'OR PRESS ANY KEY', { size: 's', color: COLORS.textDim, originX: 0.5 }).setDepth(20)
+      : null;
     const blink = this.time.addEvent({ delay: 520, loop: true, callback: () => prompt.setVisible(!prompt.visible) });
     let started = false;
     const go = () => {
@@ -333,6 +336,7 @@ export class TitleScene extends Phaser.Scene {
       audio.sfx('ui_select');
       firstView = false;
       blink.remove();
+      keyHint?.destroy();
       prompt.setVisible(true);
       this.tweens.add({
         targets: prompt, alpha: 0, duration: 55, yoyo: true, repeat: 3,
@@ -421,12 +425,17 @@ export class TitleScene extends Phaser.Scene {
       box.add(text(this, width / 2, y - 12, title, { size: 's', color: COLORS.accentLight, originX: 0.5 }));
     }
     box.add(panel(this, x, y, MENU_W, h, 'raised'));
+    const backing = this.add.rectangle(width / 2, y + h + 12, 10, 14, COLORS.bg, 0.72);
     const help = text(this, width / 2, y + h + 8, '', { size: 's', color: COLORS.teal, originX: 0.5, maxWidth: width - 24, align: 'center' });
-    box.add(help);
+    box.add([backing, help]);
+    const setHelp = (str: string) => {
+      help.setText(str);
+      backing.setSize(help.width + 10, help.height + 6).setOrigin(0.5, 0).setPosition(width / 2, y + h + 5).setVisible(str.length > 0);
+    };
     const list = new MenuList(this, {
       x: x + 18, y: y + 8, width: MENU_W - 30, items, rowHeight: ROW_H, size: 'm', startIndex: start,
       onSelect: (i) => onSelect(i),
-      onFocus: (_i, it) => help.setText(it.help ?? ''),
+      onFocus: (_i, it) => setHelp(it.help ?? ''),
     });
     box.add(list.container);
     this.menu = list;

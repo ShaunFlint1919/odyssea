@@ -38,7 +38,8 @@ const LEGEND_COLORS: Record<string, number> = {
   ENERGY: 0xffe27a, SHD: 0x8cc8ff, ARM: 0xffa070, FRONT: 0xaaa4c4, REAR: 0xc8c2e0, DRONES: 0xaaa4c4,
 };
 const ARMOR_LOW = 0.25;
-const ENERGY_EMPTY = 0.06;
+const ENERGY_EMPTY = 0.05;
+const ENERGY_RECOVER = 0.12;
 
 const ratio = (v: number, max: number): number => (max > 0 ? clamp01(v / max) : 0);
 const pipsPx = (p: number): number => (p <= 0 ? 0 : p * PIP_STRIDE - 1);
@@ -173,11 +174,11 @@ export class HudController implements HudApi {
       this.texKeys.push(key);
       return tex;
     };
-    const marquee = (suffix: string, w: number, win: Rect): Marquee => {
+    const marquee = (suffix: string, w: number, win: Rect, loops: number): Marquee => {
       const tex = strip(suffix, w, f.s.cellH + 2);
       const o = scene.add.image(X + win.x - 1, win.y - 1, tex.key).setOrigin(0).setScrollFactor(0).setVisible(false);
       R.add(o);
-      return new Marquee(o, tex, f.s, { x: X + win.x, y: win.y, w: win.w, h: win.h });
+      return new Marquee(o, tex, f.s, { x: X + win.x, y: win.y, w: win.w, h: win.h }, loops);
     };
 
     R.add(scene.add.image(X, 0, panelKey).setOrigin(0).setScrollFactor(0));
@@ -186,7 +187,7 @@ export class HudController implements HudApi {
     this.pausePressed = img(X + L.pause.x, L.pause.y, PART.pausePressed).setVisible(false);
 
     // level LCD + progress
-    this.lcd = marquee('lcd', 768, L.lcdWin);
+    this.lcd = marquee('lcd', 768, L.lcdWin, 0);
     this.prog = new HCrop(img(X + L.progIn.x, L.progIn.y, PART.progFill), L.progIn.w, L.progIn.h);
     this.progHead = img(X + L.progIn.x, L.progIn.y, PART.progHead).setVisible(false);
 
@@ -199,12 +200,12 @@ export class HudController implements HudApi {
     this.eLegendRed = img(X + eLeg.x, eLeg.y, `leg_${L.energy.legend}`).setVisible(false);
 
     // front gun
-    this.frontName = marquee('front', 512, L.frontWin);
+    this.frontName = marquee('front', 512, L.frontWin, 2);
     this.frontPips = new HCrop(img(X + L.frontPips.x, L.frontPips.y, PART.pips), L.frontPips.w, L.frontPips.h);
     this.frontPipFlash = new AlphaCache(img(X + L.frontPips.x, L.frontPips.y, PART.pipsWhite));
 
     // rear gun (touch button)
-    this.rearName = marquee('rear', 512, L.rearWin);
+    this.rearName = marquee('rear', 512, L.rearWin, 2);
     this.rearPips = new HCrop(img(X + L.rearPips.x, L.rearPips.y, PART.pips), L.rearPips.w, L.rearPips.h);
     this.rearPipFlash = new AlphaCache(img(X + L.rearPips.x, L.rearPips.y, PART.pipsWhite));
     this.lampLit = img(X + L.lampA.x - 1, L.lampA.y - 1, PART.lampA).setVisible(false);
@@ -214,8 +215,8 @@ export class HudController implements HudApi {
     this.rearGlow = new AlphaCache(img(X + rb.x, rb.y + 4, PART.rearGlow));
 
     // drones
-    this.sideL = marquee('skL', 7 * f.s.cellW + 4, L.sideWinL);
-    this.sideR = marquee('skR', 7 * f.s.cellW + 4, L.sideWinR);
+    this.sideL = marquee('skL', 7 * f.s.cellW + 4, L.sideWinL, 1);
+    this.sideR = marquee('skR', 7 * f.s.cellW + 4, L.sideWinR, 1);
 
     // shield / armor
     const sb = L.shieldBar, ab = L.armorBar;
@@ -291,7 +292,8 @@ export class HudController implements HudApi {
     if (this.shield.set(sr) > 0.004 && !first) this.sPulse.fire(0.75);
     if (this.armor.set(ar) > 0.004 && !first) this.aPulse.fire(0.8);
     this.armorLow = m.armorMax > 0 && ar < ARMOR_LOW;
-    this.energyLow = this.energy.target < ENERGY_EMPTY;
+    // hysteresis: no flicker while the generator hovers around the threshold
+    this.energyLow = this.energy.target < (this.energyLow ? ENERGY_RECOVER : ENERGY_EMPTY);
     this.shieldNum.set(m.shield > 0 ? Math.ceil(m.shield - 0.01) : 0);
     this.armorNum.set(m.armor > 0 ? Math.ceil(m.armor - 0.01) : 0);
 

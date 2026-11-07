@@ -8,8 +8,7 @@
 //     ->  rotation = atan2(vy, vx) - PI/2.
 // =====================================================================================
 import Phaser from 'phaser';
-import type { ShotColor } from '../types';
-import { SHOT_COLORS } from '../types';
+import { SHOT_COLORS, type ShotColor } from '../types';
 import { ENEMY_BULLET_SPRITES, PROJECTILE_SPRITES, SHOT_RGB, enemyBulletKey, shotKey } from './keys';
 import { addTexture, bayer } from './pixel';
 import { PixBuf, hexOf, lerpColor, saturate, scaleColor } from './a_fx_core';
@@ -212,7 +211,7 @@ function flame(p: ShotPal): HTMLCanvasElement {
     const n = fbm(px / 2.6, py / 2.6, 321, 2) - 0.5;
     const d = Math.hypot(px - 5, (py - 5.2) * 0.95) + n * 2.6;
     if (d > 4.9) continue;
-    const col = d < 1.4 ? p.w : d < 2.4 ? p.c : d < 3.3 ? p.L : d < 4.1 ? p.G : p.G;
+    const col = d < 1.4 ? p.w : d < 2.4 ? p.c : d < 3.3 ? p.L : p.G;
     const a = d < 3.3 ? 1 : d < 4.1 ? 0.85 : 0.5;
     if (a < 1 && bayer(x, y) > 0.75) continue;
     buf.put(x, y, col, a);
@@ -292,14 +291,10 @@ function enemyBullet(sprite: keyof typeof ENEMY_BULLET_SPRITES, color: ShotColor
       return buf.toCanvas();
     }
     case 'eb_ring': {
-      const buf = radial(10, 10, 5, 5, [
+      // the first (alpha 0) zone keeps the hole transparent
+      return radial(10, 10, 5, 5, [
         [1.95, '#000000', 0], [2.65, p.k, 1], [3.45, p.w, 1], [4.25, p.G, 1], [5.05, p.k, 1],
-      ]);
-      // clear the hole
-      for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) {
-        if (Math.hypot(x + 0.5 - 5, y + 0.5 - 5) <= 1.95) buf.clear(x, y);
-      }
-      return buf.toCanvas();
+      ]).toCanvas();
     }
     case 'eb_laser': {
       const rows: string[] = [];

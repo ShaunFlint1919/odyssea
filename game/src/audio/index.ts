@@ -77,7 +77,8 @@ function create(): Live | null {
     applyVolumes(live, false);
     ctx.addEventListener?.('statechange', () => {
       // Interrupted by the browser / OS (not by us): resume on the next gesture.
-      if (ctx.state !== 'running' && ctx.state !== 'closed' && !st.userSuspended) arm();
+      if (ctx.state === 'running') disarm();
+      else if (ctx.state !== 'closed' && !st.userSuspended) arm();
     });
     return live;
   } catch {

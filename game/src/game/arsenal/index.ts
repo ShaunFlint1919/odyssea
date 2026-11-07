@@ -39,6 +39,7 @@ class ArsenalImpl implements Arsenal, ArsenalCore {
   readonly muzzles: FxPool;
   noseX = 0;
   noseY = -14;
+  frontStarved = false;
 
   private loadout: Loadout;
   private frontDef: WeaponDef = FALLBACK_FRONT;
@@ -59,7 +60,7 @@ class ArsenalImpl implements Arsenal, ArsenalCore {
     this.host = host;
     this.env = { scene: host.scene, host, depths, layer: opts.layer ?? null };
     const pool = Math.max(32, opts.poolSize ?? 400);
-    this.fx = new FxPool(this.env, depths.shots + 0.5, this, Math.ceil(pool * 0.2));
+    this.fx = new FxPool(this.env, depths.shots + 0.5, this, Math.ceil(pool * 0.15));
     this.muzzles = new FxPool(this.env, depths.sidekicks + 0.5, this, 24);
     this.shots = new ShotPool(this.env, this.fx, this, pool);
     this.left = new SidekickUnit(this, -1);
@@ -83,9 +84,10 @@ class ArsenalImpl implements Arsenal, ArsenalCore {
   update(dtMs: number, firing: boolean): void {
     if (this.destroyed) return;
     const dt = dtMs > 100 ? 100 : dtMs > 0 ? dtMs : 0;
-    const active = firing && this.host.canFire();
-    if (this.front) this.front.update(dt, active);
-    if (this.rear) this.rear.update(dt, active);
+    const canFire = this.host.canFire();
+    const active = firing && canFire;
+    if (this.front) this.front.update(dt, active, canFire);
+    if (this.rear) this.rear.update(dt, active, canFire);
     this.left.update(dt, active);
     this.right.update(dt, active);
     this.shots.update(dt);
@@ -111,6 +113,7 @@ class ArsenalImpl implements Arsenal, ArsenalCore {
     this.configureRear();
     if (this.front) this.front.reset();
     if (this.rear) this.rear.reset();
+    this.frontStarved = false;
   }
 
   private configureFront(): void {
@@ -182,6 +185,8 @@ class ArsenalImpl implements Arsenal, ArsenalCore {
   }
 
   clearShots(): void {
+    if (this.front) this.front.cancelPending();
+    if (this.rear) this.rear.cancelPending();
     this.shots.clear();
     this.fx.clear();
     this.muzzles.clear();

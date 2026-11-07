@@ -162,7 +162,9 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       sfx: (k) => this.sfx(k),
       bounds: { x: 0, y: 0, w: PLAY_W, h: H },
     };
-    this.arsenal = w.arsenal = createArsenal(host, this.loadout, { shots: DEPTH.playerShots, sidekicks: DEPTH.player, shadows: DEPTH.shadows });
+    this.arsenal = w.arsenal = createArsenal(host, this.loadout, {
+      shots: DEPTH.playerShots, sidekicks: DEPTH.player, shadows: w.shadows ? DEPTH.shadows : -1,
+    });
 
     this.collisions = new Collisions(w);
     this.director = new Director(w, level, startT, (id) => this.enemyDef(id));
@@ -188,7 +190,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     });
 
     if (DEBUG.fps || settings.showFps) {
-      this.fpsText = this.add.bitmapText(4, 4, FONT.s, '').setDepth(DEPTH.overlay).setTint(COLORS.good);
+      this.fpsText = this.add.bitmapText(4, 26, FONT.s, '').setDepth(DEPTH.overlay).setTint(COLORS.good);
     }
 
     audio.music(level.biome);
@@ -330,6 +332,9 @@ export class GameScene extends Phaser.Scene implements FlowHost {
 
   private onResume(): void {
     this.paused = false;
+    // settings may have changed in the pause menu (shake is read live from the save)
+    const st = getSave().settings;
+    this.controls.configure({ sensitivity: st.touchSensitivity, autofire: st.autofire });
   }
 
   private onAbort(): void {

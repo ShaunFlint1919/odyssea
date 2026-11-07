@@ -11,6 +11,7 @@ import { BIOMES, PALETTE_NAMES, SHOT_COLORS } from '../types';
 import {
   BOSS_PART_SPRITES, BOSS_SPRITES, ENEMY_BULLET_SPRITES, ENEMY_SPRITES, HULL_SPRITES, PROJECTILE_SPRITES, SIDEKICK_SPRITES,
 } from '../art/keys';
+import { BOSS_MOUNTS } from '../art/b_boss_mounts';
 import { ENEMY_BULLET_DAMAGE, MAX_POWER, PLAY_W } from '../config';
 import {
   BIOME_BULLET_COLORS, BIOME_PALETTES, BOSS_MOVES, CAMPAIGN, FIRE_PATTERNS, FORMATIONS, FRONT_PATTERNS, LAND_BIOMES,
@@ -253,10 +254,16 @@ export function validateBundle(c: ContentBundle): string[] {
     if (!PALETTE_NAMES.includes(b.palette)) err('boss', b.id, `unknown palette ${b.palette}`);
     if (!(b.hp > 0) || !(b.score >= 0) || !(b.credits >= 0)) err('boss', b.id, 'hp must be > 0, score / credits >= 0');
     if (b.phases.length < 2 || b.phases.length > 4) err('boss', b.id, `${b.phases.length} phases (need 2..4)`);
+    // sockets / muzzles drawn on the body art (src/art/b_boss_mounts.ts)
+    const mounts = (BOSS_MOUNTS as Record<string, (typeof BOSS_MOUNTS)[keyof typeof BOSS_MOUNTS] | undefined>)[b.sprite];
+    const near = (a: [number, number], q: [number, number]) => Math.abs(a[0] - q[0]) <= 1 && Math.abs(a[1] - q[1]) <= 1;
+    const allPoints: [number, number][] = mounts
+      ? [...mounts.turret, ...mounts.cannon, ...mounts.pod, ...mounts.core, ...mounts.wing, ...mounts.muzzle] : [];
     const muzzle = (where: string, a: BossAttack) => {
       checkShot('boss', `${b.id} ${where}`, a.fire, a.bulletSprite, a.bulletColor, a.bulletSpeed, a.rate);
       if (a.fire === 'none') err('boss', `${b.id} ${where}`, "attack fire cannot be 'none'");
       if (a.from && (Math.abs(a.from[0]) > half || Math.abs(a.from[1]) > half)) err('boss', `${b.id} ${where}`, 'muzzle outside the body');
+      else if (a.from && mounts && !allPoints.some((q) => near(a.from!, q))) err('boss', `${b.id} ${where}`, `fires from ${a.from}, not a muzzle / socket of the body art`);
     };
     let prevSig = '';
     let spawns = 0;
@@ -287,12 +294,20 @@ export function validateBundle(c: ContentBundle): string[] {
     if (!b.phases[b.phases.length - 1]?.spawn) err('boss', b.id, 'the final phase must spawn minions');
     const parts = b.parts ?? [];
     if (parts.length < 2 || parts.length > 6) err('boss', b.id, `${parts.length} parts (need 2..6)`);
+    const usedSockets = new Set<string>();
     parts.forEach((p, k) => {
       const where = `part ${k + 1}`;
       const ps = (BOSS_PART_SPRITES as Record<string, number>)[p.sprite];
       if (!ps) { err('boss', `${b.id} ${where}`, `unknown part sprite ${p.sprite}`); return; }
-      const lim = half - ps / 2;
-      if (Math.abs(p.offset[0]) > lim || Math.abs(p.offset[1]) > lim) err('boss', `${b.id} ${where}`, `offset ${p.offset} outside the ${half * 2}px body`);
+      if (Math.abs(p.offset[0]) > half || Math.abs(p.offset[1]) > half) err('boss', `${b.id} ${where}`, `offset ${p.offset} outside the ${half * 2}px body`);
+      else if (mounts) {
+        const kind = p.sprite.replace('part_', '') as 'turret' | 'cannon' | 'pod' | 'core' | 'wing';
+        const sockets = mounts[kind] ?? [];
+        const i = sockets.findIndex((q) => near(p.offset, q));
+        if (i < 0) err('boss', `${b.id} ${where}`, `${p.sprite} at ${p.offset} is not on a ${kind} socket of ${b.sprite}`);
+        else if (usedSockets.has(`${kind}${i}`)) err('boss', `${b.id} ${where}`, `two parts on ${kind} socket ${i}`);
+        else usedSockets.add(`${kind}${i}`);
+      }
       if (!(p.hp >= 0)) err('boss', `${b.id} ${where}`, 'hp must be >= 0');
       if (p.attack) muzzle(where, p.attack);
     });

@@ -36,9 +36,11 @@ class Channel {
   private lfoGain: GainNode | null = null;
   private lastF = 0;
   private lastEnd = -1;
+  private maxF: number;
 
   constructor(g: Graph, private inst: InstDef, out: AudioNode, echoIn: AudioNode | null, start: number, nodes: AudioNode[], srcs: AudioScheduledSourceNode[]) {
     const ctx = g.ctx;
+    this.maxF = Math.min(12000, ctx.sampleRate * 0.45);
     this.osc = ctx.createOscillator();
     setWave(g, this.osc, inst.w);
     this.env = ctx.createGain();
@@ -119,7 +121,7 @@ class Channel {
     g.setTargetAtTime(0, t + len, (i.r ?? 0.05) / 3);
     if (this.filter && i.fenv && i.lp) {
       const q = this.filter.frequency;
-      q.setTargetAtTime(Math.min(12000, i.lp + i.fenv * vel), t, 0.002);
+      q.setTargetAtTime(Math.min(this.maxF, i.lp + i.fenv * vel), t, 0.002);
       q.setTargetAtTime(i.lp, t + 0.006, (i.fdec ?? 0.15) / 3);
     }
     if (this.lfoGain && i.vib) {
@@ -307,6 +309,7 @@ export class SongPlayer {
     if (fadeIn > 0) this.out.gain.linearRampToValueAtTime(1, start + fadeIn);
     this.out.connect(g.musicBus);
     const mix = ctx.createGain();
+    mix.gain.value = song.def.gain ?? 1;
     mix.connect(this.out);
     this.nodes.push(this.out, mix);
     let echoIn: GainNode | null = null;
@@ -327,7 +330,7 @@ export class SongPlayer {
       tone.connect(fb);
       fb.connect(delay);
       tone.connect(wet);
-      wet.connect(this.out);
+      wet.connect(mix);
       this.nodes.push(echoIn, delay, tone, fb, wet);
     }
     const inst = song.def.inst;

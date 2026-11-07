@@ -183,10 +183,10 @@ function placeSpaceDoodads(c: Chunk, cls: Uint8Array, plats: Site[]): void {
   eachCell(c, 64, 1101, (x, r, h1, h2) => {
     const kind = at(x, r);
     if (!farFromDoodads(c, x, r, 34)) return;
-    if (kind === K_ROCK && h1 < 0.5) c.add('dd_station_debris', x, r, h2 < 0.5, 0.8 + h2 * 0.3);
+    if (kind === K_ROCK && h1 < 0.4) c.add('dd_station_debris', x, r, h2 < 0.5, 0.8 + h2 * 0.3);
     else if (kind === K_VOID && at(x - 18, r) === K_VOID && at(x + 18, r) === K_VOID) {
-      if (h1 < 0.1) c.add('dd_satellite', x, r, h2 < 0.5);
-      else if (h1 < 0.26) c.add('dd_station_debris', x, r, h2 < 0.5, 0.7 + h2 * 0.3);
+      if (h1 < 0.035) c.add('dd_satellite', x, r, h2 < 0.5);
+      else if (h1 < 0.12) c.add('dd_station_debris', x, r, h2 < 0.5, 0.7 + h2 * 0.3);
     }
   });
 }

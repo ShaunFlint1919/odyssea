@@ -59,7 +59,6 @@ const CLOUD = ['#0c1018', '#262e3e', '#545f78', '#949eb6', '#d2d8e8', '#ffffff']
 const MOON = ['#050408', '#0d0a12', '#18131e', '#272030', '#3a3042', '#504456', '#6a5c70', '#88798c'];
 const CRUST = ['#060203', '#110506', '#200809', '#330e0c', '#481610', '#5e2214', '#76321c'];
 const ICE = ['#0a1020', '#13233e', '#203e68', '#386296', '#5a8ec2', '#8cbae2', '#c0e0f6', '#f0faff'];
-const ICE_ROCK = ['#07090f', '#121824', '#1f2838', '#2f3c50', '#445468', '#5c6e84'];
 const GAS = ['#07040e', '#130a22', '#22123a', '#371b58', '#512674', '#70368e', '#924aa0', '#b660a6', '#d682aa', '#eeaaae', '#ffd4c2'];
 const METAL = ['#05070b', '#0c111a', '#151d29', '#202b3b', '#2e3c51', '#405069', '#566883', '#7184a0', '#97a8c0'];
 const RING = ['#140f1c', '#3c3044', '#6e5c70', '#a48c9c', '#d4bcc0', '#f6e6dc'];
@@ -209,13 +208,12 @@ const STYLES: Record<Biome, PlanetStyle> = {
       }
     },
   },
-  // Glacia: glossy ice sheets, polar caps, blue crevasses and exposed rock.
+  // Glacia: glossy ice sheets, bright polar caps and blue crevasses.
   ice: {
     tilt: 0.25, lean: 0.4, spin: 3.3, atmo: '#c4f2ff', atmoStrength: 0.55, halo: 0.45,
     surface(s, out, ctx) {
       const polar = smooth(0.6, 0.85, Math.abs(s.y));
       set(out, ICE, 0.72 + (n3(s, 2.6, 6606) - 0.5) * 0.45 + polar * 0.2, 0.45);
-      if (n3(s, 2.4, 6607) > 0.73 && polar < 0.5) set(out, ICE_ROCK, 0.55 + (n3(s, 9, 6608, 2) - 0.5) * 0.4 * ctx.detail);
       if (Math.abs(n3(s, 2.8, 6609, 2) - 0.5) < ctx.pxAngle * 0.8) set(out, ICE, 0.4, 0.2);
     },
   },
@@ -353,6 +351,7 @@ function renderPlanet(st: PlanetStyle, size: number): PixBuf {
     down: toPlanet({ x: 0, y: 1, z: 0 }),
   };
   const sample: Sample = { ramp: SAND, level: 0, spec: 0, shade: 0, emis: null, emisA: 0, night: false };
+  const sv: V3 = { x: 0, y: 0, z: 0 };
   const hv = { x: LIGHT.x, y: LIGHT.y, z: LIGHT.z + 1 };
   const hn = Math.hypot(hv.x, hv.y, hv.z);
   const H: V3 = { x: hv.x / hn, y: hv.y / hn, z: hv.z / hn };
@@ -373,7 +372,10 @@ function renderPlanet(st: PlanetStyle, size: number): PixBuf {
       const r2 = x * x + y * y;
       if (r2 >= 1) continue;
       const z = Math.sqrt(1 - r2);
-      const s = toPlanet({ x, y, z });
+      sv.x = M[0] * x + M[3] * y + M[6] * z;
+      sv.y = M[1] * x + M[4] * y + M[7] * z;
+      sv.z = M[2] * x + M[5] * y + M[8] * z;
+      const s = sv;
       sample.level = 0; sample.spec = 0; sample.shade = 0; sample.emis = null; sample.emisA = 0; sample.night = false;
       st.surface(s, sample, ctx);
       const lam = x * LIGHT.x + y * LIGHT.y + z * LIGHT.z;
@@ -407,11 +409,11 @@ function renderPlanet(st: PlanetStyle, size: number): PixBuf {
   // ---- pass 2: clean isolated material pixels
   despeckle(col, mat, keep, size);
 
-  // ---- pass 3: compose rings (back), globe + atmosphere, rings (front), halo
+  // ---- pass 3: compose far half of the rings, globe + atmosphere (or halo), near half
   const ringAt = (px: number, py: number, x: number, y: number, front: boolean): void => {
     if (!rings || Math.abs(axis.z) < 1e-3) return;
     const z = -(axis.x * x + axis.y * y) / axis.z;
-    if (x * x + y * y < 1 ? !front || z <= 0 : front) return;
+    if (front ? z <= 0 : z > 0 || x * x + y * y < 1) return; // far half is hidden by the globe
     const r = Math.sqrt(x * x + y * y + z * z);
     const dens = ringDensity(r, rings.inner, rings.outer);
     if (dens <= 0) return;
@@ -437,7 +439,6 @@ function renderPlanet(st: PlanetStyle, size: number): PixBuf {
           const a = Math.pow(1 - depth[i], 3.2) * st.atmoStrength * (0.15 + 0.85 * clamp01(lamb[i] + 0.4)) * 1.4;
           if (a > 0.03) blendHex(buf, px, py, st.atmo, Math.min(0.85, a));
         }
-        ringAt(px, py, x, y, true);
       } else if (st.atmo && st.halo > 0) {
         const r = Math.sqrt(x * x + y * y);
         const hw = (size >= 96 ? 4.5 : 2.6) / R;
@@ -447,16 +448,20 @@ function renderPlanet(st: PlanetStyle, size: number): PixBuf {
           if (a > 0.02) blendHex(buf, px, py, st.atmo, a);
         }
       }
+      ringAt(px, py, x, y, true);
     }
   }
   return buf;
 }
+
+/** Texture key of the 96x96 globe of a biome (hangar / map close-up). */
+export const planetKeyLg = (biome: Biome): string => `${planetKey(biome)}_lg`;
 
 /** Generates `planet_<biome>` (48x48) and `planet_<biome>_lg` (96x96) for every biome. */
 export function generatePlanetArt(scene: Phaser.Scene): void {
   for (const biome of BIOMES) {
     const st = STYLES[biome];
     addTexture(scene, planetKey(biome), renderPlanet(st, 48).toCanvas());
-    addTexture(scene, `${planetKey(biome)}_lg`, renderPlanet(st, 96).toCanvas());
+    addTexture(scene, planetKeyLg(biome), renderPlanet(st, 96).toCanvas());
   }
 }

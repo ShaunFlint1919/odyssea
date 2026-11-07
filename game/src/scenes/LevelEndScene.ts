@@ -14,7 +14,7 @@ import { haptic } from '../platform/haptics';
 import { getSave } from '../state/save';
 import { isCampaignComplete, itemsUnlockedBy } from '../state/progress';
 import { LEVELS, PLANETS } from '../data';
-import { button, fadeIn, goto, onBack, panel, starfield, text } from '../ui/kit';
+import { button, fadeIn, fit, goto, onBack, panel, starfield, text, wrapText } from '../ui/kit';
 import {
   Board, Sequence, applyOnce, badge, burst, cachedTexture, demoResult, fmtInt, fmtTime, header, isLevelResult,
   isPlanetFinale, levelInfo, neonRule, normalizeResult, ringPulse, type BoardRow, type SequenceStep,
@@ -28,6 +28,9 @@ const RANKS: { min: number; letter: string; color: number; note: string }[] = [
 ];
 
 interface Notice { text: string; color: number; icon?: string; badge?: string }
+
+/** Max characters of a notice line (FONT.s, right of the rank box). */
+const NOTICE_CHARS = 38;
 
 export class LevelEndScene extends Phaser.Scene {
   private seq: Sequence | null = null;
@@ -91,7 +94,10 @@ export class LevelEndScene extends Phaser.Scene {
     rankBox.add(letter);
     rankBox.setAlpha(0);
 
-    const notices = this.buildNotices(result, applied, rank.note);
+    const nextId = getSave().currentLevel;
+    const flourish = planetDone && (result.bossDefeated || campaignDone);
+    const showCard = !flourish && real && !!nextId && nextId !== result.levelId && LEVELS.some((l) => l.id === nextId);
+    const notices = this.buildNotices(result, applied, rank.note, showCard);
     const nx = 84;
     const noticeObjs: Phaser.GameObjects.Container[] = notices.map((n, i) => {
       const c = this.add.container(nx, ry + 6 + i * 15);
@@ -104,9 +110,16 @@ export class LevelEndScene extends Phaser.Scene {
       return c;
     });
 
-    // ---- planet liberated band
-    const bandY = Math.max(ry + 74, Math.min(height - 120, ry + 74 + Math.max(0, notices.length - 4) * 15));
-    const flourish = planetDone && (result.bossDefeated || campaignDone);
+    // ---- free space between the notices and the CONTINUE button: flourish band or UP NEXT card
+    const freeTop = ry + Math.max(64, 6 + notices.length * 15) + 12;
+    const freeBottom = height - 46 - 12;
+    const bandY = Math.round(freeTop + Math.max(0, (freeBottom - freeTop - 52) / 2));
+    const card = showCard ? this.upNextCard(nextId, width) : null;
+    if (card) {
+      const ch = card.getData('h') as number;
+      if (freeBottom - freeTop >= ch) card.setY(Math.round(freeTop + (freeBottom - freeTop - ch) / 2));
+      else { card.destroy(); }
+    }
 
     // ---- continue
     const hint = text(this, width / 2, height - 14, 'TAP TO SKIP', { size: 's', color: COLORS.textDim, originX: 0.5 });
@@ -125,6 +138,10 @@ export class LevelEndScene extends Phaser.Scene {
         audio.sfx(notices[i].icon === 'ui_icon_intel' ? 'pickup_intel' : 'ui_move');
       },
     }));
+    if (card && card.scene) {
+      card.setAlpha(0);
+      steps.push({ wait: 380, run: (inst) => { if (inst) card.setAlpha(1); else this.tweens.add({ targets: card, alpha: 1, duration: 220 }); } });
+    }
     if (flourish) {
       const biome = info.level?.biome;
       const title = campaignDone ? 'CAMPAIGN COMPLETE' : 'PLANET LIBERATED';
@@ -146,7 +163,7 @@ export class LevelEndScene extends Phaser.Scene {
     markSceneReady(SCENES.LevelEnd, { levelId: result.levelId, applied: applied.applied, target: this.target, demo: !real });
   }
 
-  private buildNotices(result: LevelResult, applied: ReturnType<typeof applyOnce>, rankNote: string): Notice[] {
+  private buildNotices(result: LevelResult, applied: ReturnType<typeof applyOnce>, rankNote: string, nextShownInCard: boolean): Notice[] {
     const out: Notice[] = [];
     if (result.score > applied.bestBefore && applied.bestBefore > 0) out.push({ text: 'NEW SCORE RECORD!', color: COLORS.gold });
     else out.push({ text: rankNote, color: COLORS.textDim });
@@ -160,18 +177,48 @@ export class LevelEndScene extends Phaser.Scene {
       if (lv.planet !== curPlanet) {
         const p = PLANETS.find((pl) => pl.id === lv.planet);
         out.push({ text: `SECTOR UNLOCKED: ${(p?.name ?? lv.planet).toUpperCase()}`, color: COLORS.teal });
-      } else {
+      } else if (!nextShownInCard) {
         out.push({ text: `NEXT MISSION: ${lv.name.toUpperCase()}`, color: COLORS.teal });
       }
     }
     if (result.completed) {
-      const gear = itemsUnlockedBy(result.levelId);
-      if (gear.length > 0) {
-        const names = gear.slice(0, 2).map((g) => g.name.toUpperCase()).join(', ');
-        out.push({ text: `NEW GEAR: ${names}${gear.length > 2 ? ` +${gear.length - 2}` : ''}`, color: COLORS.gold });
-      }
+      const gear = itemsUnlockedBy(result.levelId).map((g) => g.name.toUpperCase());
+      if (gear.length > 0) out.push({ text: this.listFit('NEW GEAR: ', gear, NOTICE_CHARS), color: COLORS.gold });
     }
-    return out.map((n) => ({ ...n, text: n.text.length > 36 ? `${n.text.slice(0, 35)}.` : n.text }));
+    return out.map((n) => ({ ...n, text: n.text.length > NOTICE_CHARS ? `${n.text.slice(0, NOTICE_CHARS - 1)}.` : n.text }));
+  }
+
+  /** "PREFIX A, B +2" — as many names as fit in `max` characters, then a +N count. */
+  private listFit(prefix: string, names: string[], max: number): string {
+    let out = prefix;
+    for (let i = 0; i < names.length; i++) {
+      const rest = names.length - i - 1;
+      const piece = `${i > 0 ? ', ' : ''}${names[i]}`;
+      const suffix = rest > 0 ? ` +${rest}` : '';
+      if ((out + piece + suffix).length <= max) { out += piece; continue; }
+      return i === 0 ? `${prefix}${names.length} ITEMS` : `${out} +${names.length - i}`;
+    }
+    return out;
+  }
+
+  /** Card announcing the next mission (planet globe, name, briefing). Height in data 'h'. */
+  private upNextCard(levelId: string, width: number): Phaser.GameObjects.Container | null {
+    const lv = LEVELS.find((l) => l.id === levelId);
+    if (!lv) return null;
+    const planet = PLANETS.find((p) => p.id === lv.planet);
+    const tx = 74;
+    const tw = width - 20 - tx - 8;
+    const brief = wrapText(lv.briefing ?? '', tw, 's').split('\n').slice(0, 4).join('\n');
+    const lines = brief ? brief.split('\n').length : 0;
+    const h = Math.max(66, 34 + lines * 10 + 8);
+    const c = this.add.container(0, 0);
+    c.add(panel(this, 10, 0, width - 20, h, 'raised'));
+    if (this.textures.exists(planetKey(lv.biome))) c.add(this.add.image(42, Math.round(h / 2), planetKey(lv.biome)));
+    c.add(text(this, 10 + tx, 9, 'UP NEXT', { size: 's', color: COLORS.accent }));
+    c.add(text(this, 10 + tx, 19, fit(`${(planet?.name ?? lv.planet).toUpperCase()} ${lv.index} - ${lv.name.toUpperCase()}`, tw, 'm'), { size: 'm', color: COLORS.teal }));
+    if (brief) c.add(text(this, 10 + tx, 34, brief, { size: 's', color: COLORS.textDim }).setLineSpacing(2));
+    c.setData('h', h);
+    return c;
   }
 
   private stampRank(box: Phaser.GameObjects.Container, letter: Phaser.GameObjects.BitmapText, instant: boolean): void {

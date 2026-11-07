@@ -173,7 +173,7 @@ export class Boss {
     this.shadowDy = surface ? 6 : 18;
     const sk = shadowKey(key);
     const shadowDepth = surface ? DEPTH.ground + 1 : DEPTH.shadows;
-    if (scene.textures.exists(sk)) this.shadow = scene.add.image(0, 0, sk).setDepth(shadowDepth);
+    if (w.shadows && scene.textures.exists(sk)) this.shadow = scene.add.image(0, 0, sk).setDepth(shadowDepth);
     this.img = scene.add.image(0, 0, key).setDepth(depth);
     const dk = bossDamagedKey(def.sprite, def.palette);
     this.dmgKey = scene.textures.exists(dk) ? dk : '';
@@ -202,7 +202,7 @@ export class Boss {
         rt.anim = new FrameAnim(scene, bossCorePulseAnim(def.palette), bossCorePulseKey(def.palette), 'part', 6, true);
       }
       // the plain part key owns the shadow (also under the pulsing core sheet)
-      if (scene.textures.exists(psk)) rt.shadow = scene.add.image(0, 0, psk).setDepth(shadowDepth).setFlipX(flip);
+      if (w.shadows && scene.textures.exists(psk)) rt.shadow = scene.add.image(0, 0, psk).setDepth(shadowDepth).setFlipX(flip);
       return rt;
     });
     // muzzles per phase

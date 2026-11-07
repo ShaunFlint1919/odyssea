@@ -145,7 +145,7 @@ function shieldFrame(blink: boolean): HTMLCanvasElement {
     if (!inner(x, y)) continue;
     const edgeTL = !inner(x - 1, y) || !inner(x, y - 1);
     const edgeBR = !inner(x + 1, y) || !inner(x, y + 1);
-    buf.put(x, y, edgeTL ? BLUE[1] : edgeBR ? BLUE[Math.min(4, 4)] : BLUE[Math.min(4, 2 + b)]);
+    buf.put(x, y, edgeTL ? BLUE[1] : edgeBR ? BLUE[4] : BLUE[2 + b]);
   }
   // crest: white chevron shield
   stamp(buf, [
@@ -158,7 +158,7 @@ function shieldFrame(blink: boolean): HTMLCanvasElement {
   return outlineCanvas(buf.toCanvas(), '#060a1c');
 }
 
-/** Orange repair badge: bevelled octagon with a bold white plus and a small bolt head. */
+/** Orange armour-repair badge: bevelled octagon with a bold white plus (drop-shadowed). */
 function armorFrame(blink: boolean): HTMLCanvasElement {
   const s = 16, b = blink ? 1 : 0;
   const buf = new PixBuf(s, s);
@@ -175,12 +175,12 @@ function armorFrame(blink: boolean): HTMLCanvasElement {
     '...kwwq...',
     '...kwwq...',
     '...kqqq...',
-  ].map((r) => r), { k: '#5a1e06', w: blink ? '#ffffff' : '#fff4e6', q: ORANGE[0] }, 3, 3);
+  ], { k: '#5a1e06', w: blink ? '#ffffff' : '#fff4e6', q: ORANGE[0] }, 3, 3);
   if (blink) { buf.put(4, 3, '#ffffff'); buf.put(3, 4, '#ffffff'); }
   return outlineCanvas(buf.toCanvas(), '#1a0802');
 }
 
-/** Yellow-green power orb with a P and two up-arrows. */
+/** Yellow-green power orb with a P and double up-chevrons on both sides. */
 function powerFrame(blink: boolean): HTMLCanvasElement {
   const s = 16;
   const buf = new PixBuf(s, s);
@@ -195,7 +195,7 @@ function powerFrame(blink: boolean): HTMLCanvasElement {
     'kkk..',
   ], { k: '#1a3204', w: '#ffffff' }, 6, 4);
   const arrow = ['.w.', 'w.w', '.w.', 'w.w'];
-  const ac = { w: blink ? '#ffffff' : LIME[4], k: LIME[0] };
+  const ac = { w: blink ? '#ffffff' : LIME[4] };
   stamp(buf, arrow, ac, 0, 1);
   stamp(buf, arrow, ac, 13, 1);
   return outlineCanvas(buf.toCanvas(), '#0c1802');

@@ -60,6 +60,8 @@ export class World {
   ended = false;
   /** Intel of this level already dropped (only one per level). */
   intelDropped = false;
+  /** Air units cast ground shadows (false in space: there is no ground). */
+  readonly shadows: boolean;
   readonly stats: LevelStats = { kills: 0, spawned: 0, score: 0, credits: 0, intelFound: [] };
 
   ship!: Ship;
@@ -84,6 +86,7 @@ export class World {
     readonly god: boolean,
   ) {
     this.scrollSpeed = level.scrollSpeed;
+    this.shadows = level.biome !== 'space';
   }
 }
 

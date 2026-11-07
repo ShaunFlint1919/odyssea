@@ -156,7 +156,7 @@ export const RIFT_LEVELS: LevelDef[] = [
       wall(103.6, 'r_mite', 10, 24), one(103.8, 'r_bomber', 0.5),
       cross(105.2, 'r_dart', 6, 0.28), mines(105.4, 46, 3, 2),
       vee(106.8, 'r_hornet', 0.5, 5, 26),
-      snakes(108.4, 'r_mite', 0.2, 5, 0.24),
+      snakes(108.4, 'r_mite', 0.2, 5, 0.24), comets(109.8, 3, 0.3),
     ],
   }),
 

@@ -72,7 +72,7 @@ class PulseGun extends WeaponGun {
       const oy = Math.abs(ox) * 0.35;
       const s = this.core.shots.fire(this.specs[size], x + ox, y + oy, UP);
       this.core.shots.advance(s, late);
-      this.flash(SLOT_FRONT + (i >> 1), nx + ox, ny + oy, UP, 0.75 + size * 0.2);
+      this.flash(SLOT_FRONT + (i >> 1), nx + ox, ny + oy, UP, 0.65 + size * 0.15);
     }
   }
 }

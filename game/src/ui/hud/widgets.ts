@@ -229,7 +229,8 @@ export class DigitRow {
     let t = v;
     for (let i = len - 1; i >= 0; i--) {
       const q = (t / 10) | 0;
-      this.imgs[i].setFrame(this.frames[t - q * 10]);
+      // All digit frames share one size and origin 0: skip setFrame's size / origin updates.
+      this.imgs[i].setFrame(this.frames[t - q * 10], false, false);
       t = q;
     }
   }
@@ -255,9 +256,12 @@ export class Marquee {
   static readonly PAUSE_MS = 1300;
   static readonly GAP_CELLS = 3;
 
+  private loops = 0;
+
+  /** `maxLoops` > 0: after that many full cycles the ticker rests on the first cell. */
   constructor(
     private readonly img: Img, private readonly tex: Phaser.Textures.CanvasTexture,
-    private readonly font: GlyphFont, private readonly win: Rect,
+    private readonly font: GlyphFont, private readonly win: Rect, private readonly maxLoops = 0,
   ) {
     this.cw = font.cellW;
   }
@@ -282,6 +286,7 @@ export class Marquee {
     this.scrolling = str.length > winCells;
     this.idx = 0;
     this.t = 0;
+    this.loops = 0;
     if (this.scrolling) {
       const period = (str.length + Marquee.GAP_CELLS) * this.cw;
       this.cells = str.length + Marquee.GAP_CELLS;
@@ -315,7 +320,11 @@ export class Marquee {
     this.t -= wait;
     if (this.t > Marquee.STEP_MS) this.t = 0;
     this.idx++;
-    if (this.idx >= this.cells) this.idx = 0;
+    if (this.idx >= this.cells) {
+      this.idx = 0;
+      this.loops++;
+      if (this.maxLoops > 0 && this.loops >= this.maxLoops) this.scrolling = false;
+    }
     this.apply();
   }
 }
