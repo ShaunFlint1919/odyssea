@@ -8,7 +8,8 @@ import { loadoutValue } from '../state/economy';
 import { isCompleted } from '../state/progress';
 import * as kit from '../ui/kit';
 import { META, ensureMetaArt, iconOr } from '../ui/meta/art';
-import { HEADER_H, MD, backdrop, badge, header, scanlines, sectionLabel } from '../ui/meta/chrome';
+import { HEADER_H, MD, countBadge, sectionLabel } from '../ui/meta/chrome';
+import { scanlines, screenBackdrop, screenHeader } from '../ui/widgets';
 import {
   campaignProgress, dec, findGenerator, findLevel, findShield, findWeapon, fmt, hangarFocusIndex, nextMissionId, planetOfLevel, setHangarFocus, signed,
   unreadIntelCount, upper, wrapLines,
@@ -35,8 +36,8 @@ export class HangarScene extends Phaser.Scene {
     const save = getSave();
     const loadout = save.loadout;
 
-    backdrop(this);
-    header(this, 'HANGAR', { credits: save.credits });
+    screenBackdrop(this);
+    screenHeader(this, 'HANGAR', { credits: save.credits });
 
     // ------------------------------------------------------------ layout (adapts to H)
     const rowH = H >= 660 ? 26 : H >= 560 ? 24 : 22;
@@ -84,7 +85,7 @@ export class HangarScene extends Phaser.Scene {
     // ------------------------------------------------------------ menu
     const ly = my + missionH + gap;
     kit.panel(this, px, ly, pw, menuH, 'raised').setDepth(MD.panel);
-    scanlines(this, px + 3, ly + 3, pw - 6, menuH - 6, MD.panel, 0.35);
+    scanlines(this, px + 3, ly + 3, pw - 6, menuH - 6, 0.35, MD.panel);
     const missionId = nextMissionId();
     const mission = findLevel(missionId);
     const planet = planetOfLevel(missionId);
@@ -124,7 +125,7 @@ export class HangarScene extends Phaser.Scene {
       onSelect: (i) => this.activate(i, missionId),
       onDisabled: (_i, it) => status.setText(it.help ?? ''),
     });
-    if (unread > 0) badge(this, listX + listW - 18, ly + 6 + 4 * rowH + rowH / 2, unread, MD.float);
+    if (unread > 0) countBadge(this, listX + listW - 18, ly + 6 + 4 * rowH + rowH / 2, unread, MD.float);
 
     kit.onBack(this, () => this.askQuit());
     markSceneReady(SCENES.Hangar, {

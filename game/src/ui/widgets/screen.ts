@@ -201,7 +201,7 @@ export interface ScreenHeaderOpts {
 export interface ScreenHeaderApi {
   readonly container: Phaser.GameObjects.Container;
   readonly credits: CreditsReadout | null;
-  /** y just below the strip (its glow included): content starts at bottom + LAYOUT.gap. */
+  /** y of the strip's bottom edge: content starts at bottom + LAYOUT.gap. */
   readonly bottom: number;
   setTitle(title: string): void;
   setRight(text: string, color?: number): void;
@@ -268,7 +268,7 @@ export function screenHeader(scene: Phaser.Scene, title: string, opts: ScreenHea
   return {
     container: c,
     credits,
-    bottom: HH + 2,
+    bottom: HH,
     setTitle: (s: string) => {
       t.setText(s);
       sizeUnderline();
@@ -289,7 +289,7 @@ export interface Rect { x: number; y: number; w: number; h: number }
  * Free content area of a menu screen: inside the side margins, from `top` (default: below the
  * header strip + gap) down to the status bar (or the screen bottom when `status` is false).
  */
-export function contentRect(scene: Phaser.Scene, top: number = LAYOUT.headerH + 2 + LAYOUT.gap, status = true): Rect {
+export function contentRect(scene: Phaser.Scene, top: number = LAYOUT.headerH + LAYOUT.gap, status = true): Rect {
   const { width, height } = scene.scale.gameSize;
   const bottom = height - (status ? LAYOUT.statusH + LAYOUT.gap : LAYOUT.margin);
   return { x: LAYOUT.margin, y: Math.round(top), w: width - 2 * LAYOUT.margin, h: Math.max(0, Math.round(bottom - top)) };
