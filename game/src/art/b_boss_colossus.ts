@@ -5,19 +5,9 @@ import {
   Grid, type Shape, plate, chamferRect, rect, poly, circle, sym, dome, barrel, groove, ridge,
   rivet, rivetLine, rivetRing, vent, ventV, glow, lamp, socket, fill, GREY, FIRE, TEAL,
 } from './b_boss_kit';
-import type { BossMounts } from './b_boss_types';
+import { COLOSSUS_MOUNTS } from './b_boss_mounts';
 
 const S = 112;
-
-/** Mount points (offsets from the sprite centre) for separate boss parts. */
-export const COLOSSUS_MOUNTS: BossMounts = {
-  turret: [[-41, -1], [41, -1]],
-  cannon: [],
-  pod: [[-21, -40], [21, -40]],
-  core: [[0, -33]],
-  wing: [],
-  muzzle: [[-7, 53], [7, 53]],
-};
 
 function track(g: Grid, x: number, y: number, w: number, h: number): void {
   plate(g, chamferRect(x, y, w, h, 3), { ramp: GREY, base: 1, bevel: 1, hi: 2, lo: 0.4, rim: 2 });

@@ -12,7 +12,7 @@ import type { EnemyBulletSprite, EnemySprite } from '../art/keys';
 import { ENEMY_SPRITES } from '../art/keys';
 
 /** Credit scale of a regular enemy per planet tier (0 = Kessra .. 7 = Axiom), see CREDIT_EXP. */
-export const CREDIT_RATE = [1.54, 1.68, 1.68, 2.09, 1.57, 2.1, 1.99, 1.97];
+export const CREDIT_RATE = [1.6, 1.66, 1.68, 1.92, 1.57, 1.97, 1.99, 1.97];
 /** Credits grow with hp^CREDIT_EXP (concave: a 160 hp bunker pays ~14x a 5 hp dart, not 32x). */
 export const CREDIT_EXP = 0.75;
 /** Loot carriers (radar relays, weak saucers) pay this multiple of the regular rate. */
@@ -94,7 +94,7 @@ const KESSRA: EnemyDef[] = [
   mk(K, 'k_bunker', 'Mesa Bunker', 'gr_bunker', 'steel', { hp: 160, speed: 0, move: 'ground', fire: 'ring8', rate: 0.3, bs: 75, b: 'eb_orb', c: 'violet', drops: [{ kind: 'armor', chance: 0.25 }] }),
   mk(K, 'k_relay', 'Relay Dish', 'gr_radar', 'crimson', { hp: 8, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
   mk(K, 'k_loot', 'Prospector Disc', 'en_saucer', 'crimson', { hp: 10, speed: 70, move: 'strafe', drops: LOOT_POWER_ARMOR, loot: true }),
-  mk(K, 'k_frigate', 'Sirocco Frigate', 'en_frigate', 'cobalt', { hp: 1500, speed: 26, move: 'hover', fire: 'spread5', rate: 0.45, bs: 85, b: 'eb_orb', c: 'pink', credits: 250, drops: MIDBOSS_DROP }),
+  mk(K, 'k_frigate', 'Sirocco Frigate', 'en_frigate', 'cobalt', { hp: 1500, speed: 26, move: 'hover', fire: 'spread5', rate: 0.45, bs: 85, b: 'eb_orb', c: 'pink', credits: 220, drops: MIDBOSS_DROP }),
 ];
 
 // ------------------------------------------------------------ 2. VERDANCE (jungle) emerald / toxic
@@ -195,7 +195,7 @@ const RIFT: EnemyDef[] = [
   mk(R, 'r_dart', 'Rift Dart', 'en_dart', 'steel', { hp: 11, speed: 160, move: 'straight', fire: 'aimed', rate: 0.55, bs: 145, b: 'eb_needle', c: 'pink' }),
   mk(R, 'r_hornet', 'Nebula Hornet', 'en_hornet', 'amber', { hp: 14, speed: 110, move: 'straight', fire: 'spread3', rate: 0.6, bs: 125, b: 'eb_orb', c: 'red' }),
   mk(R, 'r_comet', 'Null Comet', 'en_kamikaze', 'toxic', { hp: 11, speed: 130, move: 'chase' }),
-  mk(R, 'r_disc', 'Phase Disc', 'en_saucer', 'amber', { hp: 62, speed: 50, move: 'hover', fire: 'ring16', rate: 0.4, bs: 95, b: 'eb_orb', c: 'pink' }),
+  mk(R, 'r_disc', 'Phase Disc', 'en_saucer', 'amber', { hp: 66, speed: 50, move: 'hover', fire: 'ring16', rate: 0.4, bs: 95, b: 'eb_orb', c: 'pink' }),
   mk(R, 'r_eye', 'Void Eye', 'en_sentinel', 'toxic', { hp: 86, speed: 45, move: 'hover', fire: 'laser', rate: 0.3, bs: 260, b: 'eb_laser', c: 'pink' }),
   mk(R, 'r_bomber', 'Eclipse Bomber', 'en_bomber', 'steel', { hp: 330, speed: 32, move: 'straight', fire: 'missile', rate: 0.4, bs: 85, b: 'eb_missile', c: 'orange', drops: [{ kind: 'power', chance: 0.2 }] }),
   mk(R, 'r_gunship', 'Picket Gunship', 'en_gunship', 'amber', { hp: 390, speed: 40, move: 'hover', fire: 'spread5', rate: 0.7, bs: 125, b: 'eb_ring', c: 'red', drops: [{ kind: 'shield', chance: 0.25 }] }),

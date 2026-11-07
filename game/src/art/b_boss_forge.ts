@@ -6,21 +6,11 @@ import {
   ventV, quant, GREY, FIRE,
 } from './b_boss_kit';
 import { fbm } from './noise';
-import type { BossMounts } from './b_boss_types';
+import { FORGE_MOUNTS } from './b_boss_mounts';
 
 const S = 112;
 const C = S / 2;
 const CY = 50;
-
-/** Mount points (offsets from the sprite centre) for separate boss parts. */
-export const FORGE_MOUNTS: BossMounts = {
-  turret: [[-31, -37], [31, -37], [-31, 25], [31, 25]],
-  cannon: [],
-  pod: [[-42, -6], [42, -6]],
-  core: [[0, -6]],
-  wing: [],
-  muzzle: [[0, 54], [-31, 25], [31, 25]],
-};
 
 /** Molten metal: noise-driven crust over a white-hot gradient. */
 function molten(g: Grid, cx: number, cy: number, r: number): void {

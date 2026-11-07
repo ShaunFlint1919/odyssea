@@ -5,20 +5,10 @@ import {
   Grid, type Shape, plate, poly, circle, rect, chamferRect, sym, dome, barrel, groove, ridge,
   rivetLine, glow, lamp, socket, fill, vent, quant, GREY, TEAL, MAGENTA,
 } from './b_boss_kit';
-import type { BossMounts } from './b_boss_types';
+import { VOIDCARRIER_MOUNTS } from './b_boss_mounts';
 
 const S = 128;
 const C = S / 2;
-
-/** Mount points (offsets from the sprite centre) for separate boss parts. */
-export const VOIDCARRIER_MOUNTS: BossMounts = {
-  turret: [[-38, -6], [38, -6], [-22, 32], [22, 32]],
-  cannon: [],
-  pod: [[-53, -16], [53, -16]],
-  core: [[0, -18]],
-  wing: [[-30, 12], [30, 12]],
-  muzzle: [[-22, 58], [22, 58], [0, 46]],
-};
 
 function engine(g: Grid, cx: number, cy: number, r: number): void {
   plate(g, circle(cx, cy, r), { ramp: GREY, base: 3, bevel: 1, hi: 1.8, lo: 1.8, rim: 2, drop: 1 });

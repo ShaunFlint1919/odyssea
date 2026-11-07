@@ -226,16 +226,32 @@ function hash3(x: number, y: number, z: number, seed: number): number {
   return (h >>> 0) / 4294967296;
 }
 
+// Permutation-table lattice (period 256): a few array reads per corner instead of a hash.
+const PERM = new Uint8Array(512);
+const LATTICE = new Float32Array(256);
+(() => {
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) { p[i] = i; LATTICE[i] = hash3(i, 17, 5, 2024); }
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(hash3(i, 3, 11, 77) * (i + 1));
+    const t = p[i]; p[i] = p[j]; p[j] = t;
+  }
+  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
+})();
+
 const sstep = (t: number) => t * t * (3 - 2 * t);
 
-/** Smooth 3D value noise in [0, 1). */
+/** Smooth 3D value noise in [0, 1). Different seeds give unrelated fields. */
 export function valueNoise3(x: number, y: number, z: number, seed: number): number {
-  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
-  const u = sstep(x - xi), v = sstep(y - yi), w = sstep(z - zi);
-  const c000 = hash3(xi, yi, zi, seed), c100 = hash3(xi + 1, yi, zi, seed);
-  const c010 = hash3(xi, yi + 1, zi, seed), c110 = hash3(xi + 1, yi + 1, zi, seed);
-  const c001 = hash3(xi, yi, zi + 1, seed), c101 = hash3(xi + 1, yi, zi + 1, seed);
-  const c011 = hash3(xi, yi + 1, zi + 1, seed), c111 = hash3(xi + 1, yi + 1, zi + 1, seed);
+  const fx = Math.floor(x), fy = Math.floor(y), fz = Math.floor(z);
+  const u = sstep(x - fx), v = sstep(y - fy), w = sstep(z - fz);
+  const s = Math.imul(seed | 0, 0x9e3779b1) >>> 0;
+  const xi = (fx + (s & 255)) & 255, yi = (fy + ((s >>> 8) & 255)) & 255, zi = (fz + ((s >>> 16) & 255)) & 255;
+  const a = PERM[xi] + yi, b = PERM[xi + 1] + yi;
+  const aa = PERM[a] + zi, ab = PERM[a + 1] + zi, ba = PERM[b] + zi, bb = PERM[b + 1] + zi;
+  const L = LATTICE, P = PERM;
+  const c000 = L[P[aa]], c100 = L[P[ba]], c010 = L[P[ab]], c110 = L[P[bb]];
+  const c001 = L[P[aa + 1]], c101 = L[P[ba + 1]], c011 = L[P[ab + 1]], c111 = L[P[bb + 1]];
   const x00 = c000 + (c100 - c000) * u, x10 = c010 + (c110 - c010) * u;
   const x01 = c001 + (c101 - c001) * u, x11 = c011 + (c111 - c011) * u;
   const y0 = x00 + (x10 - x00) * v, y1 = x01 + (x11 - x01) * v;

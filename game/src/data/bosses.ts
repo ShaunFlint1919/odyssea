@@ -17,7 +17,7 @@ const atk = (
 export const BOSSES: BossDef[] = [
   {
     id: 'colossus', name: 'Sandmaw Colossus', title: 'Siege Crawler of Kessra', sprite: 'boss_colossus', palette: 'crimson',
-    hp: 3500, score: 21000, credits: 450,
+    hp: 3500, score: 21000, credits: 380,
     phases: [
       {
         untilHp: 0.6, move: 'anchor', speed: 20,

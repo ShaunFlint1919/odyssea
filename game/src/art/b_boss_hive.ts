@@ -6,22 +6,12 @@ import {
   Grid, type Shape, type Ramp, plate, poly, circle, ellipse, sym, dome, groove, glow, socket, tube,
   bezPath, lightN, quant, frame, ACID,
 } from './b_boss_kit';
-import type { BossMounts } from './b_boss_types';
+import { HIVE_MOUNTS } from './b_boss_mounts';
 
 const S = 112;
 const C = S / 2;
 /** Glowing sac ramp: no white top so the bulbs read as translucent, not as eyeballs. */
 const SAC: Ramp = ['i', 'l', 'V', 'Z', 'Z'];
-
-/** Mount points (offsets from the sprite centre) for separate boss parts. */
-export const HIVE_MOUNTS: BossMounts = {
-  turret: [[-19, 9], [19, 9]],
-  cannon: [],
-  pod: [[-21, -37], [21, -37]],
-  core: [[0, -27]],
-  wing: [],
-  muzzle: [[0, 42], [-7, 30], [7, 30]],
-};
 
 /** Left legs: hip, knee, claw tip (mirrored on the right). */
 const LEGS: number[][][] = [

@@ -5,23 +5,13 @@ import {
   Grid, type Shape, type Ramp, plate, poly, circle, ring, arcShape, sym, dome, groove, rivet, glow,
   lamp, socket, frame, tube, line, quant, GREY, TEAL, MAGENTA,
 } from './b_boss_kit';
-import type { BossMounts } from './b_boss_types';
+import { ARCHITECT_MOUNTS } from './b_boss_mounts';
 
 const S = 128;
 const C = S / 2;
 const CY = 52;
 /** Dark glossy lens ramp. */
 const LENS: Ramp = ['k', 'K', 'g', 'G', 'h'];
-
-/** Mount points (offsets from the sprite centre) for separate boss parts. */
-export const ARCHITECT_MOUNTS: BossMounts = {
-  turret: [[-27, -39], [27, -39], [-29, 15], [29, 15]],
-  cannon: [[0, 34]],
-  pod: [[-48, -44], [48, -44]],
-  core: [[0, -12]],
-  wing: [[-44, 4], [44, 4]],
-  muzzle: [[-43, 60], [43, 60], [0, 44]],
-};
 
 /** Armoured arm: shoulder -> elbow -> claw (left side; mirrored by the caller via flip). */
 function arm(g: Grid, sh: number[], el: number[], wr: number[], flip: boolean): void {

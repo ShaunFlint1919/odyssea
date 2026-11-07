@@ -7,20 +7,10 @@ import {
   Grid, type Shape, plate, poly, circle, ellipse, rect, chamferRect, dome, barrel, ridge,
   rivetLine, glow, lamp, socket, fill, vent, groove, ring, GREY, FIRE, TEAL,
 } from './b_boss_kit';
-import type { BossMounts } from './b_boss_types';
+import { DREADNOUGHT_MOUNTS } from './b_boss_mounts';
 
 const S = 128;
 const C = S / 2;
-
-/** Mount points (offsets from the sprite centre) for separate boss parts. */
-export const DREADNOUGHT_MOUNTS: BossMounts = {
-  turret: [[-26, -18], [26, -18], [-25, 14], [25, 14]],
-  cannon: [[0, 20], [0, -42]],
-  pod: [[-11, -56], [11, -56]],
-  core: [[0, -22]],
-  wing: [],
-  muzzle: [[-5, 58], [0, 59], [5, 58]],
-};
 
 /** Left half of the hull outline (x, y); mirrored to close the polygon. */
 const HULL_L = [

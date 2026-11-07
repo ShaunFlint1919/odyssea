@@ -150,7 +150,7 @@ const STYLES: Record<Biome, PlanetStyle> = {
       if (n3(s, 3.2, 2204) > 0.66) set(out, BROWN, 0.55 + (n3(s, 8, 2205, 2) - 0.5) * 0.4 * ctx.detail);
       if (Math.abs(n3(s, 1.9, 2206, 3) - 0.5) < ctx.pxAngle * 0.42) set(out, WATER, 0.72, 0.6);
       if (n3(s, 2.6, 2207) > 0.71) set(out, WATER, 0.62, 0.8);
-      clouds(s, out, 2202, 0.6, ctx);
+      clouds(s, out, 2202, 0.655, ctx);
     },
   },
   // Thalassa: deep ocean, archipelagos with beaches and lagoons, glossy sun glint.
@@ -162,7 +162,7 @@ const STYLES: Record<Biome, PlanetStyle> = {
       else if (h > 0.607) set(out, SAND, 0.8);
       else if (h > 0.55) set(out, SHALLOW, 0.5 + (h - 0.55) * 4, 0.6);
       else set(out, WATER, 0.5 + (h - 0.35) * 0.55, 1);
-      clouds(s, out, 3303, 0.62, ctx);
+      clouds(s, out, 3303, 0.665, ctx);
     },
   },
   // Umbra Deep: dark cratered moon with faint bioluminescent crystal fields.
@@ -194,8 +194,8 @@ const STYLES: Record<Biome, PlanetStyle> = {
         out.emisA = 1;
       }
       const lake = n3(s, 2, 5507);
-      if (lake > 0.66) {
-        out.emis = lake > 0.71 ? '#ffd860' : lake > 0.685 ? '#ff9a28' : '#e85010';
+      if (lake > 0.63) {
+        out.emis = lake > 0.68 ? '#ffd860' : lake > 0.655 ? '#ff9a28' : '#e85010';
         out.emisA = 1;
       }
     },
@@ -206,7 +206,7 @@ const STYLES: Record<Biome, PlanetStyle> = {
     surface(s, out, ctx) {
       const polar = smooth(0.6, 0.85, Math.abs(s.y));
       set(out, ICE, 0.72 + (n3(s, 2.6, 6606) - 0.5) * 0.45 + polar * 0.2, 0.45);
-      if (n3(s, 3, 6607) > 0.69 && polar < 0.5) set(out, ICE_ROCK, 0.55 + (n3(s, 9, 6608, 2) - 0.5) * 0.4 * ctx.detail);
+      if (n3(s, 3, 6607) > 0.715 && polar < 0.5) set(out, ICE_ROCK, 0.55 + (n3(s, 9, 6608, 2) - 0.5) * 0.4 * ctx.detail);
       if (Math.abs(n3(s, 2.8, 6609, 2) - 0.5) < ctx.pxAngle * 0.8) set(out, ICE, 0.4, 0.2);
     },
   },

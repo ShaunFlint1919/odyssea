@@ -7,7 +7,7 @@
 import Phaser from 'phaser';
 import { ANIM, FX_SPRITES, PICKUP_SPRITES, SIDEKICK_SPRITES } from './keys';
 import { addSheet, addTexture, bayer, outlineCanvas, radialGlow } from './pixel';
-import { PixBuf, clamp, easeOut, fillConvex, smoothstep, type Vec2 } from './a_fx_core';
+import { PixBuf, addBufSheet, clamp, easeOut, fillConvex, smoothstep, type Vec2 } from './a_fx_core';
 import { explosionFrames, SMOKE_RAMP } from './a_fx_explosion';
 import { fbm } from './noise';
 
@@ -109,7 +109,7 @@ function smokeFrames(): PixBuf[] {
         buf.put(x, y, SMOKE_RAMP[v > 0.72 ? 0 : v > 0.42 ? 1 : v > 0.12 ? 2 : v > -0.22 ? 3 : 4]);
       }
     }
-    out.push(buf.toCanvas());
+    out.push(buf);
   }
   return out;
 }
@@ -140,7 +140,7 @@ function shockwaveFrames(): PixBuf[] {
       const col = k > 0.84 ? '#ffffff' : k > 0.6 ? '#dfe6ff' : k > 0.38 ? '#a9b4dc' : '#7884b0';
       buf.put(x, y, col, alpha * (k > 0.6 ? 1 : 0.75));
     }
-    out.push(buf.toCanvas());
+    out.push(buf);
   }
   return out;
 }
@@ -244,7 +244,7 @@ function engineFrames(): PixBuf[] {
     }
     if (f === 1) buf.put(4, 10, FLAME_RAMP[4]);
     if (f === 3) buf.put(3, 11, FLAME_RAMP[5], 0.8);
-    out.push(buf.toCanvas());
+    out.push(buf);
   }
   return out;
 }
@@ -276,26 +276,26 @@ function warningStripe(): HTMLCanvasElement {
 
 /** Generates every FX_SPRITES texture (see keys.ts for sizes and frame counts). */
 export function generateFxArt(scene: Phaser.Scene): void {
-  addSheet(scene, 'fx_explosion_s', explosionFrames({
+  addBufSheet(scene, 'fx_explosion_s', explosionFrames({
     size: FX_SPRITES.fx_explosion_s, frames: 8, seed: 1307, lobes: 4, spread: 0.45, late: 0.3, embers: 5, chunks: 0, noise: 0.22, spikes: 5,
   }));
-  addSheet(scene, 'fx_explosion_m', explosionFrames({
+  addBufSheet(scene, 'fx_explosion_m', explosionFrames({
     size: FX_SPRITES.fx_explosion_m, frames: 10, seed: 2741, lobes: 6, spread: 0.52, late: 0.4, embers: 9, chunks: 3, noise: 0.25, spikes: 6,
   }));
-  addSheet(scene, 'fx_explosion_l', explosionFrames({
+  addBufSheet(scene, 'fx_explosion_l', explosionFrames({
     size: FX_SPRITES.fx_explosion_l, frames: 12, seed: 5099, lobes: 10, spread: 0.56, late: 0.55, embers: 14, chunks: 6, noise: 0.26, spikes: 7,
   }));
-  addSheet(scene, 'fx_spark', sparkFrames());
-  addSheet(scene, 'fx_smoke', smokeFrames());
-  addSheet(scene, 'fx_muzzle', muzzleFrames());
-  addSheet(scene, 'fx_shockwave', shockwaveFrames());
+  addBufSheet(scene, 'fx_spark', sparkFrames());
+  addBufSheet(scene, 'fx_smoke', smokeFrames());
+  addBufSheet(scene, 'fx_muzzle', muzzleFrames());
+  addBufSheet(scene, 'fx_shockwave', shockwaveFrames());
   addTexture(scene, 'fx_shield_bubble', shieldBubble());
   addSheet(scene, 'fx_debris', debrisFrames());
   const px = new PixBuf(2, 2);
   px.rect(0, 0, 2, 2, '#ffffff');
   addTexture(scene, 'fx_pixel', px.toCanvas());
   addTexture(scene, 'fx_glow', radialGlow(FX_SPRITES.fx_glow, '#ffffff', 2));
-  addSheet(scene, 'fx_engine', engineFrames());
+  addBufSheet(scene, 'fx_engine', engineFrames());
   addTexture(scene, 'fx_warning', warningStripe());
 }
 

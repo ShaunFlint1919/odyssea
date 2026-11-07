@@ -103,24 +103,26 @@ export const signed = (n: number, digits = 1): string => (n > 0 ? `+${dec(n, dig
 export const shotGlow = (c: ShotColor | undefined): number => (c && SHOT_RGB[c] ? SHOT_RGB[c].glow : COLORS.shield);
 export const shotCore = (c: ShotColor | undefined): number => (c && SHOT_RGB[c] ? SHOT_RGB[c].core : 0xffffff);
 
-/** Word-wrap `str` into at most `maxLines` lines of `maxChars` characters (last line ends with '.' when cut). */
+/** Word-wrap `str` into at most `maxLines` lines of `maxChars` characters ("..." when cut). */
 export function wrapLines(str: string, maxChars: number, maxLines: number): string[] {
-  const words = str.replace(/\s+/g, ' ').trim().split(' ');
+  const words = str.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
   const lines: string[] = [];
   let cur = '';
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i];
+  let used = 0;
+  for (const w of words) {
     const next = cur ? `${cur} ${w}` : w;
-    if (next.length <= maxChars) { cur = next; continue; }
+    if (next.length <= maxChars) { cur = next; used++; continue; }
     if (cur) lines.push(cur);
+    if (lines.length === maxLines) { cur = ''; break; }
     cur = w.length > maxChars ? w.slice(0, maxChars) : w;
-    if (lines.length === maxLines) break;
+    used++;
   }
   if (cur && lines.length < maxLines) lines.push(cur);
-  const used = lines.join(' ').split(' ').length;
-  if (lines.length === maxLines && used < words.length) {
-    const last = lines[maxLines - 1];
-    lines[maxLines - 1] = last.length >= maxChars ? `${last.slice(0, maxChars - 1)}.` : `${last}.`;
+  if (used < words.length && lines.length > 0) {
+    let last = lines[lines.length - 1];
+    while (last.length + 3 > maxChars && last.includes(' ')) last = last.slice(0, last.lastIndexOf(' '));
+    if (last.length + 3 > maxChars) last = last.slice(0, Math.max(1, maxChars - 3));
+    lines[lines.length - 1] = `${last.replace(/[.,;:!?-]+$/, '')}...`;
   }
   return lines;
 }

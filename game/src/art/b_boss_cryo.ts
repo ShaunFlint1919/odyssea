@@ -4,20 +4,10 @@
 import {
   Grid, plate, poly, ring, circle, rivet, glow, lamp, socket, frame, lightN, line, GREY, ICE,
 } from './b_boss_kit';
-import type { BossMounts } from './b_boss_types';
+import { CRYO_MOUNTS } from './b_boss_mounts';
 
 const S = 104;
 const C = S / 2;
-
-/** Mount points (offsets from the sprite centre) for separate boss parts. */
-export const CRYO_MOUNTS: BossMounts = {
-  turret: [[-28, -26], [28, -26]],
-  cannon: [],
-  pod: [[-16, -42], [16, -42]],
-  core: [[0, -8]],
-  wing: [[-38, 6], [38, 6]],
-  muzzle: [[0, 47], [-46, 2], [46, 2], [-27, 42], [27, 42]],
-};
 
 /**
  * Double-terminated hexagonal crystal prism from (x, y) along (dx, dy): length L, half-width w,

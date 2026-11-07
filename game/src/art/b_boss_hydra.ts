@@ -5,7 +5,7 @@ import {
   Grid, type Shape, plate, poly, circle, ellipse, arcShape, sym, barrel, groove, rivet, rivetRing,
   vent, glow, lamp, socket, ngon, frame, tube, bezPath, fill, rect, GREY, FIRE, MAGENTA,
 } from './b_boss_kit';
-import type { BossMounts } from './b_boss_types';
+import { HYDRA_MOUNTS } from './b_boss_mounts';
 
 const S = 112;
 
@@ -15,16 +15,6 @@ const NECKS: { p: number[][]; head: [number, number]; dir: [number, number]; sc:
   { p: [[45, 52], [46, 64], [29, 66], [34, 77]], head: [32, 85], dir: [-0.2, 1], sc: 0.88 },
 ];
 const CENTRE = { p: [[56, 56], [65, 64], [47, 70], [56, 79]], head: [56, 88] as [number, number], sc: 1 };
-
-/** Mount points (offsets from the sprite centre) for separate boss parts. */
-export const HYDRA_MOUNTS: BossMounts = {
-  turret: [[-38, -24], [38, -24]],
-  cannon: [],
-  pod: [[-15, -45], [15, -45]],
-  core: [[0, -26]],
-  wing: [],
-  muzzle: [[-48, 23], [-26, 43], [0, 49], [26, 43], [48, 23]],
-};
 
 function neck(g: Grid, p: number[][]): void {
   const path = bezPath(p[0], p[1], p[2], p[3], 28);

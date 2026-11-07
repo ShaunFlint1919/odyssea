@@ -19,31 +19,22 @@ import { PALETTE_NAMES, type Palette } from '../types';
 import { BOSS_PART_SPRITES, BOSS_SPRITES, bossKey, shadowKey, type BossPartSprite, type BossSprite } from './keys';
 import { addSheet, addTexture, silhouette } from './pixel';
 import { gridCanvas, outlineGrid, type Grid } from './b_boss_kit';
-import type { BossMounts } from './b_boss_types';
-import { COLOSSUS_MOUNTS, drawColossus } from './b_boss_colossus';
-import { HYDRA_MOUNTS, drawHydra } from './b_boss_hydra';
-import { DREADNOUGHT_MOUNTS, drawDreadnought } from './b_boss_dreadnought';
-import { HIVE_MOUNTS, drawHive } from './b_boss_hive';
-import { FORGE_MOUNTS, drawForge } from './b_boss_forge';
-import { CRYO_MOUNTS, drawCryo } from './b_boss_cryo';
-import { VOIDCARRIER_MOUNTS, drawVoidcarrier } from './b_boss_voidcarrier';
-import { ARCHITECT_MOUNTS, drawArchitect } from './b_boss_architect';
+import { drawColossus } from './b_boss_colossus';
+import { drawHydra } from './b_boss_hydra';
+import { drawDreadnought } from './b_boss_dreadnought';
+import { drawHive } from './b_boss_hive';
+import { drawForge } from './b_boss_forge';
+import { drawCryo } from './b_boss_cryo';
+import { drawVoidcarrier } from './b_boss_voidcarrier';
+import { drawArchitect } from './b_boss_architect';
 import { drawCannon, drawCore, drawPod, drawTurret, drawWing } from './b_boss_parts';
 import { damaged } from './b_boss_damage';
+import { BOSS_MOUNTS } from './b_boss_mounts';
 
 export type { BossMounts, Offset } from './b_boss_types';
 
-/** Part sockets / muzzles drawn on each boss body (offsets in px from the sprite centre). */
-export const BOSS_MOUNTS: Record<BossSprite, BossMounts> = {
-  boss_colossus: COLOSSUS_MOUNTS,
-  boss_hydra: HYDRA_MOUNTS,
-  boss_dreadnought: DREADNOUGHT_MOUNTS,
-  boss_forge: FORGE_MOUNTS,
-  boss_cryo: CRYO_MOUNTS,
-  boss_hive: HIVE_MOUNTS,
-  boss_voidcarrier: VOIDCARRIER_MOUNTS,
-  boss_architect: ARCHITECT_MOUNTS,
-};
+/** Part sockets / muzzles drawn on each boss body (re-exported from the Phaser-free b_boss_mounts.ts). */
+export { BOSS_MOUNTS } from './b_boss_mounts';
 
 /** Battle-damaged body texture (cracks, holes with glowing internals, scorch) for the final phase. */
 export const bossDamagedKey = (sprite: string, palette: Palette): string => `${bossKey(sprite, palette)}__dmg`;

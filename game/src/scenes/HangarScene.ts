@@ -39,7 +39,7 @@ export class HangarScene extends Phaser.Scene {
     // ------------------------------------------------------------ layout (adapts to H)
     const rowH = H >= 660 ? 26 : H >= 560 ? 24 : 22;
     const menuH = 7 * rowH + 12;
-    const missionH = H >= 640 ? 64 : 56;
+    const missionH = H >= 540 ? 62 : 56;
     const statusH = 16;
     const gap = H >= 600 ? 5 : 4;
     const top = HEADER_H + gap;
@@ -182,7 +182,7 @@ export class HangarScene extends Phaser.Scene {
     const replay = isCompleted(lv.id);
     kit.text(this, tx, y + 18, kit.fit(upper(lv.name), tw - (replay ? 54 : 0), 'm'), { size: 'm', color: COLORS.text, depth: MD.content });
     if (replay) kit.text(this, x + w - 8, y + 19, 'REPLAY', { size: 's', color: COLORS.gold, originX: 1, depth: MD.content });
-    const maxLines = h >= 64 ? 3 : 2;
+    const maxLines = h >= 60 ? 3 : 2;
     const lines = wrapLines(lv.briefing, Math.floor(tw / 6), maxLines);
     lines.forEach((ln, i) => kit.text(this, tx, y + 31 + i * 9, ln, { size: 's', color: COLORS.textDim, depth: MD.content }));
   }

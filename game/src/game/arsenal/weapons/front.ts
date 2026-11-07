@@ -5,7 +5,7 @@
 //   gatling  dense needle stream (2 sub-volleys), cadence x1 -> x1.54, 1 -> 4 barrels
 //   lance    piercing beam bursts, 2 -> 5 segments long (42 -> 96 px), width x1 -> x1.81
 //   seeker   2 -> 6 homing micro-missiles per volley, ripple-fired in a widening fan
-//   helix    two interleaved sine streams (amplitude 10 -> 22 px), four from p6
+//   helix    two interleaved sine streams (amplitude 13 -> 26 px), four from p6 (26 -> 40 px)
 //   mortar   heavy orbs, splash 22 -> 54 px, 1 -> 3 orbs per volley
 //   prism    crystal bolts splitting after 80 px into 3/5/7 spectrum shards, 2 bolts from
 //            p6, shards re-split at p10
@@ -314,7 +314,7 @@ class SeekerGun extends WeaponGun {
 
 // ------------------------------------------------------------------------------ helix
 
-/** Three sub-volleys per paid volley so each stream shows ~4 shots per wavelength. */
+/** Three sub-volleys per paid volley so each stream shows ~6 shots per wavelength. */
 class HelixGun extends WeaponGun {
   private four = false;
   private inner!: ShotSpec;
@@ -342,8 +342,8 @@ class HelixGun extends WeaponGun {
       s.hit = HIT_SOFT;
       return s;
     };
-    this.inner = make(ramp(p, 10, 22), 118, ramp(p, 1, 1.3));
-    this.outer = make(ramp(p, 22, 34), 164, 1);
+    this.inner = make(ramp(p, 13, 26), 176, ramp(p, 1, 1.3));
+    this.outer = make(ramp(p, 26, 40), 236, 1);
     return r;
   }
 
