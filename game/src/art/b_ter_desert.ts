@@ -1,11 +1,12 @@
 // DESERT terrain painter: wind-rippled dunes, red sandstone mesas with cliff faces and cast
 // shadows, dry cracked riverbeds, oases with palms and half-buried ancient ruins.
-// Structure: one lean main pass (sand / mesa / cliff / shadows) + feature passes limited to
-// their bounding boxes (riverbed, oases, ruins) — keeps the hot loop small and type-stable.
+// Structure (a plan of incremental steps): noise fields, mesa carving, one lean row-sliced main
+// pass (sand / mesa / cliff / shadows) and row-sliced feature passes limited to their bounding
+// boxes (riverbed, oases, ruins) — keeps every hot loop small and type-stable.
 import { fbm, hash2, valueNoise } from './noise';
 import {
   CH, Chunk, field, lattice, grain, sites, eachCell, Meander, farFromDoodads, rampN, tone, bayer4, lin, shade,
-  scratchU8, list, ensureSite, Site,
+  list, ensureSite, Site, once, range, type Step,
 } from './b_ter_core';
 
 const ANG = 0.45, CA = Math.cos(ANG), SA = Math.sin(ANG);
@@ -76,8 +77,11 @@ function wallAt(R: Ruin, lx: number, ly: number): boolean {
   return lx >= 0 && ly >= 0 && lx < R.w && ly < R.h && R.walls[ly * R.w + lx] === 1;
 }
 
+/** Per-chunk state shared by the desert steps (built once all fields exist). */
 interface Ctx {
-  c: Chunk; P: Float32Array; MID: Float32Array; DET: Float32Array; G: Float32Array; N: Float32Array; cls: Uint8Array;
+  c: Chunk; P: Float32Array; MID: Float32Array; DET: Float32Array; G: Float32Array; N: Float32Array; RM: Float32Array;
+  cls: Uint8Array; since: Int16Array; since2: Int16Array;
+  xc: Float32Array; hw: Float32Array; sl: Float32Array; oases: Site[]; ruins: Ruin[];
 }
 
 /** Applies the mesa cast shadow to an already chosen colour when a mesa occludes the light. */
@@ -85,11 +89,12 @@ function mesaShadow(P: Float32Array, i: number, S: number, col: number): number 
   return P[i - SHADOW * S - SHADOW] > T1 || P[i - (SHADOW >> 1) * (S + 1)] > T1 ? shade(col, 142, 140, 172, 10) : col;
 }
 
-/** Main pass: dunes with wind ripples, sandstone mesas with terraces, cliff faces, shadows. */
-function paintBase(k: Ctx, RM: Float32Array): void {
-  const { c, P, MID, DET, G, N, cls } = k;
-  const W = c.w, M = c.M, S = c.S, px = c.px;
-  const since = new Int16Array(W).fill(99), since2 = new Int16Array(W).fill(99);
+/** Seeds the cliff counters (rows since the last mesa row above) through the top margin. */
+function seedSince(k: Ctx): void {
+  const { c, P, since, since2 } = k;
+  const W = c.w, M = c.M, S = c.S;
+  since.fill(99);
+  since2.fill(99);
   for (let rr = 0; rr < M; rr++) {
     const o = rr * S + M;
     for (let x = 0; x < W; x++) {
@@ -98,8 +103,14 @@ function paintBase(k: Ctx, RM: Float32Array): void {
       since2[x] = p > T2 ? 0 : since2[x] < 99 ? since2[x] + 1 : 99;
     }
   }
+}
+
+/** Main pass, rows [r0, r1) in order: dunes with wind ripples, mesas with terraces, cliff faces, shadows. */
+function paintBaseRows(k: Ctx, r0: number, r1: number): void {
+  const { c, P, MID, DET, G, N, RM, cls, since, since2 } = k;
+  const W = c.w, M = c.M, S = c.S, px = c.px;
   const sh = SHADOW * S + SHADOW, sh2 = (SHADOW >> 1) * S + (SHADOW >> 1);
-  for (let r = 0; r < CH; r++) {
+  for (let r = r0; r < r1; r++) {
     const wy = c.wy0 - r;
     let i = (r + M) * S + M;
     let o = r * W;
@@ -168,11 +179,11 @@ function sandSlope(N: Float32Array, i: number, S: number): number {
   return s > 0.3 ? 0.3 : s < -0.34 ? -0.34 : s;
 }
 
-/** Dry riverbed pass: cracked clay, pebbles, lit west bank / dark east bank. */
-function paintRiver(k: Ctx, xc: Float32Array, hw: Float32Array, sl: Float32Array): void {
-  const { c, P, MID, DET, G, cls } = k;
+/** Dry riverbed pass, rows [r0, r1): cracked clay, pebbles, lit west bank / dark east bank. */
+function paintRiverRows(k: Ctx, r0: number, r1: number): void {
+  const { c, P, MID, DET, G, cls, xc, hw, sl } = k;
   const W = c.w, M = c.M, S = c.S, px = c.px;
-  for (let r = 0; r < CH; r++) {
+  for (let r = r0; r < r1; r++) {
     const rr = r + M, h = hw[rr];
     if (h < 0.5) continue;
     const cx = xc[rr], kk = 1 / Math.sqrt(1 + sl[rr] * sl[rr]);
@@ -205,12 +216,12 @@ function paintRiver(k: Ctx, xc: Float32Array, hw: Float32Array, sl: Float32Array
   }
 }
 
-/** Oasis pass: water pool with a bright shallow rim, wet mud ring, sparse grass ring. */
-function paintOasis(k: Ctx, O: Site): void {
+/** Oasis pass, rows [r0, r1): water pool with a bright shallow rim, wet mud ring, sparse grass ring. */
+function paintOasisRows(k: Ctx, O: Site, r0: number, r1: number): void {
   const { c, P, MID, DET, G, N, cls } = k;
   const W = c.w, M = c.M, S = c.S, px = c.px;
   const R = OASIS_R0 + O.h3 * OASIS_RV, ext = 1.6 * R;
-  const ra = Math.max(0, Math.floor(O.r - ext)), rb = Math.min(CH - 1, Math.ceil(O.r + ext));
+  const ra = Math.max(r0, Math.floor(O.r - ext)), rb = Math.min(r1 - 1, Math.ceil(O.r + ext));
   const xa = Math.max(0, Math.floor(O.wx - ext)), xb = Math.min(W - 1, Math.ceil(O.wx + ext));
   for (let r = ra; r <= rb; r++) {
     const wy = c.wy0 - r, dy = (r - O.r) * 1.15;
@@ -244,11 +255,11 @@ function paintOasis(k: Ctx, O: Site): void {
   }
 }
 
-/** Ruin pass: limestone flagstones half buried in sand, broken walls with south faces and shadows. */
-function paintRuin(k: Ctx, R: Ruin): void {
+/** Ruin pass, rows [r0, r1): limestone flagstones half buried in sand, broken walls, faces, shadows. */
+function paintRuinRows(k: Ctx, R: Ruin, r0: number, r1: number): void {
   const { c, MID, DET, G, cls } = k;
   const W = c.w, M = c.M, S = c.S, px = c.px, s = c.seed;
-  const ra = Math.max(0, R.r0 - 1), rb = Math.min(CH - 1, R.r0 + R.h + 6);
+  const ra = Math.max(r0, R.r0 - 1), rb = Math.min(r1 - 1, R.r0 + R.h + 6);
   const xa = Math.max(0, R.x0 - 1), xb = Math.min(W - 1, R.x0 + R.w + 5);
   for (let r = ra; r <= rb; r++) {
     const wy = c.wy0 - r, ly = r - R.r0;
@@ -306,41 +317,40 @@ function paintRuin(k: Ctx, R: Ruin): void {
   }
 }
 
-/** Mesa field adjustments: rough edges, and no mesas in riverbeds, oases or ruins. */
-function carve(c: Chunk, P: Float32Array, MID: Float32Array, DET: Float32Array,
-  xcA: Float32Array, hwA: Float32Array, slA: Float32Array, oases: Site[], ruins: Ruin[]): void {
-  const M = c.M, S = c.S, rows = CH + 2 * M;
-  for (let rr = 0; rr < rows; rr++) {
-    const xc = xcA[rr], hw = hwA[rr], k = 1 / Math.sqrt(1 + slA[rr] * slA[rr]);
+/**
+ * Mesa field adjustments for margin rows [rr0, rr1): rough edges, and no mesas in riverbeds,
+ * oases or ruins.
+ */
+function carveRows(k: Ctx, rr0: number, rr1: number): void {
+  const { c, P, MID, DET, xc: xcA, hw: hwA, sl: slA, oases, ruins } = k;
+  const M = c.M, S = c.S;
+  for (let rr = rr0; rr < rr1; rr++) {
+    const xc = xcA[rr], hw = hwA[rr], kk = 1 / Math.sqrt(1 + slA[rr] * slA[rr]);
     let i = rr * S;
     for (let xx = 0; xx < S; xx++, i++) {
       let p = P[i] + (DET[i] - 0.5) * 0.03 + (MID[i] - 0.5) * 0.035;
       if (hw > 0.5) {
-        const dd = Math.abs(xx - M - xc) * k;
+        const dd = Math.abs(xx - M - xc) * kk;
         if (dd < hw + 34) p -= 0.5 * lin(hw + 34, hw + 8, dd);
       }
       P[i] = p;
     }
-  }
-  for (let o = 0; o < oases.length; o++) {
-    const O = oases[o], R = 76;
-    const ra = Math.max(0, Math.floor(O.r - R) + M), rb = Math.min(rows, Math.ceil(O.r + R) + M);
-    const xa = Math.max(0, Math.floor(O.wx - R) + M), xb = Math.min(S, Math.ceil(O.wx + R) + M);
-    for (let rr = ra; rr < rb; rr++) {
+    for (let o = 0; o < oases.length; o++) {
+      const O = oases[o], R = 76;
       const dy = rr - M - O.r;
+      if (dy <= -R || dy >= R) continue;
+      const xa = Math.max(0, Math.floor(O.wx - R) + M), xb = Math.min(S, Math.ceil(O.wx + R) + M);
       for (let xx = xa; xx < xb; xx++) {
         const dx = xx - M - O.wx, q = dx * dx + dy * dy;
         if (q < R * R) P[rr * S + xx] -= 0.5 * lin(R * R, 44 * 44, q);
       }
     }
-  }
-  for (let o = 0; o < ruins.length; o++) {
-    const R = ruins[o];
-    const ra = Math.max(0, R.r0 - 44 + M), rb = Math.min(rows, R.r0 + R.h + 44 + M);
-    const xa = Math.max(0, R.x0 - 44 + M), xb = Math.min(S, R.x0 + R.w + 44 + M);
-    for (let rr = ra; rr < rb; rr++) {
+    for (let o = 0; o < ruins.length; o++) {
+      const R = ruins[o];
       const r = rr - M;
+      if (r < R.r0 - 44 || r >= R.r0 + R.h + 44) continue;
       const dy = Math.max(R.r0 - r, 0, r - (R.r0 + R.h));
+      const xa = Math.max(0, R.x0 - 44 + M), xb = Math.min(S, R.x0 + R.w + 44 + M);
       for (let xx = xa; xx < xb; xx++) {
         const x = xx - M;
         const dx = Math.max(R.x0 - x, 0, x - (R.x0 + R.w));
@@ -393,35 +403,46 @@ function placeDoodads(c: Chunk, cls: Uint8Array, oases: Site[], ruins: Ruin[]): 
   });
 }
 
-/** Paints one desert chunk. */
-export function paintDesert(c: Chunk): void {
-  const s = c.seed, W = c.w;
-  const N = field(c, 8, (x, y) => fbm((x * CA - y * SA) / 150, (x * SA + y * CA) / 60, s + 1, 2), 1);
-  const RM = lattice(c, 48, s + 4, 0);
-  const P = field(c, 8, (x, y) => fbm(x / 110, y / 110, s + 5, 3) + 0.22 * (valueNoise(x / 700, y / 600, s + 6) - 0.5));
-  const MID = lattice(c, 12, s + 8);
-  const DET = lattice(c, 4, s + 9);
-  const G = grain(c, s + 13, 0);
-  const wadi = new Meander(W, s + 20, {
-    amp: W * 0.24, wave: 230, wave2: 70, amp2: 20, width: 20, widthVar: 6, widthWave: 130,
-    gateWave: 1000, gateLo: 0.42, gateHi: 0.5,
-  }, valueNoise);
-  const river = wadi.rows(c);
-  const oases = sites(c, 560, 301, 0.6, 110, 60);
-  const ruinSites = sites(c, 760, 401, 0.5, 140, 60);
-  ensureSite(c, oases);
-  ensureSite(c, ruinSites);
-  const ruins = list<Ruin>();
-  for (let q = 0; q < ruinSites.length; q++) {
-    const R = makeRuin(ruinSites[q], c, wadi);
-    if (R) ruins.push(R);
-  }
-
-  carve(c, P, MID, DET, river.xc, river.hw, river.slope, oases, ruins);
-  const k: Ctx = { c, P, MID, DET, G, N, cls: scratchU8(W * CH) };
-  paintBase(k, RM);
-  paintRiver(k, river.xc, river.hw, river.slope);
-  for (let o = 0; o < oases.length; o++) paintOasis(k, oases[o]);
-  for (let o = 0; o < ruins.length; o++) paintRuin(k, ruins[o]);
-  placeDoodads(c, k.cls, oases, ruins);
+/** Desert chunk plan: fields, mesa carving, main pass, riverbed, oases, ruins, doodads. */
+export function planDesert(c: Chunk): Step[] {
+  const s = c.seed, W = c.w, rows = CH + 2 * c.M;
+  let N!: Float32Array, RM!: Float32Array, P!: Float32Array, MID!: Float32Array, DET!: Float32Array;
+  let k!: Ctx;
+  return [
+    once(() => { N = field(c, 8, (x, y) => fbm((x * CA - y * SA) / 150, (x * SA + y * CA) / 60, s + 1, 2), 1); }),
+    once(() => { RM = lattice(c, 48, s + 4, 0); }),
+    once(() => { P = field(c, 8, (x, y) => fbm(x / 110, y / 110, s + 5, 3) + 0.22 * (valueNoise(x / 700, y / 600, s + 6) - 0.5)); }),
+    once(() => { MID = lattice(c, 12, s + 8); }),
+    once(() => { DET = lattice(c, 4, s + 9); }),
+    once(() => {
+      const G = grain(c, s + 13, 0);
+      const wadi = new Meander(W, s + 20, {
+        amp: W * 0.24, wave: 230, wave2: 70, amp2: 20, width: 20, widthVar: 6, widthWave: 130,
+        gateWave: 1000, gateLo: 0.42, gateHi: 0.5,
+      }, valueNoise);
+      const river = wadi.rows(c);
+      const oases = sites(c, 560, 301, 0.6, 110, 60);
+      const ruinSites = sites(c, 760, 401, 0.5, 140, 60);
+      ensureSite(c, oases);
+      ensureSite(c, ruinSites);
+      const ruins = list<Ruin>();
+      for (let q = 0; q < ruinSites.length; q++) {
+        const R = makeRuin(ruinSites[q], c, wadi);
+        if (R) ruins.push(R);
+      }
+      k = {
+        c, P, MID, DET, G, N, RM, cls: c.u8(W * CH), since: new Int16Array(W), since2: new Int16Array(W),
+        xc: river.xc, hw: river.hw, sl: river.slope, oases, ruins,
+      };
+    }),
+    range(rows, 16, (a, b) => carveRows(k, a, b)),
+    once(() => seedSince(k)),
+    range(CH, 4, (a, b) => paintBaseRows(k, a, b)),
+    range(CH, 8, (a, b) => paintRiverRows(k, a, b)),
+    range(CH, 8, (a, b) => {
+      for (let o = 0; o < k.oases.length; o++) paintOasisRows(k, k.oases[o], a, b);
+      for (let o = 0; o < k.ruins.length; o++) paintRuinRows(k, k.ruins[o], a, b);
+    }),
+    once(() => placeDoodads(c, k.cls, k.oases, k.ruins)),
+  ];
 }

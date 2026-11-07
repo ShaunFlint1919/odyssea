@@ -164,6 +164,50 @@ export const once = (fn: () => void): Step => new OnceStep(fn);
 export const range = (count: number | (() => number), batch: number, fn: (a: number, b: number) => void): Step =>
   new RangeStep(typeof count === 'number' ? () => count : count, batch, fn);
 
+// ------------------------------------------------------------------------------ chunk context
+
+/** Everything a painter needs to render one chunk. */
+export class Chunk {
+  readonly h = CH;
+  readonly M = MARGIN;
+  readonly S: number;          // stride of the margin layout
+  readonly N: number;          // entries in a margin-layout buffer
+  readonly wy0: number;        // world Y of row 0 (top row)
+  readonly img: ImageData;
+  readonly px: Int32Array;     // packed ABGR pixels of img (w x CH)
+  readonly doodads: DoodadPlacement[] = list<DoodadPlacement>();
+
+  /**
+   * `pool` provides the job's scratch buffers and output image (w x CH).
+   * `force` = JIT warm-up chunk: painters make every optional feature appear (see ensureSite).
+   */
+  constructor(readonly w: number, readonly index: number, readonly seed: number, readonly pool: Pool, readonly force = false) {
+    this.S = w + 2 * MARGIN;
+    this.N = this.S * (CH + 2 * MARGIN);
+    this.wy0 = (index + 1) * CH - 1;
+    pool.reset();
+    if (!pool.img || pool.img.width !== w || pool.img.height !== CH) pool.img = new ImageData(w, CH);
+    this.img = pool.img;
+    this.px = new Int32Array(this.img.data.buffer);
+  }
+
+  /** Scratch Float32Array of at least n entries from this job's pool (stale content). */
+  f32(n: number): Float32Array {
+    return this.pool.f32(n);
+  }
+
+  /** Scratch Uint8Array of at least n entries from this job's pool (stale content). */
+  u8(n: number): Uint8Array {
+    return this.pool.u8(n);
+  }
+
+  /** Adds a doodad if its centre lies inside this chunk (rows 0..CH-1). */
+  add(key: string, x: number, r: number, flipX = false, scale = 1): void {
+    if (r < 0 || r >= CH || x < 0 || x >= this.w) return;
+    this.doodads.push({ key, x: Math.round(x), y: Math.round(r), flipX, scale: Math.round(scale * 100) / 100 });
+  }
+}
+
 // ------------------------------------------------------------------------------ fields
 
 const BSPLINE = new Map<number, Float32Array>();
