@@ -27,7 +27,7 @@ plus fort impact. Chaque item coché doit avoir été vérifié (test, capture o
 ## M3 — Arsenal
 - [ ] 8 armes avant distinctes, 10 niveaux de puissance visiblement différents
 - [ ] 5 armes arrière avec 2 modes (A/B) basculables en vol
-- [ ] 6 sidekicks (pod, twin, orbiteur bloqueur, roquettes, éclats, canon à charge)
+- [ ] 6 drones latéraux (pod, twin, orbiteur bloqueur, roquettes, éclats, canon à charge)
 - [ ] 6 coques, ≥5 boucliers, ≥5 générateurs — modèle énergie/bouclier/blindage équilibré
 - [ ] Aperçu animé des armes dans la boutique
 
@@ -46,7 +46,7 @@ plus fort impact. Chaque item coché doit avoir été vérifié (test, capture o
 ## M6 — Visuel (cible : scorecard ≥ 4/5 partout)
 - [ ] Terrains des 8 biomes riches et sans couture, décor (doodads), nuages/brume en parallaxe
 - [ ] Explosions multi-frames volumineuses, débris, fumée, ondes de choc
-- [ ] HUD latéral original lisible (énergie, puissance avant/arrière, mode, sidekicks, bouclier, blindage, score)
+- [ ] HUD latéral original lisible (énergie, puissance avant/arrière, mode, drones, bouclier, blindage, score)
 - [ ] Menus « atelier » (hangar, boutique, specs, carte) cohérents, lisibles à 320 px
 - [ ] Logo et écran titre animés
 

@@ -499,6 +499,12 @@ export interface MenuItem {
    * onLeft/onRight handlers AND the item has a value AND is not disabled. false = never.
    */
   arrows?: boolean;
+  /**
+   * (added) tapMode 'focusThenSelect' only: pulse the value while focused to show that the next
+   * tap acts. Default true for enabled rows; false for rows whose select does nothing new
+   * (e.g. the item already equipped).
+   */
+  armed?: boolean;
 }
 
 /**
@@ -799,7 +805,7 @@ export class MenuList {
     const a = focused ? 1 : 0.45;
     p.arrowL?.setAlpha(a);
     p.arrowR?.setAlpha(a);
-    if (focused) this.armRow(p, !!it && !it.disabled);
+    if (focused) this.armRow(p, !!it && !it.disabled && it.armed !== false);
   }
 
   /** focusThenSelect: the focused row's value pulses ("armed": the next tap selects it). */
@@ -1182,7 +1188,8 @@ export function statusBar(scene: Phaser.Scene, initial = '', opts: StatusBarOpts
   const { width, height } = scene.scale.gameSize;
   const h = STATUS_H;
   const upper = opts.upper !== false;
-  const norm = (s: string) => (upper ? s.toUpperCase() : s);
+  // one style for every help line: upper case, no trailing full stop
+  const norm = (s: string) => (upper ? s.toUpperCase() : s).replace(/\.$/, '');
   const c = scene.add.container(0, height - h).setDepth(opts.depth ?? DEPTH.overlay - 1);
   c.add(panel(scene, 4, 0, width - 8, h - 1, 'inset'));
   const led = scene.add.rectangle(10, Math.round(h / 2) - 1, 2, 2, COLORS.teal).setOrigin(0);

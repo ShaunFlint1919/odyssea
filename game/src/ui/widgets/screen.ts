@@ -165,9 +165,9 @@ function headerTexture(scene: Phaser.Scene, w: number): string {
     ctx.fillRect(0, HH + 1, w, 1);
     ctx.fillStyle = 'rgba(5,4,10,0.35)';
     ctx.fillRect(0, HH + 2, w, 1);
-    // tick marks on the right part of the line
+    // tick marks on the right part of the line (clear of the longest titles)
     ctx.fillStyle = '#2ee6c8';
-    for (let x = w - 6; x > w * 0.55; x -= 10) ctx.fillRect(x, HH - 3, 1, 2);
+    for (let x = w - 6; x > w * 0.72; x -= 10) ctx.fillRect(x, HH - 3, 1, 2);
   });
 }
 

@@ -27,7 +27,7 @@
 Tu es le lead développeur et directeur artistique de « Nova Corsair », un shoot'em up spatial
 ORIGINAL à défilement vertical, très nerveux, pour Android (portrait), multi-planètes et
 multi-niveaux, avec une boutique d'amélioration entre les missions (coque, arme avant, arme
-arrière, bouclier, générateur, sidekicks gauche/droite). Le projet existe déjà : tu l'améliores
+arrière, bouclier, générateur, drones latéraux gauche/droite). Le projet existe déjà : tu l'améliores
 en BOUCLE, itération après itération, jusqu'à ce que le rendu et les sensations atteignent le
 niveau des images de référence jointes à ce message et le concept décrit ci-dessous.
 Tu travailles en autonomie : tu ne t'arrêtes pas pour demander une validation, sauf pour une
@@ -74,7 +74,11 @@ utilise la cible décrite ci-dessous et le fichier VISUAL_TARGETS.md existant.
 
 RÈGLE D'ORIGINALITÉ (non négociable) : on s'inspire du GENRE, de la densité, de la lisibilité et
 de l'ergonomie des références, mais on ne copie JAMAIS leurs sprites, noms (jeu, vaisseaux,
-armes, sociétés, planètes), ornements d'interface, niveaux, textes ou musiques. Tout ce qui est
+armes, sociétés, planètes), ornements d'interface, libellés de menus, niveaux, textes ou musiques.
+Pas de marques déposées d'autres jeux (ex. « Outer Worlds » est interdit). Vocabulaire maison :
+« REFIT BAY » (atelier), « LOADOUT STATS », « drones » (jamais « sidekicks » à l'écran).
+Avant d'introduire un nouveau nom, vérifie qu'il n'appartient pas à un jeu ou une marque existants
+(voir game/docs/REVIEW_ORIGINALITY.md). Tout ce qui est
 produit doit être une création originale. Direction artistique propre à Nova Corsair : panneaux
 « gunmetal » indigo, néons turquoise, accents magenta, or pour les crédits.
 
@@ -82,32 +86,32 @@ Cible décrite (si pas d'images) — ce que doit montrer le jeu fini :
 - ÉCRAN DE JEU : aire de jeu à gauche (~82 % de la largeur), panneau HUD vertical à droite avec
   grandes jauges verticales (énergie du générateur en dégradé jaune→rouge, bouclier bleu,
   blindage orange), cases « écran LCD » pour arme avant / arme arrière + barres de puissance,
-  mode de tir arrière, sidekicks, nom du niveau ; score en bas à gauche de l'aire de jeu.
+  mode de tir arrière, drones, nom du niveau ; score en bas à gauche de l'aire de jeu.
 - Terrains 16 bits vus de dessus, détaillés et variés : désert (dunes, palmiers, ruines), jungle
   (canopée, rivière), océan (archipels, écume), cavernes rocheuses (parois), espace (nébuleuses,
   plateformes d'astéroïdes), lave, glace, base technologique. Le décor ne doit jamais gêner la
   lecture des balles.
 - Densité « bullet-heavy » : aux moments forts 15+ ennemis et 60+ projectiles ennemis à l'écran,
   grosses explosions multi-frames (boules de feu orange avec cœur blanc puis fumée), tourelles au
-  sol, gros vaisseaux, ombres portées des unités aériennes sur le sol, sidekicks à côté du
+  sol, gros vaisseaux, ombres portées des unités aériennes sur le sol, drones à côté du
   vaisseau, plusieurs flux de tirs du joueur de couleurs différentes.
-- MENUS : écran « hangar » avec un grand cadre montrant le vaisseau équipé (coque + sidekicks +
+- MENUS : écran « hangar » avec un grand cadre montrant le vaisseau équipé (coque + drones +
   arc de bouclier) et ses crédits, une liste de menu en grosse police à droite/dessous, une ligne
   d'aide contextuelle en bas ; boutique par catégorie (coque, avant, arrière, bouclier,
-  générateur, sidekick G/D) avec icône + nom + prix, fenêtre d'aperçu animée de l'arme qui tire,
+  générateur, drone G/D) avec icône + nom + prix, fenêtre d'aperçu animée de l'arme qui tire,
   réglage du niveau de puissance avec flèches gauche/droite.
 </images_de_reference>
 
 <concept_du_jeu>
-- Pitch : pilote corsaire indépendant contre la « Directive Axiome », une IA minière qui ravage
-  les Mondes Extérieurs. 8 planètes × 3 niveaux (le 3e avec le boss de la planète, le 2e avec un
+- Pitch : pilote corsaire indépendant contre le « Directorat Axiome » (Axiom Directorate), une IA
+  minière qui ravage les Marches Extérieures (Outer Marches). 8 planètes × 3 niveaux (le 3e avec le boss de la planète, le 2e avec un
   mini-boss) : Kessra (désert), Verdance (jungle), Thalassa (océan), Umbra Deep (caverne), Cinder
   (lave), Glacia (glace), The Rift (espace), Axiom Citadel (techno, final).
 - Rythme : missions de 70 à 120 s, une vague toutes les 1,5-3,5 s, jamais d'écran vide,
   crescendo avant chaque boss, alerte « WARNING » + musique de boss.
-- Équipement : 6 coques (blindage, vitesse, emplacements de sidekicks), ≥5 boucliers (capacité,
+- Équipement : 6 coques (blindage, vitesse, emplacements de drones), ≥5 boucliers (capacité,
   régénération, coût énergétique), ≥5 générateurs (capacité, production), 8 armes avant à 10
-  niveaux de puissance, 5 armes arrière à 2 modes, 6 sidekicks. Le générateur alimente les tirs
+  niveaux de puissance, 5 armes arrière à 2 modes, 6 drones latéraux. Le générateur alimente les tirs
   ET la régénération du bouclier : choisir son build est un vrai arbitrage.
 - Économie : crédits lâchés par les ennemis (gemmes aimantées), reprise à 100 % de l'objet
   remplacé, 50 % des crédits gardés en cas d'échec ; on peut rejouer les niveaux finis.
@@ -176,7 +180,7 @@ Note chaque critère de 0 à 5 (5 = au niveau des références, voire mieux) :
  7. Menus hangar / boutique / carte (mise en page, typographie pixel, aperçu d'arme, ergonomie
     tactile et clavier, cohérence de la direction artistique).
  8. Game feel (contrôle tactile précis, réponse immédiate, impacts, hit-stop, vibrations).
- 9. Arsenal (armes distinctes, montée en puissance visible et satisfaisante, sidekicks utiles).
+ 9. Arsenal (armes distinctes, montée en puissance visible et satisfaisante, drones utiles).
 10. Boss (taille, phases, parties destructibles, patterns lisibles, mort spectaculaire).
 11. Progression & économie (1-2 achats marquants par niveau, courbe de difficulté juste).
 12. Audio (SFX punchy sans saturation, musique par biome).

@@ -246,7 +246,8 @@ function readRun() {
   const h = window.__NC__;
   const rec = window.__PT__ || {};
   const live = h && h.scene === 'Game' ? { ...h.state } : null;
-  return { scene: h ? h.scene : '', ready: h ? h.ready : false, live, rec: { ...rec }, errors: h ? h.errors.slice(0, 5) : [] };
+  const run = window.__NC_RUN__ ? { ...window.__NC_RUN__ } : null;
+  return { scene: h ? h.scene : '', ready: h ? h.ready : false, live, run, rec: { ...rec }, errors: h ? h.errors.slice(0, 5) : [] };
 }
 
 // ------------------------------------------------------------------------------ runs
@@ -303,7 +304,8 @@ async function runOne(browser, baseUrl, levelId, save, o, useBot, seed) {
 /** One result row from the recorder (+ the bot's own metrics when it provides them). */
 function summarize(levelId, snap, useBot, god, seed, pageErrors) {
   const rec = snap.rec || {};
-  const st = snap.live || rec.lastGame || {};
+  // metrics: the bot's final snapshot (window.__NC_RUN__), else the live / archived hook state
+  const st = { ...(rec.lastGame || {}), ...(snap.live || {}), ...(snap.run || {}) };
   const pick = (...keys) => {
     for (const k of keys) {
       const v = num(st[k]);
@@ -313,41 +315,47 @@ function summarize(levelId, snap, useBot, god, seed, pageErrors) {
   };
   const m = rec.metrics || null;
   const mv = (k) => (m && num(m[k]) !== null && m[k] >= 0 ? m[k] : null);
-  // boss fight = from the end of its (invulnerable) entrance to its death
-  const bossKill = rec.bossFightT !== null && rec.bossDeadT !== null ? rec.bossDeadT - rec.bossFightT : null;
+  // fight = from the end of the boss's (invulnerable) entrance to its death (recorder)
+  const fight = rec.bossFightT !== null && rec.bossDeadT !== null ? rec.bossDeadT - rec.bossFightT : null;
   const midKill = rec.midSpawnT !== null && rec.midEndT !== null && rec.midKilled ? rec.midEndT - rec.midSpawnT : null;
+  const mBoss = mv('bossStartT') !== null && mv('bossKillT') !== null ? m.bossKillT - m.bossStartT : null;
   const mMid = mv('midbossStartT') !== null && mv('midbossKillT') !== null ? m.midbossKillT - m.midbossStartT : null;
-  const row = {
+  const bossHp = num(rec.bossMaxHp);
+  return {
     level: levelId,
     mode: useBot ? (god ? 'bot+god' : 'bot') : 'driver+god',
     seed,
     completed: st.completed === true || rec.phase === 'clear' || rec.phase === 'done',
     timedOut: !!snap.timedOut,
     died: rec.deathT !== null,
-    wouldDie: m && num(m.wouldDie) !== null ? m.wouldDie : null,
+    wouldDie: pick('wouldDie') ?? (m && num(m.wouldDie) !== null ? m.wouldDie : null),
+    firstDeathT: pick('firstDeathT'),
     time: num(rec.levelTime),
     bossAt: rec.bossFightT,
-    bossKill: bossKill ?? pick('bossKillTime'),
-    bossHp: rec.bossMaxHp,
-    midKill: midKill ?? mMid ?? pick('midbossKillTime'),
-    midEscaped: (rec.midEndT !== null && rec.midKilled === false) || !!(m && m.midbossEscaped && mv('midbossKillT') === null),
+    bossKill: pick('bossKillTime') ?? mBoss,
+    fight,
+    bossHp,
+    landed: fight && bossHp ? bossHp / fight : null,
+    midKill: pick('midbossKillTime') ?? mMid ?? midKill,
+    midEscaped: st.midbossEscaped === true || (rec.midEndT !== null && rec.midKilled === false),
     midHp: rec.midMaxHp,
-    kills: num(rec.kills) ?? pick('kills'),
-    spawned: num(rec.spawned) ?? pick('spawned'),
+    kills: pick('kills') ?? num(rec.kills),
+    spawned: pick('spawned') ?? num(rec.spawned),
     credits: pick('creditsEarned') ?? num(rec.credits) ?? pick('credits'),
-    damage: m && num(m.damageTaken) !== null ? m.damageTaken : pick('damageTaken') ?? rec.damage,
-    armorDamage: m && num(m.armorDamage) !== null ? m.armorDamage : null,
-    hits: m && num(m.hitsTaken) !== null ? m.hitsTaken : pick('hitsTaken') ?? rec.hits,
-    accuracy: pick('accuracy'),
-    dealt: m && num(m.damageDealt) !== null ? m.damageDealt : null,
+    damage: pick('damageTaken') ?? (m && num(m.damageTaken) !== null ? m.damageTaken : rec.damage),
+    armorDamage: pick('armorDamage') ?? (m && num(m.armorDamage) !== null ? m.armorDamage : null),
+    hits: pick('hitsTaken') ?? (m && num(m.hitsTaken) !== null ? m.hitsTaken : rec.hits),
+    starved: pick('starved'),
+    volleys: pick('volleys'),
+    pickups: pick('pickups'),
     frontPower: rec.frontPower,
     errors: [...(snap.errors || []), ...pageErrors, ...(rec.err ? [`recorder: ${rec.err}`] : [])],
   };
-  return row;
 }
 
 function printTable(rows) {
-  const head = ['level', 'mode', 'result', 'time', 'boss@', 'bossKill', 'midKill', 'kills/spawned', 'credits', 'dmg', 'armor', 'hits', 'wouldDie', 'acc', 'pow'];
+  const head = ['level', 'mode', 'result', 'time', 'boss@', 'bossKill', 'fight', 'landed', 'midKill', 'kills/spawned', 'credits',
+    'dmg', 'armor', 'hits', 'wouldDie', 'starved', 'pow'];
   const lines = rows.map((r) => [
     r.level,
     r.mode,
@@ -355,14 +363,16 @@ function printTable(rows) {
     fmt(r.time),
     fmt(r.bossAt),
     r.bossKill !== null ? `${fmt(r.bossKill)} s` : '-',
+    r.fight !== null ? `${fmt(r.fight)} s` : '-',
+    r.landed !== null ? `${fmt(r.landed, 0)}/s` : '-',
     r.midKill !== null ? `${fmt(r.midKill)} s` : r.midEscaped ? 'escaped' : '-',
     r.kills !== null && r.spawned !== null ? `${r.kills}/${r.spawned} (${Math.round((100 * r.kills) / Math.max(1, r.spawned))}%)` : '-',
     fmt(r.credits, 0),
     fmt(r.damage, 0),
     fmt(r.armorDamage, 0),
     fmt(r.hits, 0),
-    fmt(r.wouldDie, 0),
-    r.accuracy !== null ? `${Math.round(r.accuracy * (r.accuracy <= 1 ? 100 : 1))}%` : '-',
+    r.wouldDie !== null ? `${r.wouldDie}${r.firstDeathT !== null ? ` @${fmt(r.firstDeathT, 0)}` : ''}` : '-',
+    r.starved !== null && r.volleys ? `${Math.round((100 * r.starved) / Math.max(1, r.volleys + r.starved))}%` : '-',
     fmt(r.frontPower, 0),
   ]);
   const widths = head.map((h, i) => Math.max(h.length, ...lines.map((l) => String(l[i]).length)));
@@ -370,6 +380,8 @@ function printTable(rows) {
   console.log(line(head));
   console.log(widths.map((w) => '-'.repeat(w)).join('  '));
   for (const l of lines) console.log(line(l));
+  console.log('bossKill = bot metric (boss entrance -> kill); fight = end of the entrance -> death; landed = boss hp / fight;');
+  console.log('dmg / armor / hits = raw damage taken / part that reached the armor / hit count (god: would-be); starved = volleys skipped for energy');
   for (const r of rows) for (const e of r.errors) console.log(`  ! ${r.level}: ${e}`);
 }
 

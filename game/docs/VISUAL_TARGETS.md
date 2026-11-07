@@ -16,23 +16,23 @@ nom, ornement d'interface, texte ou niveau de la référence ne doit apparaître
 | Densité : dizaines de balles rouges/orange, rafales ennemies en éventail | Pics ≥ 60 balles ennemies et ≥ 15 ennemis à l'écran sur les niveaux avancés |
 | Balles ennemies très lisibles : cœur clair, halo saturé | Cœur quasi blanc + anneau saturé + contour sombre 1 px |
 | Explosions énormes multi-frames (boule de feu orange, cœur blanc, fumée) | 3 tailles (24/40/72 px), 8-12 frames, chaînes d'explosions sur les gros ennemis |
-| Tirs du joueur multicolores (plasma bleu, croissants verts), sidekicks de part et d'autre | Couleurs par arme (`ShotColor`), sidekicks à ±18 px du vaisseau |
+| Tirs du joueur multicolores (plasma bleu, croissants verts), drones latéraux de part et d'autre | Couleurs par arme (`ShotColor`), sidekicks à ±18 px du vaisseau |
 | Ennemis variés : chasseurs, tourelles au sol, gros vaisseaux, mines, structures | ≥ 36 types, 8 boss, mini-boss 56-72 px |
 
 ## Menus (hangar / boutique)
 | Qualité observée | Cible pour Nova Corsair (direction artistique propre) |
 |---|---|
-| Grand cadre à gauche montrant le vaisseau équipé en gros (coque + sidekicks + arc de bouclier) | « Baie du vaisseau » : coque ×3, sidekicks, arc de bouclier, mini-jauges |
+| Grand cadre à gauche montrant le vaisseau équipé en gros (coque + drones + arc de bouclier) | « Baie du vaisseau » : coque ×3, sidekicks, arc de bouclier, mini-jauges |
 | Liste de menu en grosse police lisible, entrée sélectionnée surlignée | MenuList FONT.m/FONT.l, curseur, surbrillance magenta |
 | Compteur de crédits sous le vaisseau | Crédits en or avec icône |
 | Ligne d'aide contextuelle en bas de l'écran | StatusBar sur toutes les scènes de menu |
 | Boutique par catégorie : icône + nom + prix, entrée équipée marquée | Liste avec icône 16 px, prix net (reprise), marqueur « équipé », verrou |
 | Fenêtre d'aperçu animée de l'arme qui tire + barre de puissance réglable gauche/droite | `createWeaponPreview` + rangée POWER avec flèches et 10 pastilles |
-| Écran « Upgrade Ship » listant les 7 catégories + Done | Liste des catégories avec l'objet équipé de chacune |
+| Écran d'amélioration listant les 7 catégories + retour | « REFIT BAY » : catégories (coque, armes, bouclier, générateur, drones G/D) avec l'objet équipé de chacune — libellés maison, jamais ceux de la référence |
 
 ## Ce qui doit rester ORIGINAL
 - Cadres et panneaux : plaques « gunmetal » indigo, néons turquoise, accents magenta (pas de
   cadres organiques/biomécaniques bronze).
-- Noms : Nova Corsair, Directive Axiome, planètes Kessra/Verdance/Thalassa/Umbra Deep/Cinder/
+- Noms : Nova Corsair, Axiom Directorate, Outer Marches (jamais « Outer Worlds », marque déposée), planètes Kessra/Verdance/Thalassa/Umbra Deep/Cinder/
   Glacia/The Rift/Axiom Citadel, armes et coques maison.
 - Silhouettes de vaisseaux, ennemis et boss dessinées spécifiquement pour ce jeu.

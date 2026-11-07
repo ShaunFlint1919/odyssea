@@ -452,6 +452,8 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       if (!this.finished) w.fx.update(dtMs);
     }
     if (this.finished) return;
+    // terrain generation runs on real time (also during hit-stop / slow-motion)
+    this.bg.work(delta);
     this.updateHud();
     this.hookT -= real;
     if (this.hookT <= 0) {
@@ -553,6 +555,10 @@ export class GameScene extends Phaser.Scene implements FlowHost {
       pickups: m ? m.pickups : 0,
       shipArmor: this.ship ? r1(this.ship.energy.armor) : 0,
       shipShield: this.ship ? r1(this.ship.energy.shield) : 0,
+      terrainInitMs: this.bg ? this.bg.stats.initMs : 0,
+      terrainMaxFrameMs: this.bg ? this.bg.stats.maxFrameMs : 0,
+      terrainChunks: this.bg ? this.bg.stats.chunks : 0,
+      terrainSync: this.bg ? this.bg.stats.sync : 0,
     };
   }
 

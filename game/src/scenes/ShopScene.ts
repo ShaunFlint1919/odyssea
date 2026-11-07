@@ -325,10 +325,15 @@ export class ShopScene extends Phaser.Scene {
     const powerH = gun ? 26 : 0;
     const avail = H - statusH - gap - top - (gun ? powerH + gap : 0);
     let rowH = 22;
-    const infoH = 76;
+    let infoH = 76;
     let pvH = avail - (n * rowH + 12) - infoH - 2 * gap;
     while (pvH > 230 && rowH < 26) { rowH++; pvH = avail - (n * rowH + 12) - infoH - 2 * gap; }
-    pvH = Phaser.Math.Clamp(pvH, 70, 300);
+    // tall screens: a few more description lines first, then a taller live preview
+    if (pvH > 300) {
+      infoH += Math.min(pvH - 300, 36);
+      pvH = avail - (n * rowH + 12) - infoH - 2 * gap;
+    }
+    pvH = Phaser.Math.Clamp(pvH, 70, 420);
     const listH = n * rowH + 12;
     const px = 4, pw = W - 8;
 
@@ -372,7 +377,7 @@ export class ShopScene extends Phaser.Scene {
       const base = { label, icon, arrows: false } as const;
       if (it.equipped) {
         const help = isGun(cat) && it.id !== null ? 'EQUIPPED - USE < > TO CHANGE ITS POWER' : 'EQUIPPED ON YOUR SHIP';
-        return { ...base, value: 'EQUIPPED', valueColor: COLORS.teal, color: COLORS.teal, help };
+        return { ...base, value: 'EQUIPPED', valueColor: COLORS.teal, color: COLORS.teal, help, armed: false };
       }
       if (it.locked) return { ...base, value: 'LOCKED', disabled: true, help: unlockHint(this.unlockLevel(cat, it.id)) };
       if (!slotOk && it.id !== null) return { ...base, value: 'NO SLOT', disabled: true, help: 'NO MOUNT HERE - FLY A TWIN-MOUNT HULL' };
@@ -440,7 +445,7 @@ export class ShopScene extends Phaser.Scene {
   /** Info box of the item page: name, buy button, price breakdown, description, comparison. */
   private itemInfo(cat: ShopCategory, it: ShopItem): void {
     this.clearInfo();
-    const { x, y, w } = this.info;
+    const { x, y, w, h } = this.info;
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.infoObjs.push(o); return o; };
     const save = getSave();
     const slotOk = categoryAvailable(cat) || it.id === null;
@@ -477,13 +482,12 @@ export class ShopScene extends Phaser.Scene {
     this.buyBtn.setEnabled(enabled);
     add(this.buyBtn.container);
 
-    // description
+    // description (more lines when the panel is taller), comparison grid at the bottom
     const desc = it.id === null ? this.describe(cat, null) : it.desc;
-    wrapLines(desc, Math.floor((w - 20) / 6), 2).forEach((ln, k) => add(kit.text(this, x + 10, y + 32 + k * 9, ln, { size: 's', color: COLORS.textDim, depth: MD.content })));
-
-    // comparison grid
+    const descLines = Math.max(2, Math.floor((h - 76) / 9) + 2);
+    wrapLines(desc, Math.floor((w - 20) / 6), descLines).forEach((ln, k) => add(kit.text(this, x + 10, y + 32 + k * 9, ln, { size: 's', color: COLORS.textDim, depth: MD.content })));
     const cells = this.compareCells(cat, it);
-    compareGrid(this, x + 10, y + 53, w - 20, cells, MD.content).forEach((o) => add(o));
+    compareGrid(this, x + 10, y + h - 23, w - 20, cells, MD.content).forEach((o) => add(o));
   }
 
   private compareCells(cat: ShopCategory, it: ShopItem): CompareCell[] {

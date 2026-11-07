@@ -14,7 +14,7 @@ import { INTEL } from '../data';
 import { button, fadeIn, fit, goto, onBack, panel, statusBar, text, wrapText, type ButtonApi, type MenuItem, type StatusBarApi } from '../ui/kit';
 import {
   LAYOUT, MD, ScrollMenu, Typewriter, bottomButton, bottomButtonY, contentRect, neonRule, scanlines, screenBackdrop, screenHeader,
-  type ScreenHeaderApi,
+  sectionLabel, type ScreenHeaderApi,
 } from '../ui/widgets';
 
 const ROW_H = 24;
@@ -31,6 +31,9 @@ export class IntelScene extends Phaser.Scene {
   private list: ScrollMenu | null = null;
   private listBox: Phaser.GameObjects.Container | null = null;
   private reader: Phaser.GameObjects.Container | null = null;
+  /** Reading pane under the inbox (tall screens), rebuilt on focus. */
+  private preview: { x: number; y: number; w: number; h: number } | null = null;
+  private previewObjs: Phaser.GameObjects.GameObject[] = [];
   private tw: Typewriter | null = null;
   private status!: StatusBarApi;
   private backBtn: ButtonApi | null = null;
@@ -109,20 +112,74 @@ export class IntelScene extends Phaser.Scene {
 
   private buildList(): void {
     const area = contentRect(this, this.top);
-    const avail = bottomButtonY(this) - LAYOUT.gap - this.top - 16;
+    const bottom = bottomButtonY(this) - LAYOUT.gap;
+    const avail = bottom - this.top - 16;
     const rows = Math.max(3, Math.min(this.defs.length, Math.floor(avail / ROW_H)));
     const box = this.add.container(0, 0);
     box.add(panel(this, area.x, this.top, area.w, rows * ROW_H + 16, 'raised').setDepth(MD.panel));
+    this.listBox = box;
+    // reading pane in the space left under a short inbox
+    const py = this.top + rows * ROW_H + 16 + LAYOUT.gap;
+    this.preview = null;
+    this.previewObjs = [];
+    if (bottom - py >= 64) {
+      this.preview = { x: area.x, y: py, w: area.w, h: bottom - py };
+      box.add(panel(this, area.x, py, area.w, bottom - py, 'inset'));
+      box.add(scanlines(this, area.x + 2, py + 2, area.w - 4, bottom - py - 4, 0.45));
+    }
     this.list = new ScrollMenu(this, {
       x: area.x + LAYOUT.listInset, y: this.top + 8, width: area.w - LAYOUT.listInset - LAYOUT.pad, items: this.items(),
       visibleRows: rows, rowHeight: ROW_H, size: 'm',
       onSelect: (i) => this.open(i),
-      onFocus: (_i, it) => this.status.setText(it.help ?? ''),
+      onFocus: (i, it) => { this.status.setText(it.help ?? ''); this.drawPreview(i); },
     });
     box.add(this.list.container);
-    this.listBox = box;
     const first = this.defs[0];
     if (first) this.status.setText(`FROM: ${first.from.toUpperCase()}`);
+    this.drawPreview(0);
+  }
+
+  /** Reading pane: sender, title and the first lines of a read message (unread ones stay scrambled). */
+  private drawPreview(i: number): void {
+    this.previewObjs.forEach((o) => o.destroy());
+    this.previewObjs = [];
+    const pv = this.preview;
+    const def = this.defs[i];
+    if (!pv || !def || !this.listBox) return;
+    const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.previewObjs.push(o); this.listBox?.add(o); return o; };
+    const { x, y, w, h } = pv;
+    const isRead = getSave().intelRead.includes(def.id);
+    add(sectionLabel(this, x + LAYOUT.pad, y + 8, fit(`FROM: ${def.from.toUpperCase()}`, w - 40, 's'), w - 2 * LAYOUT.pad, undefined, COLORS.teal));
+    const title = add(text(this, x + 12, y + 21, wrapText(def.title.toUpperCase(), w - 24, 'm'), { size: 'm', color: isRead ? COLORS.text : COLORS.accentLight }));
+    title.setLineSpacing(3);
+    const by = y + 21 + title.height + 7;
+    const maxLines = Math.max(1, Math.floor((y + h - 22 - by) / 11));
+    let lines: string[];
+    if (isRead) {
+      lines = wrapText(def.body, w - 24, 's').split('\n');
+      if (lines.length > maxLines) {
+        lines = lines.slice(0, maxLines);
+        lines[maxLines - 1] = `${lines[maxLines - 1].slice(0, Math.max(0, Math.floor((w - 24) / 6) - 3))}...`;
+      }
+    } else {
+      // deterministic glyph noise per message: the content is still encrypted
+      const glyphs = '#%&$@*+=/<>?!';
+      let seed = 0;
+      for (let k = 0; k < def.id.length; k++) seed = (seed * 31 + def.id.charCodeAt(k)) >>> 0;
+      const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+      const cols = Math.floor((w - 24) / 6);
+      lines = [];
+      for (let l = 0; l < Math.min(maxLines, 4); l++) {
+        let ln = '';
+        for (let c = 0; c < cols - Math.floor(rnd() * 8); c++) ln += rnd() < 0.18 ? ' ' : glyphs[Math.floor(rnd() * glyphs.length)];
+        lines.push(ln);
+      }
+    }
+    const body = add(text(this, x + 12, by, lines.join('\n'), { size: 's', color: isRead ? COLORS.textDim : COLORS.tealDark }));
+    body.setLineSpacing(3);
+    add(text(this, x + w - 12, y + h - 14, isRead ? 'SELECT TO REPLAY' : 'ENCRYPTED - SELECT TO DECODE', {
+      size: 's', color: isRead ? COLORS.textDim : COLORS.accentLight, originX: 1,
+    }));
   }
 
   private buildEmpty(width: number): void {
@@ -253,6 +310,7 @@ export class IntelScene extends Phaser.Scene {
     this.backBtn?.container.setVisible(true);
     const it = this.list?.item;
     this.status.setText(it?.help ?? '');
+    this.drawPreview(this.list?.index ?? 0);
     setHookState({ reading: null });
   }
 

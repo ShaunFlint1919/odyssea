@@ -1,7 +1,7 @@
 # Nova Corsair — Architecture & conventions
 
 High-pace **vertical scrolling space shooter** (portrait, mobile-first) with a between-missions
-**upgrade shop** (hull, front gun, rear gun, shield, generator, left/right sidekicks), a
+**upgrade shop** (hull, front gun, rear gun, shield, generator, left/right drones — called `sidekick` in code), a
 **multi-planet campaign** (8 planets × 3 levels) and a dense, readable 16-bit pixel-art look.
 Everything (sprites, terrain, fonts, sounds, music) is **generated procedurally in code** —
 there are no binary art/audio assets, so there is no licensing risk and the APK stays small.

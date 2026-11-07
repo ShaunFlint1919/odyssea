@@ -1,7 +1,7 @@
 // Global, immutable game constants. Computed once at module load (before Phaser boots).
 
 export const GAME_TITLE = 'NOVA CORSAIR';
-export const GAME_SUBTITLE = 'Raid on the Outer Worlds';
+export const GAME_SUBTITLE = 'Raid on the Outer Marches';
 export const VERSION = '0.1.0';
 
 /** Logical width in game pixels (pixel-art resolution, scaled up to the screen). */
