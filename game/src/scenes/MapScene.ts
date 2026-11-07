@@ -12,7 +12,7 @@ import { META, ensureMetaArt, frameIcon, iconOr, nebulaBackdrop } from '../ui/me
 import { HEADER_H, MD, cornerBrackets, header, scanlines, sectionLabel, toast } from '../ui/meta/chrome';
 import { findLevel, fmt, nextMissionId, planetOfLevel, setHangarFocus, upper, wrapLines } from '../ui/meta/common';
 import { RouteRenderer, type RouteState } from '../ui/meta/galaxy';
-import { BIOME_TINT, planetTexture } from '../ui/meta/planets';
+import { BIOME_TINT, planetScale, planetTexture } from '../ui/meta/planets';
 
 interface PlanetNode {
   def: PlanetDef;
@@ -102,6 +102,7 @@ export class MapScene extends Phaser.Scene {
     }
 
     this.nodes.forEach((n, i) => this.drawPlanet(n, i));
+    this.placeLabels(top - 20, this.info.y - 4);
     this.drawTargetMarker();
 
     // focus reticle
@@ -160,28 +161,13 @@ export class MapScene extends Phaser.Scene {
     const tint = BIOME_TINT[n.def.biome] ?? COLORS.teal;
     this.add.image(n.x, n.y, META.glow).setTint(tint).setBlendMode(Phaser.BlendModes.ADD)
       .setAlpha(n.unlocked ? 0.38 : 0.1).setDisplaySize(size * 2, size * 2).setDepth(MD.content - 2);
-    const img = this.add.image(n.x, n.y, planetTexture(this, n.def.biome, size)).setDepth(MD.content);
+    const img = this.add.image(n.x, n.y, planetTexture(this, n.def.biome, Math.round(size * planetScale(n.def.biome)))).setDepth(MD.content);
     if (!n.unlocked) img.setTint(0x6a6680).setAlpha(0.85);
     if (n.unlocked) this.tweens.add({ targets: img, y: n.y - 1, duration: 1600 + i * 130, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     if (!n.unlocked) {
       this.add.image(n.x, n.y, iconOr(this, 'ui_icon_lock', META.icLock)).setDepth(MD.content + 1);
     }
     if (n.completed) this.add.image(Math.round(n.x + n.r * 0.72), Math.round(n.y + n.r * 0.72), META.tick).setDepth(MD.content + 1);
-    // name + level pips
-    const { width } = this.scale.gameSize;
-    const name = upper(n.def.name);
-    const tw = kit.measure(this, name, 's');
-    const lx = Phaser.Math.Clamp(n.x, tw / 2 + 4, width - tw / 2 - 4);
-    const nameColor = !n.unlocked ? COLORS.textDim : n.completed ? COLORS.good : COLORS.text;
-    kit.text(this, lx, n.y + n.r + 9, name, { size: 's', color: nameColor, originX: 0.5, depth: MD.content + 1 });
-    const pips = this.add.graphics().setDepth(MD.content + 1);
-    const total = n.def.levels.length;
-    for (let k = 0; k < total; k++) {
-      const px = Math.round(lx - (total * 6 - 2) / 2 + k * 6);
-      const py = Math.round(n.y + n.r + 19);
-      pips.fillStyle(0x0a0810, 1).fillRect(px - 1, py - 1, 6, 4);
-      pips.fillStyle(k < n.cleared ? COLORS.teal : n.unlocked ? 0x3a3550 : 0x24202e, 1).fillRect(px, py, 4, 2);
-    }
     // tap zone
     const hit = Math.max(30, size + 14);
     const z = this.add.zone(n.x, n.y + 8, hit, hit + 16).setInteractive({ useHandCursor: true }).setDepth(MD.content + 4);
@@ -190,6 +176,55 @@ export class MapScene extends Phaser.Scene {
     z.on('pointerdown', () => { if (this.panelOpen) return; audio.unlock(); pressed = true; this.setFocus(i); });
     z.on('pointerout', () => { pressed = false; });
     z.on('pointerup', () => { if (pressed && !this.panelOpen) this.openPanel(i); pressed = false; });
+  }
+
+  /**
+   * Planet names + level pips. Each label tries below / right / left / above its planet and
+   * keeps the first spot that overlaps no other planet (rings included), no placed label and
+   * stays on screen.
+   */
+  private placeLabels(minY: number, maxY: number): void {
+    const { width } = this.scale.gameSize;
+    const placed: Phaser.Geom.Rectangle[] = [];
+    const reach = (n: PlanetNode) => n.r * (n.def.biome === 'space' ? 1.45 : 1) + 1;
+    const hitsPlanet = (r: Phaser.Geom.Rectangle, self: PlanetNode) => this.nodes.some((o) => {
+      const rr = o === self ? o.r + 2 : reach(o);
+      const cx = Phaser.Math.Clamp(o.x, r.left, r.right), cy = Phaser.Math.Clamp(o.y, r.top, r.bottom);
+      return (o.x - cx) ** 2 + (o.y - cy) ** 2 < rr * rr;
+    });
+    this.nodes.forEach((n, i) => {
+      const name = upper(n.def.name);
+      const lw = kit.measure(this, name, 's') + 2;
+      const lh = 15;
+      const target = i === this.target;
+      const spots: [number, number][] = [
+        [n.x - lw / 2, n.y + n.r + 9],
+        [n.x + reach(n) + 6, n.y - lh / 2],
+        [n.x - reach(n) - 6 - lw, n.y - lh / 2],
+        ...(target ? [] : [[n.x - lw / 2, n.y - n.r - 8 - lh] as [number, number]]),
+      ];
+      let best = spots[0];
+      for (const [sx, sy] of spots) {
+        const r = new Phaser.Geom.Rectangle(Phaser.Math.Clamp(sx, 4, width - 4 - lw), sy, lw, lh);
+        const off = r.top < minY || r.bottom > maxY;
+        if (off || hitsPlanet(r, n) || placed.some((p) => Phaser.Geom.Intersects.RectangleToRectangle(p, r))) continue;
+        best = [r.x, r.y];
+        break;
+      }
+      const lx = Phaser.Math.Clamp(best[0], 4, width - 4 - lw);
+      placed.push(new Phaser.Geom.Rectangle(lx, best[1], lw, lh));
+      const cx = lx + lw / 2;
+      const nameColor = !n.unlocked ? COLORS.textDim : n.completed ? COLORS.good : COLORS.text;
+      kit.text(this, cx, best[1], name, { size: 's', color: nameColor, originX: 0.5, depth: MD.content + 1 });
+      const pips = this.add.graphics().setDepth(MD.content + 1);
+      const total = n.def.levels.length;
+      for (let k = 0; k < total; k++) {
+        const px = Math.round(cx - (total * 6 - 2) / 2 + k * 6);
+        const py = Math.round(best[1] + 10);
+        pips.fillStyle(0x0a0810, 1).fillRect(px - 1, py - 1, 6, 4);
+        pips.fillStyle(k < n.cleared ? COLORS.teal : n.unlocked ? 0x3a3550 : 0x24202e, 1).fillRect(px, py, 4, 2);
+      }
+    });
   }
 
   /** Pulsing ring + chevron on the current target, and the player's ship orbiting it. */
@@ -262,13 +297,13 @@ export class MapScene extends Phaser.Scene {
     add(this.add.rectangle(px + 3, py + 3, pw - 6, 2, tint, 0.8).setOrigin(0).setDepth(d));
 
     // planet header
-    add(this.add.image(px + 34, py + 36, META.glow).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.5).setDisplaySize(84, 84).setDepth(d));
-    const globe = add(this.add.image(px + 34, py + 36, planetTexture(this, n.def.biome, 52)).setDepth(d));
+    add(this.add.image(px + 36, py + 36, META.glow).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.5).setDisplaySize(84, 84).setDepth(d));
+    const globe = add(this.add.image(px + 36, py + 36, planetTexture(this, n.def.biome, Math.round(52 * Math.min(1.2, planetScale(n.def.biome))))).setDepth(d));
     if (!n.unlocked) {
       globe.setTint(0x55526a);
-      add(this.add.image(px + 34, py + 36, iconOr(this, 'ui_icon_lock', META.icLock)).setDepth(d).setScale(2));
+      add(this.add.image(px + 36, py + 36, iconOr(this, 'ui_icon_lock', META.icLock)).setDepth(d).setScale(2));
     }
-    const tx = px + 68;
+    const tx = px + 70;
     add(kit.text(this, tx, py + 10, kit.fit(upper(n.def.name), pw - 76, 'l'), { size: 'l', depth: d }));
     const sub = `${BIOME_LABEL[n.def.biome] ?? ''}  ${n.cleared}/${n.def.levels.length} CLEARED`;
     add(kit.text(this, tx, py + 29, sub, { size: 's', color: tint, depth: d }));

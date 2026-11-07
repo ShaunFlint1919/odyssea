@@ -3,7 +3,7 @@
 // floating dark crust, a red glow on nearby rock, and drifts of grey ash.
 import { valueNoise } from './noise';
 import {
-  CH, Chunk, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, scratch, scratchU8, sites, Site, Voronoi,
+  CH, Chunk, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, scratch, scratchU8, sites, Site, Voronoi,
   Meander, mixPacked, pack, ensureSite,
 } from './b_ter_core';
 
@@ -14,6 +14,8 @@ const LAVA = rampN(9, 0x260706, 0x420b08, 0x5e1208, 0x7c1a0a, 0x9a240c, 0xb4320e
 const CRUST = rampN(5, 0x140a0a, 0x1e100e, 0x2a1612, 0x361c16, 0x44241a);
 const GLOW = pack(0x7a1a08);
 
+const FLOWR = rampN(7, 0x0a080b, 0x120f14, 0x1b171e, 0x252029, 0x302935, 0x3c3442, 0x4a4152);
+const FLOW_T = 0.66;
 const K_ROCK = 0, K_LAVA = 1, K_ASH = 2, K_EDGE = 3;
 
 /** Paints one lava chunk. */
@@ -23,7 +25,7 @@ export function paintLava(c: Chunk): void {
   const ASHF = lattice(c, 52, s + 4, 0, 1.6);
   const DET = lattice(c, 4, s + 7, 2);
   const MID = lattice(c, 12, s + 8, 9);
-  const FLOW = lattice(c, 72, s + 10, 0, 1.7);
+  const FLOW = lattice(c, 72, s + 10, 3, 1.7);
   const G = grain(c, s + 9, 1);
   const flow = new Meander(W, s + 20, {
     amp: W * 0.3, wave: 260, wave2: 70, amp2: 14, width: 17, widthVar: 6, widthWave: 150,
@@ -76,14 +78,16 @@ function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEA
       const lv = L[i];
       if (lv < 0) continue;                                         // lava pass paints it
       const d = bayer4(x, wy), g = G[i];
-      const fl = FLOW[i] + (DET[i] - 0.5) * 0.06;
-      if (fl > 0.64) {
-        // fresh ropy (pahoehoe) flow: glossy dark folds across the flow direction
-        const ph = (x * 0.42 + wy * 0.9 + MID[i] * 10) / 3.4;
+      const fl = FLOW[i];
+      if (fl > FLOW_T) {
+        // fresh ropy (pahoehoe) flow: curved glossy folds across the flow, raised lobe edge
+        const ph = (x * 0.45 + wy * 0.89 + MID[i] * 14 + (DET[i] - 0.5) * 3) / 5.5;
         const f = ph - Math.floor(ph);
-        let t = 0.36 + (f < 0.22 ? 0.2 : f < 0.45 ? 0.04 : f < 0.6 ? -0.14 : 0) + (g - 0.5) * 0.08 + (fl < 0.67 ? -0.12 : 0);
+        let t = 0.4 + (f < 0.15 ? 0.3 : f < 0.42 ? 0.08 : f < 0.58 ? -0.22 : 0) + (g - 0.5) * 0.08;
+        if (FLOW[i - S - 1] <= FLOW_T || FLOW[i - 1] <= FLOW_T || FLOW[i - S] <= FLOW_T) t = 0.86;
+        else if (FLOW[i + S + 1] <= FLOW_T || FLOW[i + 1] <= FLOW_T) t = 0.12;
         if (lv < 7) t -= 0.05;
-        let col = tone(BASALT, t, d);
+        let col = tone(FLOWR, t, d);
         if (lv < 7 && d < (1 - lv / 7) * 1.2) col = mixPacked(col, GLOW, 0.3);
         px[o] = col;
         cls[o] = lv < 7 ? K_EDGE : K_ROCK;
@@ -116,6 +120,8 @@ function paintRock(c: Chunk, cls: Uint8Array, vor: Voronoi, L: Float32Array, HEA
         // hot cracks bleed a faint glow onto the plate edge
         if (heat > 0.7 && gap < 3.6 && d < (heat - 0.7) * 3) col = mixPacked(col, GLOW, 0.3);
       }
+      // shadow cast by the raised flow lobes onto the plates
+      if (FLOW[i - 2 * S - 2] > FLOW_T || FLOW[i - 3 * S - 3] > FLOW_T) col = shade(col, 130, 128, 140, 4);
       // radiant glow on rock next to lava
       if (lv < 7) {
         kind = K_EDGE;

@@ -121,6 +121,12 @@ export abstract class Gun {
 
   private trigger(lateMs: number): void {
     const core = this.core;
+    // very low frame rates: finish the previous paid volley before starting a new one
+    while (this.subLeft > 0) {
+      this.subIndex++;
+      this.subLeft--;
+      this.volley(lateMs, this.subIndex);
+    }
     if (this.isRear && core.frontStarved) return;
     const ok = core.host.trySpendEnergy(this.energy);
     if (!this.isRear) core.frontStarved = !ok;

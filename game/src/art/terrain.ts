@@ -25,6 +25,18 @@ export interface TerrainChunk {
 
 type Painter = (c: Chunk) => void;
 
+/** Cloud / haze layer look per biome (CLOUD_SPRITES are white and get tinted at runtime). */
+const CLOUD_STYLE: Record<Biome, { tint: number; alpha: number } | null> = {
+  desert: { tint: 0xf2dcb0, alpha: 0.3 },   // warm dust haze
+  jungle: { tint: 0xd6eedc, alpha: 0.38 },  // humid mist
+  ocean: { tint: 0xffffff, alpha: 0.45 },   // white cumulus
+  cavern: { tint: 0x8c7664, alpha: 0.28 },  // drifting cave dust
+  space: null,                              // vacuum: no clouds
+  lava: { tint: 0x6e2c22, alpha: 0.42 },    // dark red ash smoke
+  ice: { tint: 0xe8f0fc, alpha: 0.42 },     // blowing snow
+  techno: { tint: 0xbdd0d8, alpha: 0.3 },   // vented steam
+};
+
 /** Biomes whose painter already ran its JIT warm-up in this session. */
 const WARMED = new Set<Biome>();
 
@@ -84,8 +96,11 @@ export class TerrainGenerator {
     return { canvas, doodads: c.doodads };
   }
 
-  /** Tint (0xRRGGBB) and alpha suggested for the cloud/haze layer of this biome, or null for none. */
+  /**
+   * Tint (0xRRGGBB) and alpha suggested for the cloud/haze layer of this biome, or null for none.
+   * Alphas stay <= 0.45 because the cloud layer is drawn above bullets (DEPTH.clouds).
+   */
   cloudStyle(): { tint: number; alpha: number } | null {
-    return null;
+    return CLOUD_STYLE[this.biome];
   }
 }

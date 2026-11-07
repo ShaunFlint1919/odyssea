@@ -130,9 +130,11 @@ export class VCrop {
   set(px: number): void {
     const p = px < 0 ? 0 : px > this.h ? this.h : px;
     if (p === this.last) return;
+    const was = this.last;
     this.last = p;
     if (p === 0) { this.img.setVisible(false); return; }
-    this.img.setVisible(true).setCrop(0, this.h - p, this.w, p);
+    if (was <= 0) this.img.setVisible(true);
+    this.img.setCrop(0, this.h - p, this.w, p);
   }
 }
 
@@ -145,9 +147,11 @@ export class HCrop {
   set(px: number): void {
     const p = px < 0 ? 0 : px > this.w ? this.w : px;
     if (p === this.last) return;
+    const was = this.last;
     this.last = p;
     if (p === 0) { this.img.setVisible(false); return; }
-    this.img.setVisible(true).setCrop(0, 0, p, this.h);
+    if (was <= 0) this.img.setVisible(true);
+    this.img.setCrop(0, 0, p, this.h);
   }
 }
 
@@ -158,9 +162,11 @@ export class AlphaCache {
   set(a: number): void {
     const q = Math.round((a < 0 ? 0 : a > 1 ? 1 : a) * 64);
     if (q === this.last) return;
+    const was = this.last;
     this.last = q;
     if (q === 0) { this.img.setVisible(false); return; }
-    this.img.setVisible(true).setAlpha(q / 64);
+    if (was <= 0) this.img.setVisible(true);
+    this.img.setAlpha(q / 64);
   }
 }
 

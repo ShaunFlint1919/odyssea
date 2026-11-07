@@ -14,7 +14,7 @@ import {
   BAND_H, BAND_H_SHORT, BAND_W, BOSS_H, BOSS_W, ICON, LAMP, PIPS, PIP_H, PIP_STRIDE, PIP_W, SEG,
   type HudLayout, type LegendBox, type Rect,
 } from './layout';
-import { drawTexture, fill, hex, hline, nineSlice, paintPixels, px, raisedPlate, ramp, rgb, shade, strokeRect, vgrad, vline, withAlpha, type Ctx } from './paint';
+import { drawTexture, fill, hex, hline, nineSlice, paintPixels, px, raisedPlate, ramp, rgb, shade, strokeRect, textureSource, vgrad, vline, withAlpha, type Ctx, type TexSource } from './paint';
 
 // ------------------------------------------------------------------------------ palette
 
@@ -192,10 +192,25 @@ function lamp(ctx: Ctx, fonts: HudFonts, x: number, y: number, letter: string, t
   ctx.drawImage(g, x + Math.floor((LAMP - fonts.s.cellW) / 2) + 1, y + Math.floor((LAMP - fonts.s.cellH) / 2) + 1);
 }
 
-/** Recessed LCD window background with scanlines and dot-matrix ghost cells. */
-function lcdWindow(ctx: Ctx, bg: Rect, cells: Rect, cellW: number, cellH: number): void {
+/**
+ * Recessed LCD window background with scanlines (the shared 'ui_scanlines' tile when the art
+ * module provides it, like the menus' inset boxes) and dot-matrix ghost cells.
+ */
+function lcdWindow(ctx: Ctx, bg: Rect, cells: Rect, cellW: number, cellH: number, scan: TexSource | null): void {
   fill(ctx, bg.x, bg.y, bg.w, bg.h, PAL.lcdBg);
-  for (let yy = bg.y + 1; yy < bg.y + bg.h; yy += 2) hline(ctx, bg.x, yy, bg.w, PAL.lcdScan);
+  if (scan) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(bg.x, bg.y, bg.w, bg.h);
+    ctx.clip();
+    ctx.globalAlpha = 0.65;
+    for (let yy = bg.y; yy < bg.y + bg.h; yy += scan.h) {
+      for (let xx = bg.x; xx < bg.x + bg.w; xx += scan.w) ctx.drawImage(scan.img, scan.x, scan.y, scan.w, scan.h, xx, yy, scan.w, scan.h);
+    }
+    ctx.restore();
+  } else {
+    for (let yy = bg.y + 1; yy < bg.y + bg.h; yy += 2) hline(ctx, bg.x, yy, bg.w, PAL.lcdScan);
+  }
   hline(ctx, bg.x, bg.y, bg.w, PAL.lcdShadow);
   const n = Math.floor(cells.w / cellW);
   const gw = Math.max(1, cellW - 1);
@@ -227,6 +242,7 @@ export function paintPanel(scene: Phaser.Scene, L: HudLayout, fonts: HudFonts, l
   }
   const { canvas, ctx } = makeCanvas(W, H);
   ctx.drawImage(bgC.canvas, 0, 0);
+  const scan = textureSource(scene, 'ui_scanlines');
   const restore = (x: number, y: number, w: number, h: number) => {
     ctx.clearRect(x, y, w, h);
     ctx.drawImage(bgC.canvas, x, y, w, h, x, y, w, h);
@@ -258,7 +274,7 @@ export function paintPanel(scene: Phaser.Scene, L: HudLayout, fonts: HudFonts, l
 
   // ---- level LCD
   strokeRect(ctx, L.lcd, PAL.edge);
-  lcdWindow(ctx, { x: L.lcd.x + 1, y: L.lcd.y + 1, w: L.lcd.w - 2, h: L.lcd.h - 2 }, L.lcdWin, fonts.s.cellW, fonts.s.cellH);
+  lcdWindow(ctx, { x: L.lcd.x + 1, y: L.lcd.y + 1, w: L.lcd.w - 2, h: L.lcd.h - 2 }, L.lcdWin, fonts.s.cellW, fonts.s.cellH, scan);
   hline(ctx, L.lcd.x + 1, L.lcd.y + L.lcd.h, L.lcd.w - 1, PAL.grooveHi);
 
   // ---- progress track
@@ -318,12 +334,12 @@ export function paintPanel(scene: Phaser.Scene, L: HudLayout, fonts: HudFonts, l
 
   // front
   legendBox(L.front, false);
-  lcdWindow(ctx, { x: L.front.box.x + 1, y: L.frontWin.y - 1, w: L.front.box.w - 2, h: 10 }, L.frontWin, fonts.s.cellW, fonts.s.cellH);
+  lcdWindow(ctx, { x: L.front.box.x + 1, y: L.frontWin.y - 1, w: L.front.box.w - 2, h: 10 }, L.frontWin, fonts.s.cellW, fonts.s.cellH, scan);
   pips(ctx, L.frontPips.x, L.frontPips.y, 'off');
 
   // rear (raised: it is a touch button)
   legendBox(L.rear, true);
-  lcdWindow(ctx, { x: L.rear.box.x + 2, y: L.rearWin.y - 1, w: L.rear.box.w - 4, h: 10 }, L.rearWin, fonts.s.cellW, fonts.s.cellH);
+  lcdWindow(ctx, { x: L.rear.box.x + 2, y: L.rearWin.y - 1, w: L.rear.box.w - 4, h: 10 }, L.rearWin, fonts.s.cellW, fonts.s.cellH, scan);
   pips(ctx, L.rearPips.x, L.rearPips.y, 'off');
   lamp(ctx, fonts, L.lampA.x, L.lampA.y, 'A', '#1c2330', '#121822', 0x3e4c60, null);
   lamp(ctx, fonts, L.lampB.x, L.lampB.y, 'B', '#1c2330', '#121822', 0x3e4c60, null);
@@ -332,7 +348,7 @@ export function paintPanel(scene: Phaser.Scene, L: HudLayout, fonts: HudFonts, l
   // drones
   legendBox(L.side, false);
   for (const [lab, win, letter] of [[L.sideLabelL, L.sideWinL, 'L'], [L.sideLabelR, L.sideWinR, 'R']] as const) {
-    lcdWindow(ctx, { x: win.x - 1, y: win.y - 1, w: win.w + 2, h: 10 }, win, fonts.s.cellW, fonts.s.cellH);
+    lcdWindow(ctx, { x: win.x - 1, y: win.y - 1, w: win.w + 2, h: 10 }, win, fonts.s.cellW, fonts.s.cellH, scan);
     ctx.drawImage(renderText(fonts.s, letter, { tint: COLORS.accentLight }), lab.x, lab.y);
   }
 

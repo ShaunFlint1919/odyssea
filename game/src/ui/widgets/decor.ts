@@ -85,10 +85,18 @@ export function badge(scene: Phaser.Scene, x: number, y: number, label: string, 
   return c;
 }
 
-/** CRT scanline overlay (every other row darkened) over a rectangle. */
-export function scanlines(scene: Phaser.Scene, x: number, y: number, w: number, h: number, alpha = 0.22): Phaser.GameObjects.Image {
+/**
+ * CRT scanline overlay over a rectangle. Uses the art's 4x4 'ui_scanlines' tile (TileSprite)
+ * when present, else a baked every-other-row texture. `alpha` = strength (0.15..0.25 typical).
+ */
+export function scanlines(
+  scene: Phaser.Scene, x: number, y: number, w: number, h: number, alpha = 0.22,
+): Phaser.GameObjects.Image | Phaser.GameObjects.TileSprite {
   const width = Math.max(1, Math.round(w));
   const height = Math.max(1, Math.round(h));
+  if (scene.textures.exists('ui_scanlines')) {
+    return scene.add.tileSprite(Math.round(x), Math.round(y), width, height, 'ui_scanlines').setOrigin(0).setAlpha(Math.min(1, alpha * 3));
+  }
   const key = cachedTexture(scene, `__w_scan_${width}x${height}`, width, height, (ctx) => {
     ctx.fillStyle = '#000000';
     for (let yy = 1; yy < height; yy += 2) ctx.fillRect(0, yy, width, 1);

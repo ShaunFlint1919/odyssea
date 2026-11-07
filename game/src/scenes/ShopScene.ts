@@ -293,10 +293,10 @@ export class ShopScene extends Phaser.Scene {
     const avail = H - statusH - gap - top - (gun ? powerH + gap : 0);
     let rowH = 22;
     const infoH = 76;
-    let pvH = avail - (n * rowH + 10) - infoH - 2 * gap;
-    while (pvH > 230 && rowH < 26) { rowH++; pvH = avail - (n * rowH + 10) - infoH - 2 * gap; }
+    let pvH = avail - (n * rowH + 12) - infoH - 2 * gap;
+    while (pvH > 230 && rowH < 26) { rowH++; pvH = avail - (n * rowH + 12) - infoH - 2 * gap; }
     pvH = Phaser.Math.Clamp(pvH, 70, 300);
-    const listH = n * rowH + 10;
+    const listH = n * rowH + 12;
     const px = 4, pw = W - 8;
 
     const eqIdx = Math.max(0, this.items.findIndex((it) => it.equipped));
@@ -317,14 +317,14 @@ export class ShopScene extends Phaser.Scene {
     this.track(kit.panel(this, px, this.info.y, pw, infoH, 'raised').setDepth(MD.panel));
 
     this.list = new kit.MenuList(this, {
-      x: listX, y: ly + 5, width: listW, items: this.itemRows(cat), rowHeight: rowH, size: 'm', depth: MD.content, startIndex: eqIdx,
+      x: listX, y: ly + 6, width: listW, items: this.itemRows(cat), rowHeight: rowH, size: 'm', depth: MD.content, startIndex: eqIdx,
       onFocus: (i, it) => this.onItemFocus(i, it),
       onSelect: (i) => this.tryBuy(i),
       onDisabled: (i) => this.explainDisabled(i),
       onLeft: gun ? () => this.changePower(-1) : undefined,
       onRight: gun ? () => this.changePower(1) : undefined,
     });
-    const guard = new TapGuard(this, this.list, listX - 16, ly + 5, listW + 20, rowH, this.items.length, MD.content + 1);
+    const guard = new TapGuard(this, this.list, listX - 16, ly + 6, listW + 20, rowH, this.items.length, MD.content + 1);
     this.pageDispose.push(() => guard.destroy());
     this.refreshPower();
     this.onItemFocus(this.list.index, this.list.item);

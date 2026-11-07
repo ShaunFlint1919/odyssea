@@ -2,7 +2,7 @@
 //  MUSIC SEQUENCER — tracker-style chiptune player.
 //  Each song instance owns persistent monophonic channels (lead / bass / arp oscillators,
 //  noise + oscillator drum kit, echo) whose AudioParams are automated note by note, so no
-//  node is created per note. A lookahead scheduler (25 ms timer, 120 ms horizon on the
+//  node is created per note. A lookahead scheduler (25 ms timer, 250 ms horizon on the
 //  AudioContext clock) feeds the steps; patterns loop seamlessly; tracks cross-fade.
 // =====================================================================================
 import type { MusicTrack } from '../types';
@@ -11,7 +11,8 @@ import { compileSong, DR, type CompiledPattern, type CompiledSong, type DrumKitD
 import { SONGS } from './songs';
 import { mtof } from './theory';
 
-export const LOOKAHEAD = 0.12;
+/** Scheduling horizon (s): rides out main-thread hitches such as scene creation. */
+export const LOOKAHEAD = 0.25;
 export const TICK_MS = 25;
 export const FADE = 0.6;
 
@@ -302,7 +303,7 @@ export class SongPlayer {
   private secStep = 0;
   private disposed = false;
 
-  constructor(private g: Graph, readonly track: MusicTrack, readonly song: CompiledSong, start: number, fadeIn: number) {
+  constructor(private g: Graph, readonly track: MusicTrack, readonly song: CompiledSong, start: number, private fadeIn: number) {
     const ctx = g.ctx;
     this.out = ctx.createGain();
     this.out.gain.setValueAtTime(fadeIn > 0 ? 0 : 1, start);
@@ -350,6 +351,15 @@ export class SongPlayer {
   scheduleUntil(horizon: number, now: number): void {
     if (this.disposed) return;
     const s = this.song;
+    if (this.stats.steps === 0 && this.nextTime < now && this.stopAt === Infinity) {
+      // The main thread was busy since the song was requested (scene creation): start now,
+      // cleanly, instead of counting the first steps as late.
+      this.anchor = now + 0.03;
+      const g = this.out.gain;
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(this.fadeIn > 0 ? 0 : 1, now);
+      if (this.fadeIn > 0) g.linearRampToValueAtTime(1, this.anchor + this.fadeIn);
+    }
     while (this.nextTime < horizon && this.nextTime < this.stopAt) {
       let t = this.nextTime;
       if (t < now) {
@@ -469,10 +479,10 @@ export class MusicManager {
     if (track !== null) {
       const song = getSong(track);
       const fadeIn = track === 'victory' ? 0.02 : prev ? FADE : 0.25;
-      const p = new SongPlayer(this.g, track, song, now + 0.03, fadeIn);
-      this.current = p;
+      // Scheduling starts on the next timer tick, once the caller (often a scene's create())
+      // has released the main thread.
+      this.current = new SongPlayer(this.g, track, song, now + 0.03, fadeIn);
       this.started++;
-      p.scheduleUntil(now + LOOKAHEAD, now);
     }
     this.ensureTimer();
   }

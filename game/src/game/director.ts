@@ -36,6 +36,8 @@ export class Director {
   private readonly jobs: Job[] = [];
   private jobCount = 0;
   private midbossDone: boolean;
+  /** x anchor of the wave being expanded (lateral offsets of its members are relative to it). */
+  private anchor = 0;
   /** Time of the last wave (s). */
   readonly lastWaveT: number;
 
@@ -80,8 +82,6 @@ export class Director {
       this.jobCount--;
     }
   }
-
-  private anchor = 0;
 
   private push(at: number, def: EnemyDef, move: MovePattern, x: number, oy: number, dir: number, midboss = false): void {
     if (this.jobCount >= MAX_JOBS) return;

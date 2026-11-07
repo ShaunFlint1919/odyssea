@@ -15,7 +15,7 @@ import {
 } from '../ui/meta/common';
 import { ShipBay } from '../ui/meta/shipBay';
 import { energyBalance, totalDps } from '../ui/meta/stats';
-import { BIOME_TINT, planetTexture } from '../ui/meta/planets';
+import { BIOME_TINT, planetScale, planetTexture } from '../ui/meta/planets';
 
 /** Main between-missions menu: ship bay, next mission, launch / upgrade / map / specs / comms / options / quit. */
 export class HangarScene extends Phaser.Scene {
@@ -163,7 +163,7 @@ export class HangarScene extends Phaser.Scene {
     const tint = planet ? BIOME_TINT[planet.biome] ?? COLORS.teal : COLORS.teal;
     this.add.image(gx, gy, META.glow).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.45).setDisplaySize(64, 64).setDepth(MD.content);
     if (planet) {
-      const img = this.add.image(gx, gy, planetTexture(this, planet.biome, 48)).setDepth(MD.content);
+      const img = this.add.image(gx, gy, planetTexture(this, planet.biome, Math.round(48 * Math.min(1.2, planetScale(planet.biome))))).setDepth(MD.content);
       this.tweens.add({ targets: img, y: gy - 1.5, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     } else {
       const g = this.add.graphics().setDepth(MD.content);
@@ -179,7 +179,8 @@ export class HangarScene extends Phaser.Scene {
       const all = campaignProgress();
       const msg = all.total > 0 && all.done >= all.total ? 'CAMPAIGN COMPLETE' : 'NO MISSION DATA';
       kit.text(this, tx, y + 19, msg, { size: 'm', color: COLORS.gold, depth: MD.content });
-      kit.text(this, tx, y + 33, 'Replay any cleared mission from the galaxy map.', { size: 's', color: COLORS.textDim, maxWidth: tw, depth: MD.content });
+      wrapLines('Replay any cleared mission from the galaxy map to farm credits.', Math.floor(tw / 6), 2)
+        .forEach((ln, i) => kit.text(this, tx, y + 32 + i * 9, ln, { size: 's', color: COLORS.textDim, depth: MD.content }));
       return;
     }
     const replay = isCompleted(lv.id);

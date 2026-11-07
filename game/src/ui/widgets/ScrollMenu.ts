@@ -1,13 +1,15 @@
 // =====================================================================================
 //  SCROLL MENU — a MenuList showing a window of `visibleRows` rows of a longer list.
 //  Keyboard: up/down (wraps), PageUp/PageDown, Home/End, Enter/Space, left/right.
-//  Touch: tap selects, drag scrolls (row by row), tap the scroll arrows to page; mouse wheel.
+//  Touch: tap selects, drag scrolls (row by row), tap the scrollbar track to page; mouse wheel.
+//  When the list is longer than the window a slim scrollbar (track + thumb) is drawn in the
+//  rightmost 6 px of `width` (the rows get width - 8).
 //  Indices given to / received from the callbacks are GLOBAL (into the full item list).
 // =====================================================================================
 import Phaser from 'phaser';
 import { COLORS } from '../../config';
 import { audio } from '../../audio';
-import { MenuList, modalLevel, text, type FontSize, type MenuItem } from '../kit';
+import { MenuList, modalLevel, type FontSize, type MenuItem } from '../kit';
 import { isShown } from './util';
 
 export interface ScrollMenuOpts {
@@ -28,7 +30,7 @@ export interface ScrollMenuOpts {
   onRight?: (index: number, item: MenuItem) => void;
 }
 
-type Glyph = Phaser.GameObjects.Image | Phaser.GameObjects.BitmapText;
+const BAR_W = 3;
 
 export class ScrollMenu {
   readonly container: Phaser.GameObjects.Container;
@@ -40,9 +42,10 @@ export class ScrollMenu {
   private enabled = true;
   private readonly rowH: number;
   private readonly rows: number;
-  private readonly up: Glyph;
-  private readonly down: Glyph;
   private readonly level: number;
+  private readonly track: Phaser.GameObjects.Rectangle;
+  private readonly thumb: Phaser.GameObjects.Rectangle;
+  private readonly trackZone: Phaser.GameObjects.Zone;
   private dragY: number | null = null;
   private keyHandler?: (e: KeyboardEvent) => void;
   private readonly onMove: (p: Phaser.Input.Pointer) => void;
@@ -61,9 +64,11 @@ export class ScrollMenu {
     this.items = opts.items;
     this.idx = Phaser.Math.Clamp(opts.startIndex ?? 0, 0, Math.max(0, this.items.length - 1));
     this.top = this.clampTop(this.idx - Math.floor(this.rows / 2));
+    const width = Math.round(opts.width);
+    const needsBar = this.items.length > this.rows;
     this.syncing = true;
     this.list = new MenuList(scene, {
-      x: 0, y: 0, width: opts.width, items: this.windowItems(), rowHeight: this.rowH, size,
+      x: 0, y: 0, width: needsBar ? width - 8 : width, items: this.windowItems(), rowHeight: this.rowH, size,
       startIndex: this.idx - this.top, keyboard: false,
       onSelect: (i) => this.opts.onSelect(this.top + i, this.items[this.top + i]),
       onFocus: (i) => {
@@ -78,26 +83,19 @@ export class ScrollMenu {
     this.syncing = false;
     this.container.add(this.list.container);
 
-    const mk = (dir: -1 | 1): Glyph => {
-      const x = Math.round(opts.width) - 6;
-      const y = dir < 0 ? -7 : this.rows * this.rowH + 7;
-      if (scene.textures.exists('ui_arrow_l')) {
-        return scene.add.image(x, y, 'ui_arrow_l').setRotation(dir < 0 ? Math.PI / 2 : -Math.PI / 2);
-      }
-      return text(scene, x, y, dir < 0 ? '^' : 'v', { size: 's', color: COLORS.teal, originX: 0.5, originY: 0.5 });
-    };
-    this.up = mk(-1);
-    this.down = mk(1);
-    this.container.add([this.up, this.down]);
-    const zoneFor = (g: Glyph, dir: -1 | 1) => {
-      const z = scene.add.zone(g.x - 14, g.y - 11, 28, 22).setOrigin(0).setInteractive({ useHandCursor: true });
-      z.on('pointerdown', () => { if (this.enabled) { audio.unlock(); this.scrollBy(dir * (this.rows - 1)); } });
-      this.container.add(z);
-      return z;
-    };
-    zoneFor(this.up, -1);
-    zoneFor(this.down, 1);
-    scene.tweens.add({ targets: [this.up, this.down], alpha: 0.35, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    // scrollbar: recessed track + neon thumb; tapping the track pages towards the tap
+    const trackH = this.rows * this.rowH;
+    const bx = width - BAR_W;
+    this.track = scene.add.rectangle(bx, 0, BAR_W, trackH, COLORS.panelDark, 1).setOrigin(0).setStrokeStyle(1, COLORS.panelLight, 0.6);
+    this.thumb = scene.add.rectangle(bx, 0, BAR_W, 8, COLORS.teal, 1).setOrigin(0);
+    this.trackZone = scene.add.zone(width - 9, 0, 14, trackH).setOrigin(0).setInteractive({ useHandCursor: true });
+    this.trackZone.on('pointerdown', (_p: Phaser.Input.Pointer, _lx: number, ly: number) => {
+      if (!this.enabled) return;
+      audio.unlock();
+      const mid = this.thumb.y + this.thumb.height / 2;
+      this.scrollBy((ly < mid ? -1 : 1) * (this.rows - 1));
+    });
+    this.container.add([this.track, this.thumb, this.trackZone]);
 
     this.onDown = (p) => { this.dragY = this.inside(p) ? p.y : null; };
     this.onMove = (p) => {
@@ -120,7 +118,7 @@ export class ScrollMenu {
     scene.input.on('wheel', this.onWheel);
     if (opts.keyboard !== false) this.bindKeys();
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown);
-    this.refreshArrows();
+    this.refreshBar();
   }
 
   get index(): number { return this.idx; }
@@ -171,7 +169,6 @@ export class ScrollMenu {
     this.scene.input.off('pointerup', this.onUp);
     this.scene.input.off('wheel', this.onWheel);
     if (this.container.scene) {
-      this.scene.tweens.killTweensOf([this.up, this.down]);
       this.list.destroy();
       this.container.destroy();
     }
@@ -190,7 +187,7 @@ export class ScrollMenu {
     this.list.setItems(this.windowItems(), false);
     this.list.setIndex(this.idx - this.top, false);
     this.syncing = false;
-    this.refreshArrows();
+    this.refreshBar();
   }
 
   private scrollBy(delta: number, moveFocus = true): void {
@@ -209,9 +206,18 @@ export class ScrollMenu {
     }
   }
 
-  private refreshArrows(): void {
-    this.up.setVisible(this.top > 0);
-    this.down.setVisible(this.top + this.rows < this.items.length);
+  private refreshBar(): void {
+    const n = this.items.length;
+    const show = n > this.rows;
+    this.track.setVisible(show);
+    this.thumb.setVisible(show);
+    this.trackZone.setVisible(show);
+    if (!show) return;
+    const trackH = this.rows * this.rowH;
+    const th = Math.max(10, Math.round((trackH * this.rows) / n));
+    const maxTop = Math.max(1, n - this.rows);
+    this.thumb.setSize(BAR_W, th);
+    this.thumb.setY(Math.round(((trackH - th) * this.top) / maxTop));
   }
 
   private inside(p: Phaser.Input.Pointer): boolean {

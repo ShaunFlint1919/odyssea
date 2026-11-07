@@ -205,8 +205,10 @@ class WeaponPreviewImpl implements WeaponPreview {
     d.spawnIn = SPAWN_IN_MS;
     d.x = d.bx;
     d.y = d.by;
+    d.img.setPosition(d.x, d.y);
     d.img.setVisible(true);
     d.img.clearTint();
+    d.boom.setVisible(false);
   }
 
   private buildEngines(): void {
@@ -217,7 +219,8 @@ class WeaponPreviewImpl implements WeaponPreview {
     const eng = fxTexture(this.scene, 'fx_engine');
     const hasAnim = this.scene.anims.exists(ANIM.engine);
     for (let i = 0; i < this.engineOffsets.length; i++) {
-      const s = this.scene.make.sprite({ x: 0, y: 0, key: eng.key, frame: eng.first }, false);
+      const o = this.engineOffsets[i];
+      const s = this.scene.make.sprite({ x: this.shipX + o[0], y: this.shipY + o[1] - 1, key: eng.key, frame: eng.first }, false);
       s.setOrigin(0.5, 0);
       s.setDepth(D_ENGINE);
       if (this.engineOffsets.length > 2) s.setScale(0.8);

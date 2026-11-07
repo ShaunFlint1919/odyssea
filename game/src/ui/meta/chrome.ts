@@ -194,10 +194,11 @@ export function cornerBrackets(scene: Phaser.Scene, x: number, y: number, w: num
   return g;
 }
 
-/** Scanline overlay (CRT look) over a rectangle. */
+/** Scanline overlay (CRT look) over a rectangle: the shared 'ui_scanlines' tile (own fallback). */
 export function scanlines(scene: Phaser.Scene, x: number, y: number, w: number, h: number, depth: number = MD.overlay, alpha = 1): Phaser.GameObjects.TileSprite {
   ensureMetaArt(scene);
-  return scene.add.tileSprite(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)), META.scan).setOrigin(0).setDepth(depth).setAlpha(alpha);
+  const key = scene.textures.exists('ui_scanlines') ? 'ui_scanlines' : META.scan;
+  return scene.add.tileSprite(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)), key).setOrigin(0).setDepth(depth).setAlpha(alpha);
 }
 
 /** Magenta section label with a diamond marker and a thin rule up to `w`. Returns its height (8). */

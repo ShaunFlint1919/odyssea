@@ -7,7 +7,7 @@ const WATER = rampN(12, 0x07112a, 0x0a1834, 0x0d203f, 0x10284a, 0x133154, 0x163b
   0x297274, 0x318076, 0x3a8c78);
 const SAND = rampN(6, 0x5e5038, 0x76664a, 0x8c7a58, 0x9e8a64, 0xae9a70, 0xbca87c);
 const VEG = rampN(7, 0x0c1a10, 0x142816, 0x1c381c, 0x264a22, 0x325c28, 0x406c2e, 0x527c36);
-const ROCK = rampN(6, 0x22201e, 0x34302c, 0x46403a, 0x585048, 0x6a6056, 0x7c7064);
+const ROCK = rampN(7, 0x1c1a19, 0x2a2724, 0x3a3530, 0x4a443c, 0x5c5449, 0x6e6556, 0x807664);
 const FOAM = rampN(4, 0x5c8c9c, 0x7aa6b4, 0x9cbfca, 0xbcd4dc);
 
 const LAND = 0.6;
@@ -73,9 +73,14 @@ export function paintOcean(c: Chunk): void {
         cls[o] = K_LAND;
         const slope = (I[i + S + 1] - I[i - S - 1]) * 9;
         const bump = (DET[i + S + 1] - DET[i - S - 1]) * 2.4;    // lit tree clumps / rock knobs
-        if (v > LAND + 0.13 + (MID[i] - 0.5) * 0.06) {
-          let t = 0.5 + slope * 1.4 + (MID[i + S + 1] - MID[i - S - 1]) * 4 + bump * 0.7 + (g - 0.5) * 0.12;
-          if (I[i - S - 1] < LAND + 0.13 + (MID[i - S - 1] - 0.5) * 0.06) t += 0.25;
+        const rockLine = LAND + 0.13 + (MID[i] - 0.5) * 0.06;
+        if (v > rockLine && (v > rockLine + 0.02 || d < (v - rockLine) * 50)) {
+          // rocky peak: strong slope light, ridges and gullies, scree speckle
+          let t = 0.48 + slope * 2.2 + (MID[i + S + 1] - MID[i - S - 1]) * 7 + bump * 0.8 + (g - 0.5) * 0.16;
+          const rg = MID[i] - 0.5;
+          if (rg > 0 && rg < 0.02) t += 0.2;
+          else if (rg < 0 && rg > -0.02) t -= 0.2;
+          if (g > 0.97) t += 0.25;
           col = tone(ROCK, t, d);
         } else {
           let t = 0.46 + slope * 0.8 + bump + (DET[i] - 0.5) * 0.3 + (g - 0.5) * 0.12;

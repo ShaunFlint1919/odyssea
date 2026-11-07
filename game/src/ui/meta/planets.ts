@@ -61,6 +61,12 @@ function fallbackGlobe(biome: Biome, size: number): HTMLCanvasElement {
   return canvas;
 }
 
+/**
+ * Texture scale that makes a biome's globe match the others: the 'space' planet is a ringed
+ * giant whose globe covers only ~62 % of the texture of the other globes (rings fill the rest).
+ */
+export const planetScale = (biome: Biome): number => (biome === 'space' ? 1.6 : 1);
+
 /** Texture key of a planet globe exactly `size` px wide (cached). */
 export function planetTexture(scene: Phaser.Scene, biome: Biome, size: number): string {
   size = Math.max(8, Math.round(size));

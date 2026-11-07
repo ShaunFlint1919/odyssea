@@ -333,7 +333,7 @@ export class Enemies {
       w.services.sfx('explode_s');
       if (this.hapticT <= 0) {
         w.services.haptic('light');
-        this.hapticT = 0.12;
+        this.hapticT = 0.25;
       }
     }
     if (byPlayer) {

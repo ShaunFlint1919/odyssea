@@ -26,7 +26,8 @@ export class SpecsScene extends Phaser.Scene {
     const save = getSave();
     const l = save.loadout;
     backdrop(this);
-    const back = () => { audio.sfx('ui_back'); kit.goto(this, SCENES.Hangar); };
+    const leave = () => kit.goto(this, SCENES.Hangar);
+    const back = () => { audio.sfx('ui_back'); leave(); };
     header(this, 'SHIP SPECS', { onBack: back, credits: save.credits });
     const status = kit.statusBar(this, 'NOMINAL VALUES: EVERY SHOT HITS, GUNS FIRING NON-STOP');
     kit.onBack(this, back);
@@ -61,9 +62,14 @@ export class SpecsScene extends Phaser.Scene {
     const bal = this.energyPanel(px, y, pw, hs.energy);
     y += hs.energy + g;
     if (showDone && y + base.done <= H - 18) {
-      const btn = kit.button(this, px, y, pw, base.done, 'BACK TO HANGAR', back, { size: 's', color: COLORS.teal, depth: MD.content });
-      void btn;
+      kit.button(this, px, y, pw, base.done, 'BACK TO HANGAR', leave, { size: 's', color: COLORS.teal, depth: MD.content });
     }
+    const kb = this.input.keyboard;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.code === 'Enter' || e.code === 'Space' || e.code === 'NumpadEnter') && !e.repeat && !kit.isModalOpen(this)) { audio.sfx('ui_select'); leave(); }
+    };
+    kb?.on('keydown', onKey);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => kb?.off('keydown', onKey));
     if (bal.net < 0) status.setText(`OVERLOAD: GUNS STALL AFTER ${dec(bal.sustain, 0)} S OF FIRE`);
     markSceneReady(SCENES.Specs, { net: bal.net, dps: totalDps(l), value: loadoutValue(), loadout: { ...l } });
   }

@@ -85,11 +85,15 @@ export interface TextOpts {
   depth?: number;
 }
 
+/** Extra px between lines of multi-line text (the fonts' line height = cell height, no gap). */
+const LINE_GAP = 2;
+
 /** Bitmap text with the game fonts. */
 export function text(scene: Phaser.Scene, x: number, y: number, str: string, opts: TextOpts = {}): Phaser.GameObjects.BitmapText {
   ensureFonts(scene);
   const size = opts.size ?? 'm';
   const t = scene.add.bitmapText(Math.round(x), Math.round(y), FONT_KEY[size], str);
+  t.setLineSpacing(LINE_GAP); // only affects multi-line text (wrapped or containing '\n')
   t.setOrigin(opts.originX ?? 0, opts.originY ?? 0);
   if (size !== 'l') t.setTint(opts.color ?? COLORS.text);
   if (opts.maxWidth) t.setMaxWidth(opts.maxWidth);

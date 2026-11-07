@@ -341,7 +341,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     if (this.finished) return;
     this.scene.resume();
     this.paused = false;
-    this.finish(false);
+    this.finish(false, true);
   }
 
   // ------------------------------------------------------------------ FlowHost
@@ -365,11 +365,13 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     audio.music('victory');
   }
 
-  finish(completed: boolean): void {
+  /** Leave the mission. aborted = quit from the pause menu (GameOver shows "MISSION ABORTED"). */
+  finish(completed: boolean, aborted = false): void {
     if (this.finished) return;
     this.finished = true;
     this.w.ended = true;
-    const result = this.result(completed);
+    const result: LevelResult & { aborted?: boolean } = this.result(completed);
+    if (aborted) result.aborted = true;
     setHookState({ done: true, completed });
     this.scene.start(completed ? SCENES.LevelEnd : SCENES.GameOver, result);
   }
