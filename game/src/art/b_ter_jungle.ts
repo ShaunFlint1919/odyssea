@@ -3,8 +3,8 @@
 // and grassy clearings with dirt patches.
 import { hash2, valueNoise } from './noise';
 import {
-  CH, Chunk, lattice, grain, eachCell, Meander, farFromDoodads, rampN, tone, bayer4, shade, scratch, scratchU8,
-  sites, ensureSite, Site,
+  CH, Chunk, lattice, grain, eachCell, Meander, farFromDoodads, rampN, tone, bayer4, shade,
+  sites, ensureSite, Site, once, range, type Step,
 } from './b_ter_core';
 
 // Crown species ramps (dark gap -> sunlit top), 8 tones each — close hues, subtle variety.
@@ -32,12 +32,12 @@ const CLIP_LO = 7, CLIP_HI = 2;
 const DSTRIDE = 6;
 
 /**
- * Splats every dome of the list into the height / id buffers (max blend). One call per chunk:
- * dome parameters travel through a typed array instead of (boxed) call arguments.
+ * Splats domes [k0, k1) of the list into the height / id buffers (max blend). Dome parameters
+ * travel through a typed array instead of (boxed) call arguments.
  */
-function splatDomes(c: Chunk, H: Float32Array, ID: Float32Array, DET: Float32Array, D: Float32Array, n: number): void {
+function splatDomes(c: Chunk, H: Float32Array, ID: Float32Array, DET: Float32Array, D: Float32Array, k0: number, k1: number): void {
   const M = c.M, S = c.S, W = c.w;
-  for (let k = 0; k < n; k++) {
+  for (let k = k0; k < k1; k++) {
     const o = k * DSTRIDE;
     const wx = D[o], cr = D[o + 1], R = D[o + 2], base = D[o + 3], amp = D[o + 4], id = D[o + 5];
     const ra = Math.max(-CLIP_LO, Math.floor(cr - R)), rb = Math.min(CH + CLIP_HI - 1, Math.ceil(cr + R));
@@ -78,61 +78,63 @@ function crownDomes(D: Float32Array, n: number, wx: number, cr: number, R: numbe
   return n + 1;
 }
 
-/** Paints one jungle chunk. */
-export function paintJungle(c: Chunk): void {
-  const s = c.seed, W = c.w, M = c.M, S = c.S;
-  const DET = lattice(c, 3, s + 5, M, 1.5);
-  const MID = lattice(c, 10, s + 6, 2);
-  const G = grain(c, s + 7, 0);
-  const flow = new Meander(W, s + 20, {
-    amp: W * 0.3, wave: 280, wave2: 75, amp2: 16, width: 15, widthVar: 6, widthWave: 160,
-    gateWave: 1300, gateLo: 0.33, gateHi: 0.4,
-  }, valueNoise);
-  const river = flow.rows(c);
-  const ruinSites = sites(c, 640, 611, 0.45, 70, 60);
-  ensureSite(c, ruinSites);
-  const H = scratch(c.N), ID = scratch(c.N);
-  H.fill(0, 0, c.N);
+/** Per-chunk state shared by the jungle steps. */
+interface Ctx {
+  c: Chunk; DET: Float32Array; MID: Float32Array; G: Float32Array; H: Float32Array; ID: Float32Array;
+  cls: Uint8Array; xc: Float32Array; hw: Float32Array; sl: Float32Array; flow: Meander; ruins: Site[];
+  DL: Float32Array; nd: number;
+}
 
-  // --- crowns from world cells (small understorey + big emergent trees)
-  const clearing = (wx: number, wy: number) => {
-    let v = valueNoise(wx / 150, wy / 190, s + 3) * 0.75 + valueNoise(wx / 40, wy / 40, s + 4) * 0.25;
-    for (let k = 0; k < ruinSites.length; k++) {
-      const st = ruinSites[k], dx = wx - st.wx, dy = wy - st.wy;
-      if (dx * dx + dy * dy < 46 * 46) v += 0.4;
-    }
-    return v;
-  };
-  const inRiver = (wx: number, wy: number, pad: number) => {
-    const h = flow.hw(wy);
-    return h > 0.5 && Math.abs(wx - flow.xc(wy)) < h + pad;
-  };
-  const DL = scratch(16384 * DSTRIDE);
-  let nd = 0;
-  for (const [cell, rMin, rVar, base, prob, salt] of [[SMALL, 7.5, 4, 0, 1, 11], [BIG, 13, 6, 6, 0.55, 23]]) {
-    const reach = CLIP_LO + rMin + rVar + cell;
-    const cy0 = Math.floor((c.wy0 - CH - reach) / cell), cy1 = Math.floor((c.wy0 + reach) / cell);
-    const cx0 = Math.floor(-reach / cell), cx1 = Math.floor((W + reach) / cell);
-    for (let cy = cy0; cy <= cy1; cy++) {
-      for (let cx = cx0; cx <= cx1; cx++) {
-        if (hash2(cx, cy, s + salt + 2) > prob) continue;
-        const wx = (cx + 0.1 + 0.8 * hash2(cx, cy, s + salt)) * cell;
-        const wy = (cy + 0.1 + 0.8 * hash2(cx, cy, s + salt + 1)) * cell;
-        if (clearing(wx, wy) > 0.66 - (base > 0 ? 0.06 : 0)) continue;
-        if (inRiver(wx, wy, base > 0 ? 6 : 1)) continue;
-        const R = rMin + rVar * hash2(cx, cy, s + salt + 3);
-        if (nd < 16384 - 8) nd = crownDomes(DL, nd, wx, c.wy0 - wy, R, base, 0.001 + hash2(cx, cy, s + salt + 4) * 0.998, hash2(cx, cy, s + salt + 5));
-      }
+/** Crown grids: [cell, min radius, radius variation, base height, probability, salt]. */
+const GRIDS = [[SMALL, 7.5, 4, 0, 1, 11], [BIG, 13, 6, 6, 0.55, 23]];
+
+/** Clearing value at a world point (high = open ground); temple sites force a clearing. */
+function clearing(k: Ctx, wx: number, wy: number): number {
+  const s = k.c.seed;
+  let v = valueNoise(wx / 150, wy / 190, s + 3) * 0.75 + valueNoise(wx / 40, wy / 40, s + 4) * 0.25;
+  for (let q = 0; q < k.ruins.length; q++) {
+    const st = k.ruins[q], dx = wx - st.wx, dy = wy - st.wy;
+    if (dx * dx + dy * dy < 46 * 46) v += 0.4;
+  }
+  return v;
+}
+
+/** Appends the crowns of cell rows [j0, j1) of crown grid g to the dome list. */
+function crownRows(k: Ctx, g: number, j0: number, j1: number): void {
+  const c = k.c, s = c.seed, W = c.w;
+  const [cell, rMin, rVar, base, prob, salt] = GRIDS[g];
+  const reach = CLIP_LO + rMin + rVar + cell;
+  const cy0 = Math.floor((c.wy0 - CH - reach) / cell);
+  const cx0 = Math.floor(-reach / cell), cx1 = Math.floor((W + reach) / cell);
+  for (let cy = cy0 + j0; cy < cy0 + j1; cy++) {
+    for (let cx = cx0; cx <= cx1; cx++) {
+      if (hash2(cx, cy, s + salt + 2) > prob) continue;
+      const wx = (cx + 0.1 + 0.8 * hash2(cx, cy, s + salt)) * cell;
+      const wy = (cy + 0.1 + 0.8 * hash2(cx, cy, s + salt + 1)) * cell;
+      if (clearing(k, wx, wy) > 0.66 - (base > 0 ? 0.06 : 0)) continue;
+      const h = k.flow.hw(wy);
+      if (h > 0.5 && Math.abs(wx - k.flow.xc(wy)) < h + (base > 0 ? 6 : 1)) continue;
+      const R = rMin + rVar * hash2(cx, cy, s + salt + 3);
+      if (k.nd < 16384 - 8) k.nd = crownDomes(k.DL, k.nd, wx, c.wy0 - wy, R, base, 0.001 + hash2(cx, cy, s + salt + 4) * 0.998, hash2(cx, cy, s + salt + 5));
     }
   }
-  splatDomes(c, H, ID, DET, DL, nd);
+}
 
-  // --- main pass
-  const px = c.px, cls = scratchU8(W * CH);
+/** Number of crown cell rows of grid g overlapping the chunk (+ reach). */
+function crownRowCount(c: Chunk, g: number): number {
+  const [cell, rMin, rVar] = GRIDS[g];
+  const reach = CLIP_LO + rMin + rVar + cell;
+  return Math.floor((c.wy0 + reach) / cell) - Math.floor((c.wy0 - CH - reach) / cell) + 1;
+}
+
+/** Main pass, rows [r0, r1): canopy shading / shadows, river, banks and clearing ground. */
+function paintRows(k: Ctx, r0: number, r1: number): void {
+  const { c, DET, MID, G, H, ID, cls } = k;
+  const W = c.w, M = c.M, S = c.S, px = c.px;
   const sh = 5 * S + 5, sh2 = 3 * S + 3;
-  for (let r = 0; r < CH; r++) {
+  for (let r = r0; r < r1; r++) {
     const rr = r + M, wy = c.wy0 - r;
-    const xc = river.xc[rr], hw = river.hw[rr], kk = 1 / Math.sqrt(1 + river.slope[rr] * river.slope[rr]);
+    const xc = k.xc[rr], hw = k.hw[rr], kk = 1 / Math.sqrt(1 + k.sl[rr] * k.sl[rr]);
     let i = rr * S + M, o = r * W;
     for (let x = 0; x < W; x++, i++, o++) {
       const d = bayer4(x, wy), g = G[i];
@@ -158,7 +160,7 @@ export function paintJungle(c: Chunk): void {
         const dist = hw > 0.5 ? Math.abs(x - xc) * kk : 1e9;
         const edge = hw * (0.88 + 0.24 * MID[i]);
         if (dist < edge) {
-          // river: dark murky water, current streaks, darker under the canopy edge
+          // river: dark murky water, current streaks, lighter rim at the waterline
           cls[o] = K_WATER;
           let t = 0.3 + (1 - dist / edge) * 0.25 + (g - 0.5) * 0.06;
           const ph = (wy * 0.21 + (x - xc) * 0.9 + MID[i] * 4) % 9;
@@ -183,10 +185,41 @@ export function paintJungle(c: Chunk): void {
       px[o] = col;
     }
   }
+}
 
-  // --- ruins in clearings (stone platform + steps) and doodads
-  for (let k = 0; k < ruinSites.length; k++) paintTemple(c, cls, ruinSites[k], MID, G);
-  placeJungleDoodads(c, cls, H, ruinSites);
+/** Jungle chunk plan: fields, crown list, crown splats, main pass, temples, doodads. */
+export function planJungle(c: Chunk): Step[] {
+  const s = c.seed, W = c.w, M = c.M;
+  let DET!: Float32Array;
+  let k!: Ctx;
+  return [
+    once(() => { DET = lattice(c, 3, s + 5, M, 1.5); }),
+    once(() => {
+      const MID = lattice(c, 10, s + 6, 2);
+      const G = grain(c, s + 7, 0);
+      const flow = new Meander(W, s + 20, {
+        amp: W * 0.3, wave: 280, wave2: 75, amp2: 16, width: 15, widthVar: 6, widthWave: 160,
+        gateWave: 1300, gateLo: 0.33, gateHi: 0.4,
+      }, valueNoise);
+      const river = flow.rows(c);
+      const ruins = sites(c, 640, 611, 0.45, 70, 60);
+      ensureSite(c, ruins);
+      const H = c.f32(c.N), ID = c.f32(c.N);
+      H.fill(0, 0, c.N);
+      k = {
+        c, DET, MID, G, H, ID, cls: c.u8(W * CH), xc: river.xc, hw: river.hw, sl: river.slope, flow, ruins,
+        DL: c.f32(16384 * DSTRIDE), nd: 0,
+      };
+    }),
+    range(() => crownRowCount(c, 0), 3, (a, b) => crownRows(k, 0, a, b)),
+    range(() => crownRowCount(c, 1), 2, (a, b) => crownRows(k, 1, a, b)),
+    range(() => k.nd, 96, (a, b) => splatDomes(c, k.H, k.ID, k.DET, k.DL, a, b)),
+    range(CH, 4, (a, b) => paintRows(k, a, b)),
+    once(() => {
+      for (let q = 0; q < k.ruins.length; q++) paintTemple(c, k.cls, k.ruins[q], k.MID, k.G);
+      placeJungleDoodads(c, k.cls, k.H, k.ruins);
+    }),
+  ];
 }
 
 const STONE = rampN(6, 0x2a2a22, 0x3c3c30, 0x4e4e3e, 0x62604c, 0x76735c, 0x88846a);
