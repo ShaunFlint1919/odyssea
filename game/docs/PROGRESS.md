@@ -27,20 +27,24 @@ fichiers disjoints, contrats écrits d'abord (`src/types.ts`, `src/art/keys.ts`,
   console (toutes les scènes + un niveau par planète, 58-59 fps headless).
 - CI : `Game CI` #3 et `Android APK` #3 verts sur le jeu complet (commit 74b90da) ; build release
   R8 non signé vert ; artefact `nova-corsair-0.1.0-build3-debug.apk` (5,7 Mo).
-- Pilote automatique, équipement de départ : survit à kessra-1/2/3 ; mini-boss kessra-2 abattu en
-  ~23 s, Colossus en ~78 s à P2 (bande cible 45-75 s pour un joueur équipé normalement).
+- Pilote automatique (après recalibrage final) : équipement de départ, survit à kessra-1/2/3,
+  Colossus 74 s à P2 (46 s à P3-P4) ; kits de référence : Forge 59 s, Rime Sentinel 58 s,
+  Voidcarrier 48 s, Architect 66 s ; mini-boss 18-42 s. Dégâts subis 0-15 par niveau.
 - Perf (CPU ×4, build de prod) : ~3,5-4,2 ms JS/frame en moyenne sur les combats lourds ;
   titre atteint en ~1,8 s en dev headless après optimisations.
 
 **Scorecard initiale (estimation sur captures, à re-mesurer à l'itération 1).**
 1 balles 4 · 2 densité 4 · 3 terrains 4 · 4 sprites 4 · 5 effets 4 · 6 HUD 4 · 7 menus 4 ·
-8 game feel 3 (pas de test sur téléphone) · 9 arsenal 4 · 10 boss 4 · 11 progression 3 (recalibrage
-en cours, pas de playtest humain) · 12 audio 3 (jamais écouté) · 13 perf mobile 3 (pas mesuré sur
+8 game feel 3 (pas de test sur téléphone) · 9 arsenal 4 · 10 boss 4 · 11 progression 3 (bot seulement,
+pas de playtest humain) · 12 audio 3 (jamais écouté) · 13 perf mobile 3 (pas mesuré sur
 appareil) · 14 stabilité 4 · 15 originalité 4 (relecture faite, corrections appliquées).
 
 **Problèmes connus / prochaines étapes (itération 1).**
 - Tester l'APK sur un vrai téléphone (contrôle tactile, 60 fps, audio, encoche, appels).
-- Recalibrage final des boss Cinder → Axiom après la correction du double splash (en cours).
+- Lamprey Carrier (rift-2) bimodal (18-42 s) : les tirs à tête chercheuse visent ses chasseurs ;
+  correction côté gameplay à envisager (ignorer les chasseurs de baie ou en lancer moins).
+- Écran titre : la ligne d'aide du bas est tronquée (« GUNS FIRE ON TH. ») à côté du numéro de
+  version — raccourcir le texte ou le faire défiler.
 - Écouter musique et SFX, ajuster le mix ; tutoriel discret au premier niveau.
 - Reste des rapports `docs/REVIEW_*.md` non traités (H3/H4 gameplay, items INFO plateforme,
   build Phaser sur mesure).

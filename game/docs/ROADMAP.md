@@ -43,7 +43,7 @@ Itération 0 (2026-11-07) : voir docs/PROGRESS.md pour les preuves.
 - [x] 8 planètes × 3 niveaux = 24 niveaux scénarisés
 - [x] Carte stellaire (Star Chart) avec routes, verrous, rejouabilité
 - [x] Histoire originale via 24 transmissions
-- [~] Économie équilibrée (prime de mission comprise) — modèle + bot ; recalibrage boss post-correctifs en cours
+- [~] Économie équilibrée (prime de mission comprise) — modèle + pilote automatique : boss 46-74 s, mini-boss 18-42 s ; pas encore de playtest humain
 
 ## M6 — Visuel (cible : scorecard ≥ 4/5 partout)
 - [x] Terrains des 8 biomes riches et sans couture, décor, nuages/brume en parallaxe
