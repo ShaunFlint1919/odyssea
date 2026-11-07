@@ -10,7 +10,7 @@ Itération 0 (2026-11-07) : voir docs/PROGRESS.md pour les preuves.
 - [x] Contrats partagés (`src/types.ts`, `src/art/keys.ts`, `src/game/contracts.ts`, `src/game/arsenal/api.ts`, `src/ui/kit.ts`, `src/debug.ts`)
 - [x] Usine de pixel-art procédural (`src/art/pixel.ts`) + galerie de textures (`gallery.html`)
 - [x] Projet Android Capacitor 8 (`game/android/`)
-- [x] Workflows GitHub Actions `Game CI` et `Android APK` verts sur le jeu complet (runs #3, commit 74b90da)
+- [x] Workflows GitHub Actions `Game CI` et `Android APK` verts sur le jeu complet (runs #3 et #4, commit a614b3a)
 
 ## M1 — Tranche verticale jouable
 - [x] Boucle complète : Titre → Nouvelle partie → Hangar → Refit Bay → Mission → Fin de niveau → Hangar

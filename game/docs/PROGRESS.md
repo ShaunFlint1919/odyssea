@@ -25,8 +25,9 @@ fichiers disjoints, contrats écrits d'abord (`src/types.ts`, `src/art/keys.ts`,
 **État vérifié.**
 - `npm run typecheck` 0 erreur · `npm test` 90 tests verts · smoke Playwright 16/16 sans erreur
   console (toutes les scènes + un niveau par planète, 58-59 fps headless).
-- CI : `Game CI` #3 et `Android APK` #3 verts sur le jeu complet (commit 74b90da) ; build release
-  R8 non signé vert ; artefact `nova-corsair-0.1.0-build3-debug.apk` (5,7 Mo).
+- CI : `Game CI` #4 et `Android APK` #4 verts sur la version finale de l'itération (commit
+  a614b3a, après #3 vert sur 74b90da) ; build release R8 non signé vert ; artefact
+  `nova-corsair-0.1.0-build4-debug.apk` (5,7 Mo, conservé 14 jours).
 - Pilote automatique (après recalibrage final) : équipement de départ, survit à kessra-1/2/3,
   Colossus 74 s à P2 (46 s à P3-P4) ; kits de référence : Forge 59 s, Rime Sentinel 58 s,
   Voidcarrier 48 s, Architect 66 s ; mini-boss 18-42 s. Dégâts subis 0-15 par niveau.
