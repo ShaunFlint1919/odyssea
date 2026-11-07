@@ -264,7 +264,7 @@ const BEAM_FRAMES = 3;
 /**
  * Piercing beam of exact length `len` (px) and core width BEAM_WIDTHS[tier]: white core,
  * coloured sheath, tapered tips, translucent glow columns and electric crackle pixels that
- * change on every frame (2 px margin each side).
+ * change on every frame (3 px margin each side).
  */
 export function beamTex(scene: Phaser.Scene, color: ShotColor, tier: number, len: number): TexInfo {
   const W = BEAM_WIDTHS[Math.max(0, Math.min(3, tier))];
