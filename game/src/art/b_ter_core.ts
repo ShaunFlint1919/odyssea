@@ -241,30 +241,62 @@ function upsample(c: Chunk, step: number, L: Float32Array, lw: number, lh: numbe
       T[j * S + xx] = w0 * L[o] + w1 * L[o + 1] + w2 * L[o + 2] + w3 * L[o + 3];
     }
   }
-  // column pass
+  // column pass (two output rows per sweep when they share the same four lattice rows)
   const D = scratch(c.N);
-  const x0 = M - P, x1 = S - M + P;
+  const x0 = M - P, x1 = S - M + P, rEnd = CH + M + P;
   const add = mid - mid * k;
-  for (let rr = M - P; rr < CH + M + P; rr++) {
+  for (let rr = M - P; rr < rEnd;) {
     const wy = c.wy0 - (rr - M);
     const gy = Math.floor(wy / step);
     const q = (wy - gy * step) * 4;
     const w0 = Wt[q] * k, w1 = Wt[q + 1] * k, w2 = Wt[q + 2] * k, w3 = Wt[q + 3] * k;
     const o0 = (gy - 1 - gy0) * S, o1 = o0 + S, o2 = o1 + S, o3 = o2 + S;
     const out = rr * S;
-    for (let xx = x0; xx < x1; xx++) D[out + xx] = add + w0 * T[o0 + xx] + w1 * T[o1 + xx] + w2 * T[o2 + xx] + w3 * T[o3 + xx];
+    if (q >= 4 && rr + 1 < rEnd) {
+      // next row (wy - 1) lies in the same lattice interval
+      const v0 = Wt[q - 4] * k, v1 = Wt[q - 3] * k, v2 = Wt[q - 2] * k, v3 = Wt[q - 1] * k;
+      const out2 = out + S;
+      for (let xx = x0; xx < x1; xx++) {
+        const a = T[o0 + xx], b = T[o1 + xx], cc = T[o2 + xx], d = T[o3 + xx];
+        D[out + xx] = add + w0 * a + w1 * b + w2 * cc + w3 * d;
+        D[out2 + xx] = add + v0 * a + v1 * b + v2 * cc + v3 * d;
+      }
+      rr += 2;
+    } else {
+      for (let xx = x0; xx < x1; xx++) D[out + xx] = add + w0 * T[o0 + xx] + w1 * T[o1 + xx] + w2 * T[o2 + xx] + w3 * T[o3 + xx];
+      rr += 1;
+    }
   }
   return D;
 }
 
-/** Per-pixel hash grain in [0,1) for the margin layout (world-seeded, seamless). */
+let GTILE: Float32Array | null = null;
+
+/**
+ * Per-pixel white-noise grain in [0,1) for the margin layout. Reads a 256x256 hash tile with a
+ * hashed offset per 256-row world block: a pure function of world coordinates (seamless,
+ * margin-consistent), one array read per pixel instead of a hash.
+ */
 export function grain(c: Chunk, seed: number, pad = 1): Float32Array {
+  if (!GTILE) {
+    GTILE = new Float32Array(65536);
+    for (let k = 0; k < 65536; k++) GTILE[k] = hash2(k & 255, k >> 8, 0x51ed);
+  }
+  const T = GTILE;
   const D = scratch(c.N);
   const M = c.M, S = c.S, P = Math.min(pad, M);
+  let blk = 1e9, ox = 0, oy = 0;
   for (let rr = M - P; rr < CH + M + P; rr++) {
     const wy = c.wy0 - (rr - M);
+    const k = wy >> 8;
+    if (k !== blk) {
+      blk = k;
+      ox = (hash2(k, 1, seed) * 256) | 0;
+      oy = (hash2(k, 2, seed) * 256) | 0;
+    }
+    const base = ((wy + oy) & 255) << 8;
     const o = rr * S;
-    for (let xx = M - P; xx < S - M + P; xx++) D[o + xx] = hash2(xx - M, wy, seed);
+    for (let xx = M - P; xx < S - M + P; xx++) D[o + xx] = T[base | ((xx - M + ox) & 255)];
   }
   return D;
 }

@@ -20,7 +20,7 @@ export const CELL_S = 6;
 export const SEG = 4;
 /** Number of power pips (MAX_POWER). */
 export const PIPS = 10;
-/** Pip geometry: 4x5 px pips with a 1 px gap. */
+/** Pip geometry: 4x6 px pips with a 1 px gap. */
 export const PIP_W = 4;
 export const PIP_H = 6;
 export const PIP_STRIDE = 5;

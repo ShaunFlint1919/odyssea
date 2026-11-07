@@ -31,6 +31,8 @@ const game = new Phaser.Game({
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   render: { powerPreference: 'high-performance', batchSize: 4096 },
+  // All sound is procedural WebAudio in src/audio: don't let Phaser open a second AudioContext.
+  audio: { noAudio: true },
   scene: [
     BootScene, TitleScene, MapScene, HangarScene, ShopScene, SpecsScene, OptionsScene, IntelScene,
     GameScene, LevelEndScene, GameOverScene, PauseScene,

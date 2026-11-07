@@ -136,7 +136,11 @@ export class ShopScene extends Phaser.Scene {
 
   private hookState(): Record<string, unknown> {
     const s = getSave();
-    return { page: this.cat ? 'items' : 'categories', category: this.cat, credits: s.credits, focus: this.list?.index ?? 0, loadout: { ...s.loadout } };
+    const focus = this.list?.index ?? 0;
+    return {
+      page: this.cat ? 'items' : 'categories', category: this.cat, credits: s.credits, focus,
+      focusId: this.cat ? this.items[focus]?.id ?? null : null, loadout: { ...s.loadout },
+    };
   }
 
   // ------------------------------------------------------------------ shared pieces
@@ -380,9 +384,20 @@ export class ShopScene extends Phaser.Scene {
       const value = net > 0 ? fmt(net) : net < 0 ? `+${fmt(-net)}` : 'FREE';
       const valueColor = net < 0 ? COLORS.good : net > credits ? COLORS.bad : COLORS.gold;
       const verb = it.id === null ? 'REMOVE' : net > 0 ? 'BUY' : 'SWAP';
-      const help = net > credits ? `NEED ${fmt(net - credits)} MORE CREDITS` : `TAP AGAIN OR PRESS ENTER TO ${verb}`;
+      const lost = cat === 'hull' ? this.dronesLost(it.id) : '';
+      const help = net > credits ? `NEED ${fmt(net - credits)} MORE CREDITS`
+        : lost ? `${verb} ALSO SELLS YOUR ${lost} - TAP AGAIN` : `TAP AGAIN OR PRESS ENTER TO ${verb}`;
       return { ...base, value, valueColor, help };
     });
+  }
+
+  /** Drones a switch to hull `id` would auto-sell ('' when none): 'RIGHT DRONE', 'LEFT DRONE' or 'DRONES'. */
+  private dronesLost(id: string | null): string {
+    const l = getSave().loadout;
+    const slots = findHull(id)?.sidekickSlots ?? 2;
+    const r = slots < 2 && l.sidekickR !== null;
+    const left = slots < 1 && l.sidekickL !== null;
+    return r && left ? 'DRONES' : r ? 'RIGHT DRONE' : left ? 'LEFT DRONE' : '';
   }
 
   private unlockLevel(cat: ShopCategory, id: string | null): string | undefined {
@@ -447,7 +462,8 @@ export class ShopScene extends Phaser.Scene {
     else if (it.id === null) price = [`SELL FOR ${fmt(-net)}`, COLORS.good];
     else {
       const trade = it.cost - net;
-      price = [trade > 0 ? `PRICE ${fmt(it.cost)} - TRADE-IN ${fmt(trade)}` : `PRICE ${fmt(it.cost)}`, net > save.credits ? COLORS.bad : COLORS.gold];
+      const lost = cat === 'hull' && this.dronesLost(it.id) ? ' +DRONE' : '';
+      price = [trade > 0 ? `PRICE ${fmt(it.cost)} - TRADE-IN ${fmt(trade)}${lost}` : `PRICE ${fmt(it.cost)}`, net > save.credits ? COLORS.bad : COLORS.gold];
     }
     add(kit.text(this, x + 10, y + 20, kit.fit(price[0], w - bw - 24, 's'), { size: 's', color: price[1], depth: MD.content }));
 
