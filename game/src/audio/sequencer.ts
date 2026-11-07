@@ -415,6 +415,18 @@ export class SongPlayer {
   /** Fades the player out over `time` seconds starting at `now`. */
   fadeOut(now: number, time: number): void {
     if (this.stopAt !== Infinity) return;
+    if (this.stats.steps === 0) {
+      // Replaced before its first step: nothing audible to fade.
+      this.stopAt = now;
+      for (const src of this.srcs) {
+        try {
+          src.stop(now + 0.05);
+        } catch {
+          /* already stopped */
+        }
+      }
+      return;
+    }
     const g = this.out.gain;
     g.cancelScheduledValues(now);
     g.setValueAtTime(g.value, now);
