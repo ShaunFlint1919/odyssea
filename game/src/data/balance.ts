@@ -48,7 +48,7 @@ export const DPS_UPTIME = 0.85;
  * hitboxes (carriers 0.35-0.66). MIDBOSS_UPTIME is the default.
  */
 export const MIDBOSS_UPTIME_BY_ID: Record<string, number> = {
-  k_frigate: 0.82, v_carrier: 0.66, t_tidewall: 0.57, u_frigate: 0.42, c_carrier: 0.35, g_frigate: 0.89, r_carrier: 0.63, a_frigate: 0.84,
+  k_frigate: 0.8, v_carrier: 0.64, t_tidewall: 0.57, u_frigate: 0.42, c_carrier: 0.38, g_frigate: 0.88, r_carrier: 0.67, a_frigate: 0.87,
 };
 export const MIDBOSS_UPTIME = 0.75;
 /** A human pilot lands about this share of what the autopilot lands (fights ~25 % longer). */
