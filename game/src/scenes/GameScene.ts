@@ -387,7 +387,7 @@ export class GameScene extends Phaser.Scene implements FlowHost {
     this.paused = true;
     audio.sfx('ui_select');
     this.scene.pause();
-    this.scene.launch(SCENES.Pause);
+    this.scene.launch(SCENES.Pause, { levelId: this.level.id });
   }
 
   private onResume(): void {

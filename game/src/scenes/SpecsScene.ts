@@ -7,7 +7,7 @@ import { audio } from '../audio';
 import { getSave } from '../state/save';
 import { loadoutValue } from '../state/economy';
 import * as kit from '../ui/kit';
-import { blueprintGrid, ensureMetaArt, schematic } from '../ui/meta/art';
+import { META, blueprintGrid, ensureMetaArt, schematic } from '../ui/meta/art';
 import { HEADER_H, MD, cornerBrackets, sectionLabel } from '../ui/meta/chrome';
 import { scanlines, screenBackdrop, screenHeader } from '../ui/widgets';
 import { catalogMax, dec, findGenerator, findHull, findShield, findSidekick, findWeapon, fmt, signed, upper } from '../ui/meta/common';
@@ -29,7 +29,7 @@ export class SpecsScene extends Phaser.Scene {
     screenBackdrop(this);
     const leave = () => kit.goto(this, SCENES.Hangar);
     const back = () => { audio.sfx('ui_back'); leave(); };
-    screenHeader(this, 'LOADOUT STATS', { back, credits: save.credits });
+    screenHeader(this, 'LOADOUT STATS', { back, credits: save.credits, icon: META.icSpecs });
     const status = kit.statusBar(this, 'NOMINAL STATS: ALL SHOTS HIT, GUNS FIRE NONSTOP');
     kit.onBack(this, back);
 
@@ -196,7 +196,8 @@ export class SpecsScene extends Phaser.Scene {
     const l = getSave().loadout;
     kit.panel(this, x, y, w, h, 'raised').setDepth(MD.panel);
     sectionLabel(this, x + 8, y + 6, 'ARMAMENT', w - 16, MD.content);
-    const cols = { slot: x + 10, name: x + 50, pwr: x + 172, dps: x + 206, rate: x + 248, en: x + w - 10 };
+    // NAME column: 108 px = the 18-char maximum of the catalogue names
+    const cols = { slot: x + 10, name: x + 50, pwr: x + 180, dps: x + 212, rate: x + 252, en: x + w - 10 };
     const rowH = Math.max(11, Math.min(15, Math.floor((h - 32) / 5)));
     let ry = y + 18;
     const row = (cells: [string, string, string, string, string, string], color: number, dim = false) => {

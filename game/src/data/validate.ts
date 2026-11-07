@@ -43,7 +43,7 @@ export const RULES = {
   maxGap: 6,
   tailMax: 8,
   midbossWindow: [0.45, 0.75] as [number, number],
-  midbossHp: [800, 9000] as [number, number],
+  midbossHp: [700, 11000] as [number, number],
   durationRange: [60, 130] as [number, number],
   scrollRange: [40, 80] as [number, number],
   briefingMax: 120,

@@ -11,6 +11,7 @@ import { MAX_POWER } from '../config';
 import {
   GENERATORS, HULLS, INTEL, LEVELS, SHIELDS, SIDEKICKS, START_CREDITS, START_LOADOUT, WEAPONS, levelOrder,
 } from '../data';
+import { DEBUG_ACTIVE } from '../debug';
 
 /** localStorage key of the campaign save. */
 export const SAVE_KEY = 'nova-corsair.save.v1';
@@ -58,7 +59,11 @@ function readRaw(): string | null {
   }
 }
 
+/** Production builds opened with debug URL params keep the save in memory only (never persisted). */
+const PERSIST_DISABLED = !!(import.meta.env?.PROD && DEBUG_ACTIVE);
+
 function writeRaw(key: string, value: string): boolean {
+  if (PERSIST_DISABLED) return false;
   const s = storage();
   if (!s) return false;
   try {

@@ -38,6 +38,14 @@ export const DEBUG = {
   speed: num('speed'),
 } as const;
 
+/**
+ * True when the page was opened with any debug / automation parameter. In PRODUCTION builds such
+ * sessions never write the player's save (see src/state/save.ts), so a stray debug URL cannot
+ * rewrite a real campaign; dev builds keep persisting so local tools can inspect the save.
+ */
+export const DEBUG_ACTIVE: boolean = ['scene', 'level', 'shop', 'god', 'max', 'mute', 'fps', 'credits', 'seed', 't', 'speed', 'bot']
+  .some((k) => params.has(k));
+
 export interface NcHooks {
   ready: boolean;          // true once the current scene finished create()
   scene: string;           // key of the last scene that called markSceneReady

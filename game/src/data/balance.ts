@@ -43,11 +43,12 @@ export const BOSS_UPTIME: Record<string, number> = {
 };
 export const DPS_UPTIME = 0.85;
 /**
- * Same for the mid-bosses (by enemy id): escorts and carrier fighters soak part of the fire,
- * and the bot dodges off their narrower hitboxes. MIDBOSS_UPTIME is the default.
+ * Same for the mid-bosses (by enemy id, full-level runs): the level's escorts and the fighters
+ * carriers launch every 3.4 s soak part of the fire, and the bot dodges off their narrower
+ * hitboxes (carriers 0.35-0.66). MIDBOSS_UPTIME is the default.
  */
 export const MIDBOSS_UPTIME_BY_ID: Record<string, number> = {
-  k_frigate: 0.82, v_carrier: 0.9, t_tidewall: 0.51, u_frigate: 0.49, c_carrier: 0.56, g_frigate: 0.84, r_carrier: 1.02, a_frigate: 0.85,
+  k_frigate: 0.82, v_carrier: 0.66, t_tidewall: 0.57, u_frigate: 0.42, c_carrier: 0.35, g_frigate: 0.89, r_carrier: 0.63, a_frigate: 0.84,
 };
 export const MIDBOSS_UPTIME = 0.75;
 /** A human pilot lands about this share of what the autopilot lands (fights ~25 % longer). */

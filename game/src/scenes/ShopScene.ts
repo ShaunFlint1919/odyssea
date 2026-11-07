@@ -71,7 +71,7 @@ export class ShopScene extends Phaser.Scene {
     this.page = [];
     this.infoObjs = [];
     screenBackdrop(this);
-    this.hdr = screenHeader(this, 'REFIT BAY', { back: () => this.back(), credits: getSave().credits });
+    this.hdr = screenHeader(this, 'REFIT BAY', { back: () => this.back(), credits: getSave().credits, icon: META.icUpgrade });
     this.status = kit.statusBar(this, '');
     kit.onBack(this, () => this.back());
     this.showPage(this.cat, this.startFocus, false);

@@ -11,7 +11,7 @@ import { META, ensureMetaArt, iconOr } from '../ui/meta/art';
 import { HEADER_H, MD, countBadge, sectionLabel } from '../ui/meta/chrome';
 import { listGeometry, scanlines, screenBackdrop, screenHeader } from '../ui/widgets';
 import {
-  campaignProgress, dec, findGenerator, findLevel, findShield, findWeapon, fmt, hangarFocusIndex, nextMissionId, planetOfLevel, setHangarFocus, signed,
+  campaignProgress, dec, findGenerator, findLevel, findShield, findWeapon, fitName, fmt, hangarFocusIndex, nextMissionId, planetOfLevel, setHangarFocus, signed,
   unreadIntelCount, upper, wrapLines,
 } from '../ui/meta/common';
 import { ShipBay } from '../ui/meta/shipBay';
@@ -140,18 +140,20 @@ export class HangarScene extends Phaser.Scene {
     const front = findWeapon(l.front);
     const rear = findWeapon(l.rear);
     const shield = findShield(l.shield);
+    // full names (<= 18 chars) fit next to a power level; fitName() keeps the type word otherwise
     const chip = (cx: number, cy: number, icon: string, name: string, extra: string, extraColor: number) => {
       kit.panel(this, cx, cy, cw, 17, 'inset').setDepth(MD.content);
       if (this.textures.exists(icon)) this.add.image(cx + 10, cy + 8, icon).setDepth(MD.content).setScale(0.75);
-      const ex = extra ? kit.measure(this, extra, 's') + 6 : 0;
-      kit.text(this, cx + 20, cy + 5, kit.fit(name, cw - 28 - ex, 's'), { size: 's', color: COLORS.text, depth: MD.content });
+      const ex = extra ? kit.measure(this, extra, 's') + 4 : 0;
+      kit.text(this, cx + 18, cy + 5, fitName(name, cw - 18 - 7 - ex, 's'), { size: 's', color: COLORS.text, depth: MD.content });
       if (extra) kit.text(this, cx + cw - 7, cy + 5, extra, { size: 's', color: extraColor, originX: 1, depth: MD.content });
     };
     chip(x, y, 'ui_icon_front', upper(front?.name ?? l.front), `P${l.frontPower}`, COLORS.teal);
     chip(x + cw + 4, y, 'ui_icon_rear', rear ? upper(rear.name) : 'NO REAR GUN', rear ? `P${l.rearPower}` : '', COLORS.teal);
     chip(x, y + 19, 'ui_icon_shield', upper(shield?.name ?? l.shield), shield ? `${shield.capacity}` : '', COLORS.shield);
-    const bal = energyBalance(l);
-    chip(x + cw + 4, y + 19, 'ui_icon_generator', upper(findGenerator(l.generator)?.name ?? l.generator), `${signed(bal.net)}/S`, bal.net < 0 ? COLORS.bad : COLORS.good);
+    // the net energy balance already shows on the LOADOUT STATS row: the chip gives the output
+    const gen = findGenerator(l.generator);
+    chip(x + cw + 4, y + 19, 'ui_icon_generator', upper(gen?.name ?? l.generator), gen ? `${dec(gen.output)}/S` : '', COLORS.energy);
   }
 
   /** "Next mission" panel: planet globe, level name, briefing. */

@@ -2,26 +2,28 @@
 // =====================================================================================
 //  PLAYTEST — headless balance runner (owner: balance / content, docs/BALANCE.md §10).
 //  Starts its own Vite dev server (--port, default 5211) and plays a list of levels in
-//  Chromium (360x640) with `?scene=Game&level=<id>&mute=1&speed=<n>[&bot=1][&god=1]`:
-//   - autopilot: the in-game bot (`?bot=1`, src/game/bot.ts) when it exists; its metrics
-//     are read from window.__NC__.state (bossTime, bossKillTime, midbossKillTime,
-//     damageTaken, hitsTaken, accuracy, creditsEarned, kills, spawned);
-//   - fallback (no bot, or --driver): god mode + a built-in aim driver that steers the ship
-//     under the boss / mid-boss / nearest enemy by overriding the scene's controls. God mode
-//     never hurts the ship, so "damage" then counts the hits it WOULD have taken.
-//  Timings always come from an in-page recorder that samples the scene every 50 ms (level
-//  clock: boss entry, fight start, boss death, mid-boss spawn / kill / escape), so both
-//  modes report the same columns.
+//  Chromium (360x640) with `?scene=Game&level=<id>&mute=1&speed=<n>[&bot=1][&god=1][&t=<s>]`:
+//   - autopilot: the in-game bot (`?bot=1`, src/game/bot.ts) when it exists. Its metrics come
+//     from window.__NC_RUN__ (bossKillTime = boss entrance -> kill, midbossKillTime,
+//     damageTaken / armorDamage / hitsTaken / wouldDie, kills, spawned, creditsEarned,
+//     volleys / starved ...), which survives the switch to LevelEnd / GameOver;
+//   - fallback (no bot file, or --driver): god mode + a built-in aim driver that steers the
+//     ship under the boss / mid-boss / nearest enemy by overriding the scene's controls.
+//  An in-page recorder also samples the scene every 50 ms (level clock): boss fight start
+//  (end of its invulnerable entrance) and death, the front power when each fight starts,
+//  mid-boss spawn / kill / escape. "eff" = landed DPS / nominal single-target DPS of the kit
+//  at that power (src/data/progression.ts), the uptime calibrated in src/data/balance.ts.
 //  Loadouts are injected by writing the save (localStorage 'nova-corsair.save.v1', see
 //  src/state/save.ts) before the page loads:
 //    --loadout start          the campaign start loadout (START_LOADOUT)
 //    --loadout ref            the reference player's loadout BEFORE that level
-//                             (referenceLoadout() of src/data/progression.ts)
+//                             (referenceLoadout() of src/data/index.ts)
 //    --loadout '{"front":"lance_star","frontPower":3}'   JSON patch over START_LOADOUT
 //    --set front=prism_shatter,frontPower=4,sidekickL=sk_shard   patch applied last
 //  Examples:
-//    node tools/playtest.mjs --levels kessra-1,kessra-2,kessra-3 --loadout ref --speed 3
+//    node tools/playtest.mjs --levels kessra-1,kessra-2,kessra-3 --loadout start --speed 2
 //    node tools/playtest.mjs --levels thalassa-3,rift-3,axiom-3 --loadout ref --god
+//    node tools/playtest.mjs --levels rift --loadout ref --skip --bonus auto --god   (fights only)
 //    node tools/playtest.mjs --model          (prints the reference progression, no browser)
 // =====================================================================================
 import { existsSync, writeFileSync } from 'node:fs';

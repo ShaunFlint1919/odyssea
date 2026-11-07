@@ -4,7 +4,7 @@
 // =====================================================================================
 import type { Difficulty, LevelResult } from '../types';
 import type { ShopCategory } from '../game/contracts';
-import { GENERATORS, HULLS, INTEL, SHIELDS, SIDEKICKS, WEAPONS, levelOrder, nextLevelId } from '../data';
+import { GENERATORS, HULLS, INTEL, SHIELDS, SIDEKICKS, WEAPONS, levelClearBonus, levelOrder, nextLevelId } from '../data';
 import { getSave, saveNow } from './save';
 
 /** Share of the credits earned in a level that is kept when the level is failed / aborted. */
@@ -23,19 +23,26 @@ const toCount = (v: unknown): number => (typeof v === 'number' && Number.isFinit
 
 /**
  * Apply a finished (or failed) level to the save and persist it:
- * - credits += creditsEarned (x0.5, floored, when not completed); score += result score;
- * - bestScores[level] = max; collected intel is kept even on failure;
- * - on completion: level marked completed, next level in campaign order unlocked and selected;
- * - stats: kills, deaths (+1 per failed run), play time, credits earned.
- * Returns the newly unlocked level ids and the newly collected intel ids.
+ * - completed: credits += creditsEarned + mission pay (levelClearBonus, reduced on replays);
+ *   failed / aborted: credits += creditsEarned x0.5 (floored), no mission pay;
+ * - score += result score; bestScores[level] = max; collected intel is kept even on failure;
+ * - first completion: level marked completed, next level in campaign order unlocked and selected;
+ *   replay of a completed level: the next mission goes back to the campaign frontier;
+ * - stats: kills, deaths (+1 per failed run), play time, credits earned (incl. mission pay).
+ * Returns the newly unlocked level ids, the newly collected intel ids, the mission pay and
+ * whether the level had already been completed before this run.
  */
-export function applyLevelResult(result: LevelResult): { unlocked: string[]; newIntel: string[] } {
+export function applyLevelResult(result: LevelResult): {
+  unlocked: string[]; newIntel: string[]; bonus: number; credited: number; completedBefore: boolean;
+} {
   const save = getSave();
   const id = result.levelId;
   const completed = result.completed === true;
+  const completedBefore = !!id && save.completedLevels.includes(id);
 
   const earned = toCount(result.creditsEarned);
-  const credited = completed ? earned : Math.floor(earned * FAILED_CREDIT_RATIO);
+  const bonus = completed && id ? toCount(levelClearBonus(id, result.bossDefeated === true, completedBefore)) : 0;
+  const credited = completed ? earned + bonus : Math.floor(earned * FAILED_CREDIT_RATIO);
   const score = toCount(result.score);
   save.credits += credited;
   save.score += score;
@@ -59,18 +66,25 @@ export function applyLevelResult(result: LevelResult): { unlocked: string[]; new
     if (!save.completedLevels.includes(id)) save.completedLevels.push(id);
     if (!save.unlockedLevels.includes(id)) save.unlockedLevels.push(id);
     const next = nextLevelId(id);
-    if (next) {
-      if (!save.unlockedLevels.includes(next)) {
-        save.unlockedLevels.push(next);
-        unlocked.push(next);
-      }
-      save.currentLevel = next;
-    } else {
-      save.currentLevel = id;
+    if (next && !save.unlockedLevels.includes(next)) {
+      save.unlockedLevels.push(next);
+      unlocked.push(next);
     }
+    // First clear: move on to the next level. Replay: return to the campaign frontier instead of
+    // pointing the next mission at an already-cleared level.
+    save.currentLevel = completedBefore ? campaignFrontier() ?? id : next ?? id;
   }
   saveNow();
-  return { unlocked, newIntel };
+  return { unlocked, newIntel, bonus, credited, completedBefore };
+}
+
+/** First unlocked level (campaign order) that is not completed yet, or null when everything is done. */
+export function campaignFrontier(): string | null {
+  const save = getSave();
+  for (const lid of levelOrder()) {
+    if (!save.completedLevels.includes(lid) && isUnlocked(lid)) return lid;
+  }
+  return null;
 }
 
 /** Is the level playable (unlocked) in the current save? The first campaign level always is. */

@@ -102,6 +102,22 @@ export const signed = (n: number, digits = 1): string => (n > 0 ? `+${dec(n, dig
 /** Glow colour (0xRRGGBB) of a shot colour, with a safe default. */
 export const shotGlow = (c: ShotColor | undefined): number => (c && SHOT_RGB[c] ? SHOT_RGB[c].glow : COLORS.shield);
 
+/**
+ * Name that fits `maxPx` of FONT.s / FONT.m: the full name, else its last words ("THUNDERHEAD
+ * MORTAR" -> "MORTAR": the type word reads better than a cut brand), else a truncation.
+ */
+export function fitName(name: string, maxPx: number, size: 's' | 'm' = 's'): string {
+  const cw = size === 's' ? 6 : 8;
+  const max = Math.floor(maxPx / cw);
+  if (name.length <= max) return name;
+  const words = name.split(' ');
+  for (let i = 1; i < words.length; i++) {
+    const tail = words.slice(i).join(' ');
+    if (tail.length <= max) return tail;
+  }
+  return `${name.slice(0, Math.max(1, max - 1)).trimEnd()}.`;
+}
+
 /** Word-wrap `str` into at most `maxLines` lines of `maxChars` characters ("..." when cut). */
 export function wrapLines(str: string, maxChars: number, maxLines: number): string[] {
   const words = str.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);

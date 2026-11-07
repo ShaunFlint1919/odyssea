@@ -83,13 +83,13 @@ export const KESSRA_LEVELS: LevelDef[] = [
       // breather before the frigate: relay with the intel
       ground(37.6, 'k_relay', [0.5]), snakes(38, 'k_mite', 0.2, 4, 0.34),
       vee(40, 'k_dart', 0.5, 5, 24),
-      // mid-boss at 43 s: light escorts only while the frigate is up
+      // mid-boss at 43 s: light escorts on the flanks only while the frigate is up
       snakes(44, 'k_mite', 0.12, 5, 0.32),
       one(46.4, 'k_loot', 0.98, 'strafe'),
       cols(48.4, 'k_dart', 0.1, 3, 0.5),
-      snake(50.4, 'k_mite', 0.5, 6, 0.3),
+      snakes(50.4, 'k_mite', 0.14, 3, 0.3),
       duo(52.6, 'k_wasp', 0.2),
-      snakes(54.8, 'k_mite', 0.3, 4, 0.3),
+      snakes(54.8, 'k_mite', 0.16, 3, 0.3),
       cols(57, 'k_dart', 0.12, 3, 0.45),
       // combine
       vees(59.2, 'k_dart', 0.26, 5, 22), ground(59.6, 'k_turret', [0.5]),

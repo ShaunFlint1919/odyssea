@@ -164,13 +164,14 @@ export class ShipBay {
     if (opts.gauges !== false) {
       const gh = Math.max(30, ih - (nameplate ? 46 : 34));
       const gy = iy + 16;
-      this.gaugeA = new kit.Gauge(scene, ix + 6, gy, 8, gh, { colorA: 0x8a2a10, colorB: COLORS.armor, segments: Math.min(12, Math.floor(gh / 6)) });
-      this.gaugeS = new kit.Gauge(scene, ix + iw - 14, gy, 8, gh, { colorA: 0x16307a, colorB: COLORS.shield, segments: Math.min(12, Math.floor(gh / 6)) });
+      // side gauges centred 12 px inside the screen so their captions keep >= 6 px from the frame
+      this.gaugeA = new kit.Gauge(scene, ix + 8, gy, 8, gh, { colorA: 0x8a2a10, colorB: COLORS.armor, segments: Math.min(12, Math.floor(gh / 6)) });
+      this.gaugeS = new kit.Gauge(scene, ix + iw - 16, gy, 8, gh, { colorA: 0x16307a, colorB: COLORS.shield, segments: Math.min(12, Math.floor(gh / 6)) });
       c.add([this.gaugeA.container, this.gaugeS.container]);
-      c.add(kit.text(scene, ix + 10, gy + gh + 3, 'ARM', { size: 's', color: COLORS.armor, originX: 0.5 }));
-      c.add(kit.text(scene, ix + iw - 10, gy + gh + 3, 'SHD', { size: 's', color: COLORS.shield, originX: 0.5 }));
-      this.valA = kit.text(scene, ix + 10, gy - 10, '0', { size: 's', color: COLORS.text, originX: 0.5 });
-      this.valS = kit.text(scene, ix + iw - 10, gy - 10, '0', { size: 's', color: COLORS.text, originX: 0.5 });
+      c.add(kit.text(scene, ix + 12, gy + gh + 3, 'ARM', { size: 's', color: COLORS.armor, originX: 0.5 }));
+      c.add(kit.text(scene, ix + iw - 12, gy + gh + 3, 'SHD', { size: 's', color: COLORS.shield, originX: 0.5 }));
+      this.valA = kit.text(scene, ix + 12, gy - 10, '0', { size: 's', color: COLORS.text, originX: 0.5 });
+      this.valS = kit.text(scene, ix + iw - 12, gy - 10, '0', { size: 's', color: COLORS.text, originX: 0.5 });
       c.add([this.valA, this.valS]);
     }
     if (nameplate) {

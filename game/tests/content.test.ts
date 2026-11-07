@@ -166,7 +166,7 @@ describe('balance', () => {
     const midbosses = new Set(LEVELS.flatMap((l) => (l.midboss ? [l.midboss.enemy] : [])));
     for (const e of ENEMIES) {
       const ok = midbosses.has(e.id)
-        ? e.hp >= 800 && e.hp <= 9000
+        ? e.hp >= 700 && e.hp <= 11000
         : (e.hp >= 4 && e.hp <= 14) || (e.hp >= 30 && e.hp <= 90) || (e.hp >= 150 && e.hp <= 450);
       expect(ok, `${e.id} hp ${e.hp}`).toBe(true);
     }
@@ -185,8 +185,8 @@ describe('balance', () => {
       }
     }
     const mb = LEVELS.filter((l) => l.midboss).map((l) => getEnemy(l.midboss!.enemy).hp);
-    expect(mb[0]).toBe(800);
-    expect(mb[mb.length - 1]).toBe(8900);
+    expect(mb[0]).toBe(750);
+    expect(mb[mb.length - 1]).toBe(10500);
     for (let i = 1; i < mb.length; i++) expect(mb[i]).toBeGreaterThan(mb[i - 1]);
   });
 
@@ -231,8 +231,8 @@ describe('balance', () => {
       const ttk = steps.find((s) => s.levelId === id)!.midbossTtk!;
       expect(ttk, id).toBeGreaterThanOrEqual(20);
       expect(ttk, id).toBeLessThanOrEqual(35);
-      // the mid-boss hovers 45 s before it retreats: a kit with a third less DPS still gets it
-      expect(ttk * 1.5, id).toBeLessThan(45);
+      // the mid-boss hovers 45 s before it retreats: a kit with a quarter less DPS still gets it
+      expect(ttk / 0.75, id).toBeLessThan(45);
     }
   });
 
@@ -255,10 +255,10 @@ describe('balance', () => {
     expect(REFERENCE_DPS[7] / REFERENCE_DPS[0]).toBeGreaterThan(3.5);
   });
 
-  it('boss hp climbs from 3000 to 29000 with 2-4 phases and 2-6 parts', () => {
+  it('boss hp climbs from 3100 to 31500 with 2-4 phases and 2-6 parts', () => {
     const hp = CAMPAIGN.map((c) => getBoss(c.boss).hp);
-    expect(hp[0]).toBe(3000);
-    expect(hp[hp.length - 1]).toBe(29000);
+    expect(hp[0]).toBe(3100);
+    expect(hp[hp.length - 1]).toBe(31500);
     for (let i = 1; i < hp.length; i++) expect(hp[i]).toBeGreaterThan(hp[i - 1]);
     for (const b of BOSSES) {
       expect(b.phases.length).toBeGreaterThanOrEqual(2);

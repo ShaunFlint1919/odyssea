@@ -66,7 +66,7 @@ export class MapScene extends Phaser.Scene {
 
     this.add.image(0, 0, nebulaBackdrop(this, W, H)).setOrigin(0).setScale(2).setDepth(MD.bg);
     kit.starfield(this, { density: 0.45, speed: 2, depth: MD.stars });
-    screenHeader(this, 'STAR CHART', { back: () => this.back(), credits: save.credits });
+    screenHeader(this, 'STAR CHART', { back: () => this.back(), credits: save.credits, icon: META.icMap });
     this.status = kit.statusBar(this, 'TAP A PLANET OR USE THE ARROWS - ENTER: MISSIONS');
 
     // ------------------------------------------------------------ layout

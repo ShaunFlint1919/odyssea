@@ -14,6 +14,7 @@ import { audio } from '../audio';
 import { haptic } from '../platform/haptics';
 import { eraseSave, getSave, hasSaveGame, updateSettings } from '../state/save';
 import { levelOrder } from '../data';
+import { META, ensureMetaArt } from '../ui/meta/art';
 import { MenuList, confirm, fadeIn, goto, onBack, panel, statusBar, text, type MenuItem, type StatusBarApi } from '../ui/kit';
 import { LAYOUT, MD, Slider, Toggle, contentRect, fmtInt, fmtTime, listGeometry, screenBackdrop, screenHeader, sectionLabel, type Rect } from '../ui/widgets';
 
@@ -76,8 +77,9 @@ export class OptionsScene extends Phaser.Scene {
     this.sliders = new Map();
     this.toggles = new Map();
     fadeIn(this);
+    ensureMetaArt(this);
     screenBackdrop(this, { stars: 0.8, speed: 7 });
-    screenHeader(this, 'OPTIONS', { back: () => this.leave(), right: `V${VERSION}` });
+    screenHeader(this, 'OPTIONS', { back: () => this.leave(), right: `V${VERSION}`, icon: META.icOptions });
     const area = contentRect(this);
     // Fit the settings panel + the optional cards (record dropped first); rows then grow a
     // little on tall screens (bigger touch targets) and the spare height opens the gaps.

@@ -46,7 +46,7 @@ export const SIDEKICK_ON_TARGET: Record<string, number> = { pod: 1, twin: 0.5, o
  * the fight starts) that the reference player has collected when a (mid-)boss fight starts.
  * Each one is +1 front power for the rest of the level (src/game/pickups.ts).
  */
-export const POWER_COLLECT = 0.6;
+export const POWER_COLLECT = 0.8;
 
 export interface ProgressionInput {
   hulls: HullDef[];

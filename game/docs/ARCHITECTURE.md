@@ -122,3 +122,15 @@ npm run screens     # Playwright: writes screens/*.png (title, map, hangar, shop
 npm run cap:sync    # build + copy into android/
 npm run android:debug  # needs Android SDK locally; CI does this in .github/workflows/android-apk.yml
 ```
+
+## Menu screen frame (UI)
+
+Every menu screen is built on one frame (`src/ui/widgets/screen.ts`): `screenHeader()` strip at
+the top (back arrow when the screen has a parent, FONT.l title with the icon of its hangar entry,
+gold credits plate or a short status text on the right), `kit.statusBar()` help line at the bottom
+(upper-cased), panels laid out on `LAYOUT` (4 px margins / gaps, 8 px text padding, lists inset
+20 px for the cursor) inside `contentRect()`, primary action in `bottomButton()`. Back = header
+arrow + Esc/Backspace + Android back (`kit.onBack`). Lists whose pick costs credits or commits the
+player use `MenuList({ tapMode: 'focusThenSelect' })` (first tap focuses, second selects).
+`kit.fadeIn()`/`goto()` lock input across transitions (`kit.inputBlocked`), so mashed confirms
+never land on the next screen. Scenes publish their list geometry (`state.list`) for UI tests.

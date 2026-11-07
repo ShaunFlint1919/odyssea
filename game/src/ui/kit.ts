@@ -658,6 +658,8 @@ export class MenuList {
   private idx = 0;
   private enabled = true;
   private pressedRow = -1;
+  /** Progress of the highlight glide between two rows (tweened). */
+  private readonly slide = { t: 1 };
   /** The pressed row already had the focus when the press started (focusThenSelect). */
   private pressArmed = false;
   private armTween: Phaser.Tweens.Tween | null = null;
@@ -834,12 +836,23 @@ export class MenuList {
     const changed = n !== this.idx;
     const old = this.parts[this.idx];
     if (old && changed) this.styleRow(this.idx, false);
+    const glide = changed && sound && Math.abs(n - this.idx) <= 3 && shown(this.container);
     this.idx = n;
     const y = n * this.rowH;
-    this.highlight.setY(y);
-    this.flashImg.setY(y);
-    this.glow.setY(y - 6);
-    this.cursor.setY(y + Math.round(this.rowH / 2));
+    const marks = [this.highlight, this.flashImg, this.glow, this.cursor];
+    const ys = [y, y, y - 6, y + Math.round(this.rowH / 2)];
+    this.scene.tweens.killTweensOf(this.slide);
+    if (glide) {
+      // the highlight, glow and cursor glide to the new row (user moves only)
+      const from = marks.map((m) => m.y);
+      this.slide.t = 0;
+      this.scene.tweens.add({
+        targets: this.slide, t: 1, duration: 70, ease: 'Quad.easeOut',
+        onUpdate: () => marks.forEach((m, k) => m.setY(Math.round(from[k] + (ys[k] - from[k]) * this.slide.t))),
+      });
+    } else {
+      marks.forEach((m, k) => m.setY(ys[k]));
+    }
     const disabled = !!this.items[n]?.disabled;
     this.highlight.setTint(disabled ? COLORS.textDim : COLORS.accent);
     this.glow.setVisible(!disabled);
@@ -977,7 +990,7 @@ export class MenuList {
     this.armTween?.remove();
     this.armTween = null;
     if (this.container.scene) {
-      this.scene.tweens.killTweensOf([this.cursor, this.highlight, this.glow, this.flashImg]);
+      this.scene.tweens.killTweensOf([this.cursor, this.highlight, this.glow, this.flashImg, this.slide]);
       this.container.destroy();
     }
   }
@@ -1566,8 +1579,14 @@ export function confirm(scene: Phaser.Scene, message: string, onDone: (yes: bool
   const box = scene.add.container(px, py);
   c.add(box);
   box.add(panel(scene, 0, 0, w, h, 'raised'));
-  box.add(text(scene, 12, 8, 'CONFIRM', { size: 's', color: COLORS.accent }));
-  box.add(scene.add.rectangle(12, 18, w - 24, 1, COLORS.accent, 0.55).setOrigin(0));
+  // title row in the section-label style of the panels: diamond, caption, rule with an end tick
+  const deco = scene.add.graphics();
+  deco.fillStyle(COLORS.accent, 1).fillRect(13, 11, 3, 1).fillRect(14, 10, 1, 3);
+  const cap = text(scene, 19, 8, 'CONFIRM', { size: 's', color: COLORS.accent });
+  const rx = 19 + cap.width + 4;
+  deco.fillStyle(COLORS.accent, 0.35).fillRect(rx, 11, w - 12 - rx, 1);
+  deco.fillStyle(COLORS.accent, 0.8).fillRect(w - 14, 10, 2, 3);
+  box.add([deco, cap]);
   const t = text(scene, Math.round(w / 2), 25, msg, { size: 's', color: COLORS.text, originX: 0.5, align: 'center' });
   t.setLineSpacing(3);
   box.add(t);

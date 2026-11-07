@@ -237,7 +237,7 @@ export class BootScene extends Phaser.Scene {
       newGame('normal');
     }
     const save = getSave();
-    if (DEBUG.credits !== null) save.credits = DEBUG.credits;
+    if (DEBUG.credits !== null) save.credits = Math.max(0, Math.floor(DEBUG.credits));
     if (DEBUG.max) {
       save.credits = Math.max(save.credits, 999999);
       save.unlockedLevels = levelOrder();

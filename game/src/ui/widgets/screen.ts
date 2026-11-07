@@ -135,6 +135,8 @@ export class CreditsReadout {
 // ------------------------------------------------------------------------- header strip
 
 const HH = LAYOUT.headerH;
+/** Credits plate width: room for "999,999" + icon with 7 px padding. */
+const CREDITS_PLATE_W = 84;
 
 /** Header plate (w x HH+3): gunmetal gradient, plating hatch, dark seam + teal neon base line with glow. */
 function headerTexture(scene: Phaser.Scene, w: number): string {
@@ -229,10 +231,15 @@ export function screenHeader(scene: Phaser.Scene, title: string, opts: ScreenHea
   c.add(scene.add.rectangle(x, 6, 3, 13, COLORS.accent).setOrigin(0));
   c.add(scene.add.rectangle(x + 3, 6, 1, 13, COLORS.accentLight, 0.6).setOrigin(0));
   x += 8;
+  // the icon (same one as the screen's entry in the hangar menu) is dropped when the title would
+  // otherwise crowd the right-hand block (credits plate or status text)
+  const rightW = opts.credits !== undefined && opts.credits !== null ? CREDITS_PLATE_W + 4 : kit.measure(scene, opts.right ?? '', 's') + 8;
   if (opts.icon && scene.textures.exists(opts.icon)) {
-    const img = scene.add.image(x, 13, opts.icon).setOrigin(0, 0.5);
-    c.add(img);
-    x += img.width + 5;
+    const iw = scene.textures.getFrame(opts.icon).width + 5;
+    if (x + iw + kit.measure(scene, title, 'l') <= width - rightW - 8) {
+      c.add(scene.add.image(x, 13, opts.icon).setOrigin(0, 0.5));
+      x += iw;
+    }
   }
   const t = kit.text(scene, x, 5, title, { size: 'l' });
   c.add(t);
@@ -250,7 +257,7 @@ export function screenHeader(scene: Phaser.Scene, title: string, opts: ScreenHea
   let credits: CreditsReadout | null = null;
   let right: Phaser.GameObjects.BitmapText | null = null;
   if (opts.credits !== undefined && opts.credits !== null) {
-    const pw = 92;
+    const pw = CREDITS_PLATE_W;
     c.add(kit.panel(scene, width - pw - 4, 3, pw, 19, 'inset'));
     credits = new CreditsReadout(scene, width - 11, 13, opts.credits, { size: 'm' });
     c.add(credits.container);

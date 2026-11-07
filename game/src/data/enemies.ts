@@ -94,7 +94,7 @@ const KESSRA: EnemyDef[] = [
   mk(K, 'k_bunker', 'Mesa Bunker', 'gr_bunker', 'steel', { hp: 160, speed: 0, move: 'ground', fire: 'ring8', rate: 0.35, bs: 75, b: 'eb_orb', c: 'violet', drops: [{ kind: 'armor', chance: 0.25 }] }),
   mk(K, 'k_relay', 'Relay Dish', 'gr_radar', 'crimson', { hp: 6, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
   mk(K, 'k_loot', 'Prospector Disc', 'en_saucer', 'crimson', { hp: 6, speed: 70, move: 'strafe', drops: LOOT_POWER_ARMOR, loot: true }),
-  mk(K, 'k_frigate', 'Sirocco Frigate', 'en_frigate', 'cobalt', { hp: 800, speed: 26, move: 'hover', fire: 'spread5', rate: 0.55, bs: 90, b: 'eb_orb', c: 'pink', credits: 220, drops: MIDBOSS_DROP }),
+  mk(K, 'k_frigate', 'Sirocco Frigate', 'en_frigate', 'cobalt', { hp: 750, speed: 26, move: 'hover', fire: 'spread5', rate: 0.55, bs: 90, b: 'eb_orb', c: 'pink', credits: 220, drops: MIDBOSS_DROP }),
 ];
 
 // ------------------------------------------------------------ 2. VERDANCE (jungle) emerald / toxic
@@ -166,7 +166,7 @@ const CINDER: EnemyDef[] = [
   mk(C, 'c_boulder', 'Slag Boulder', 'hz_rock_m', 'steel', { hp: 60, speed: 50, move: 'drift', contact: 14 }),
   mk(C, 'c_relay', 'Ash Relay', 'gr_radar', 'toxic', { hp: 11, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
   mk(C, 'c_loot', 'Ember Disc', 'en_saucer', 'cobalt', { hp: 13, speed: 75, move: 'strafe', drops: LOOT_POWER_ARMOR, loot: true }),
-  mk(C, 'c_carrier', 'Furnace Carrier', 'en_carrier', 'cobalt', { hp: 2700, speed: 22, move: 'hover', fire: 'ring16', rate: 0.4, bs: 95, b: 'eb_ring', c: 'white', credits: 820, drops: MIDBOSS_DROP }),
+  mk(C, 'c_carrier', 'Furnace Carrier', 'en_carrier', 'cobalt', { hp: 2200, speed: 22, move: 'hover', fire: 'ring16', rate: 0.4, bs: 95, b: 'eb_ring', c: 'white', credits: 820, drops: MIDBOSS_DROP }),
 ];
 
 // ------------------------------------------------------------ 6. GLACIA (ice) steel / cobalt
@@ -185,7 +185,7 @@ const GLACIA: EnemyDef[] = [
   mk(G, 'g_battery', 'Icecap Battery', 'gr_twin', 'violet', { hp: 84, speed: 0, move: 'ground', fire: 'spread5', rate: 0.4, bs: 115, b: 'eb_orb', c: 'pink' }),
   mk(G, 'g_relay', 'Frost Relay', 'gr_radar', 'crimson', { hp: 12, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
   mk(G, 'g_loot', 'Aurora Disc', 'en_saucer', 'amber', { hp: 13, speed: 75, move: 'strafe', drops: LOOT_POWER_SHIELD, loot: true }),
-  mk(G, 'g_frigate', 'Blizzard Frigate', 'en_frigate', 'crimson', { hp: 5800, speed: 24, move: 'hover', fire: 'spread5', rate: 0.7, bs: 115, b: 'eb_needle', c: 'red', credits: 1100, drops: MIDBOSS_DROP }),
+  mk(G, 'g_frigate', 'Blizzard Frigate', 'en_frigate', 'crimson', { hp: 5300, speed: 24, move: 'hover', fire: 'spread5', rate: 0.7, bs: 115, b: 'eb_needle', c: 'red', credits: 1100, drops: MIDBOSS_DROP }),
 ];
 
 // ------------------------------------------------------------ 7. THE RIFT (space) violet / steel
@@ -205,7 +205,7 @@ const RIFT: EnemyDef[] = [
   mk(R, 'r_monolith', 'Rift Monolith', 'hz_rock_l', 'toxic', { hp: 280, speed: 28, move: 'drift', contact: 24, drops: [{ kind: 'armor', chance: 0.3 }] }),
   mk(R, 'r_courier', 'Ghost Courier', 'en_saucer', 'amber', { hp: 13, speed: 75, move: 'strafe', drops: INTEL_DROP, loot: true }),
   mk(R, 'r_loot', 'Salvage Disc', 'en_saucer', 'steel', { hp: 13, speed: 75, move: 'strafe', drops: LOOT_POWER_SHIELD, loot: true }),
-  mk(R, 'r_carrier', 'Lamprey Carrier', 'en_carrier', 'amber', { hp: 7450, speed: 22, move: 'hover', fire: 'flak', rate: 0.6, bs: 95, b: 'eb_orb', c: 'orange', credits: 1500, drops: MIDBOSS_DROP }),
+  mk(R, 'r_carrier', 'Lamprey Carrier', 'en_carrier', 'amber', { hp: 6300, speed: 22, move: 'hover', fire: 'flak', rate: 0.6, bs: 95, b: 'eb_orb', c: 'orange', credits: 1500, drops: MIDBOSS_DROP }),
 ];
 
 // ------------------------------------------------------------ 8. AXIOM CITADEL (techno) crimson / toxic / violet
@@ -227,7 +227,7 @@ const AXIOM: EnemyDef[] = [
   mk(A, 'a_silo', 'Purge Silo', 'gr_silo', 'violet', { hp: 90, speed: 0, move: 'ground', fire: 'missile', rate: 0.4, bs: 90, b: 'eb_missile', c: 'orange' }),
   mk(A, 'a_relay', 'Uplink Node', 'gr_radar', 'toxic', { hp: 14, speed: 0, move: 'ground', drops: INTEL_DROP, loot: true }),
   mk(A, 'a_loot', 'Scavenger Disc', 'en_saucer', 'crimson', { hp: 14, speed: 80, move: 'strafe', drops: LOOT_POWER_ARMOR, loot: true }),
-  mk(A, 'a_frigate', 'Prefect Frigate', 'en_frigate', 'crimson', { hp: 8900, speed: 24, move: 'hover', fire: 'spiral', rate: 6, bs: 110, b: 'eb_dot', c: 'pink', credits: 2000, drops: MIDBOSS_DROP }),
+  mk(A, 'a_frigate', 'Prefect Frigate', 'en_frigate', 'crimson', { hp: 10500, speed: 24, move: 'hover', fire: 'spiral', rate: 6, bs: 110, b: 'eb_dot', c: 'pink', credits: 2000, drops: MIDBOSS_DROP }),
 ];
 
 /** Every enemy type, in campaign order (planet by planet). */
