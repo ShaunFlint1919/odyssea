@@ -135,8 +135,11 @@ export class Chunk {
   readonly px: Int32Array;     // packed ABGR pixels of img (w x CH)
   readonly doodads: DoodadPlacement[] = list<DoodadPlacement>();
 
-  /** `img` (w x CH) is reused between chunks of one generator: it is only copied to a canvas. */
-  constructor(readonly w: number, readonly index: number, readonly seed: number, img?: ImageData) {
+  /**
+   * `img` (w x CH) is reused between chunks of one generator: it is only copied to a canvas.
+   * `force` = JIT warm-up chunk: painters make every optional feature appear (see ensureSite).
+   */
+  constructor(readonly w: number, readonly index: number, readonly seed: number, img?: ImageData, readonly force = false) {
     this.S = w + 2 * MARGIN;
     this.N = this.S * (CH + 2 * MARGIN);
     this.wy0 = (index + 1) * CH - 1;
@@ -369,6 +372,11 @@ export function sites(c: Chunk, band: number, salt: number, prob: number, reach:
   return out;
 }
 
+/** Warm-up chunks only: guarantees a site in the middle of the chunk so its code path runs. */
+export function ensureSite(c: Chunk, list: Site[]): void {
+  if (c.force && list.length === 0) list.push(new Site(c.w * 0.5, c.wy0 - CH * 0.5, CH * 0.5, 0.37, 0.61, 0.5, 0.45));
+}
+
 /**
  * Visits one jittered candidate point per world cell (size `cell`) whose centre lies inside the
  * chunk. Deterministic across chunks (each candidate belongs to exactly one chunk).
@@ -438,7 +446,7 @@ export class Meander {
       const wy = c.wy0 - (rr - c.M);
       xc[rr] = this.xc(wy);
       slope[rr] = (this.xc(wy + 1) - this.xc(wy - 1)) * 0.5;
-      hw[rr] = this.hw(wy);
+      hw[rr] = c.force ? Math.max(this.hw(wy), this.o.width) : this.hw(wy);
     }
     return { xc, hw, slope };
   }

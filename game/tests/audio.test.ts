@@ -270,7 +270,7 @@ describe('sfx definitions', () => {
       expect(d.gap).toBeGreaterThan(0);
       expect(d.max).toBeGreaterThanOrEqual(1);
       expect(d.v).toBeGreaterThan(0);
-      expect(d.v).toBeLessThanOrEqual(0.6);
+      expect(d.v).toBeLessThanOrEqual(1);
     }
     for (const k of ['shot_pulse', 'shot_scatter', 'shot_gatling', 'shot_laser', 'shot_missile', 'shot_wave', 'shot_heavy', 'shot_rear', 'shot_sidekick'] as SfxKey[]) {
       expect(SFX_DEFS[k].gap).toBeGreaterThanOrEqual(0.045);

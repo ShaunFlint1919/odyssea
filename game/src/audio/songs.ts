@@ -16,6 +16,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ TITLE — heroic, D major
   title: {
     name: 'Corsair Rising',
+    gain: 1.38,
     bpm: 132,
     inst: {
       lead: { w: 'pulse25', v: 0.15, a: 0.004, d: 0.18, s: 0.65, r: 0.08, gate: 0.92, vib: [5.5, 16, 0.16], det: 7, echo: 0.18 },
@@ -66,6 +67,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ MAP — spacey, calm, E lydian
   map: {
     name: 'Starchart',
+    gain: 0.95,
     bpm: 92,
     inst: {
       lead: { w: 'triangle', v: 0.2, a: 0.05, d: 0.4, s: 0.7, r: 0.3, gate: 0.95, vib: [4.5, 14, 0.3], det: 5, echo: 0.4 },
@@ -101,6 +103,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ HANGAR — cool groove, A dorian
   hangar: {
     name: 'Dry Dock Groove',
+    gain: 1.6,
     bpm: 104,
     swing: 0.14,
     inst: {
@@ -142,6 +145,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ BOSS — intense, D harmonic minor
   boss: {
     name: 'Dread Engine',
+    gain: 0.94,
     bpm: 168,
     bassBase: 36,
     inst: {
@@ -197,6 +201,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ VICTORY — fanfare then calm, C major
   victory: {
     name: 'Homeward Light',
+    gain: 1.1,
     bpm: 116,
     inst: {
       lead: { w: 'pulse25', v: 0.15, a: 0.01, d: 0.3, s: 0.7, r: 0.2, gate: 0.95, vib: [5, 14, 0.2], echo: 0.25 },
@@ -240,6 +245,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ DESERT — E phrygian dominant, driving
   desert: {
     name: 'Dune Raiders',
+    gain: 1.02,
     bpm: 140,
     inst: {
       lead: { w: 'pulse25', v: 0.14, a: 0.003, d: 0.15, s: 0.6, r: 0.05, gate: 0.9, vib: [6, 30, 0.14], slide: 0.025, echo: 0.15 },
@@ -293,6 +299,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ JUNGLE — G minor, percussive
   jungle: {
     name: 'Canopy Drums',
+    gain: 1.0,
     bpm: 132,
     inst: {
       lead: { w: 'soft', v: 0.2, a: 0.002, d: 0.12, s: 0.3, r: 0.08, gate: 0.6, echo: 0.25 },
@@ -337,6 +344,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ OCEAN — B minor, flowing 12/8
   ocean: {
     name: 'Tidewater',
+    gain: 0.86,
     bpm: 124,
     beat: 3,
     bar: 12,
@@ -378,6 +386,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ CAVERN — C minor, dark, echoing
   cavern: {
     name: 'Hollow Echoes',
+    gain: 1.07,
     bpm: 122,
     bassBase: 36,
     inst: {
@@ -419,6 +428,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ SPACE — ethereal arps, F lydian
   space: {
     name: 'Nebula Drift',
+    gain: 0.83,
     bpm: 126,
     inst: {
       lead: { w: 'triangle', v: 0.2, a: 0.06, d: 0.4, s: 0.8, r: 0.3, gate: 0.95, vib: [4.5, 20, 0.2], det: 6, echo: 0.4 },
@@ -455,6 +465,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ LAVA — E minor power chords, aggressive
   lava: {
     name: 'Magma Run',
+    gain: 0.93,
     bpm: 152,
     bassBase: 33,
     inst: {
@@ -496,6 +507,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ ICE — B minor, crystalline
   ice: {
     name: 'Crystal Veins',
+    gain: 1.23,
     bpm: 138,
     inst: {
       lead: { w: 'pulse12', v: 0.14, a: 0.003, d: 0.2, s: 0.55, r: 0.1, gate: 0.85, vib: [6, 14, 0.15], echo: 0.3 },
@@ -537,6 +549,7 @@ export const SONGS: Record<MusicTrack, SongDef> = {
   // ------------------------------------------------------------------ TECHNO — F minor, industrial, fast
   techno: {
     name: 'Citadel Protocol',
+    gain: 1.27,
     bpm: 156,
     bassBase: 36,
     inst: {

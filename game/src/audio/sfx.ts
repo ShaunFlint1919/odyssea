@@ -36,7 +36,7 @@ function boom(b: Build, at: number, size: number, v: number): void {
 export const SFX_DEFS: Record<SfxKey, SfxDef> = {
   // ------------------------------------------------------------------ player weapons
   shot_pulse: {
-    gap: 0.055, max: 4, prio: 0, v: 0.3,
+    gap: 0.055, max: 4, prio: 0, v: 0.47,
     build: (b) => {
       tone(b, { w: 'pulse25', f: 1500, to: 380, dur: 0.085, v: 0.5, a: 0.001, flt: { type: 'lowpass', f: 6500, to: 1800 } });
       tone(b, { w: 'square', f: 750, to: 190, dur: 0.06, v: 0.18, a: 0.001 });
@@ -44,7 +44,7 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   shot_scatter: {
-    gap: 0.07, max: 3, prio: 0, v: 0.28,
+    gap: 0.07, max: 3, prio: 0, v: 0.58,
     build: (b) => {
       tone(b, { w: 'pulse12', f: 1100, to: 280, dur: 0.1, v: 0.45, a: 0.001 });
       tone(b, { w: 'pulse25', f: 1650, to: 420, dur: 0.08, v: 0.28, a: 0.001, det: 14 });
@@ -52,14 +52,14 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   shot_gatling: {
-    gap: 0.045, max: 4, prio: 0, v: 0.24,
+    gap: 0.045, max: 4, prio: 0, v: 0.5,
     build: (b) => {
       tone(b, { w: 'square', f: 980, to: 520, dur: 0.036, v: 0.4, a: 0.0008 });
       noise(b, { dur: 0.022, v: 0.3, flt: { type: 'highpass', f: 4500 } });
     },
   },
   shot_laser: {
-    gap: 0.07, max: 3, prio: 0, v: 0.28,
+    gap: 0.07, max: 3, prio: 0, v: 0.68,
     build: (b) => {
       tone(b, { w: 'sawtooth', f: 2400, to: 1300, dur: 0.16, v: 0.32, a: 0.002, vib: [38, 80], flt: { type: 'bandpass', f: 3200, to: 1500, q: 2 } });
       tone(b, { w: 'pulse12', f: 1200, to: 650, dur: 0.14, v: 0.25, a: 0.002 });
@@ -67,7 +67,7 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   shot_missile: {
-    gap: 0.08, max: 3, prio: 0, v: 0.3,
+    gap: 0.08, max: 3, prio: 0, v: 0.7,
     build: (b) => {
       noise(b, { dur: 0.26, v: 0.45, a: 0.02, flt: { type: 'bandpass', f: 700, to: 3200, q: 1.6 } });
       tone(b, { w: 'square', f: 150, to: 85, dur: 0.09, v: 0.3, a: 0.001, flt: { type: 'lowpass', f: 900 } });
@@ -75,7 +75,7 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   shot_wave: {
-    gap: 0.06, max: 3, prio: 0, v: 0.3,
+    gap: 0.06, max: 3, prio: 0, v: 0.46,
     build: (b) => {
       tone(b, { w: 'sine', f: 620, to: 880, dur: 0.13, v: 0.45, vib: [22, 160] });
       tone(b, { w: 'triangle', f: 930, to: 1320, dur: 0.11, v: 0.3, vib: [22, 160] });
@@ -91,14 +91,14 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   shot_rear: {
-    gap: 0.07, max: 3, prio: 0, v: 0.22,
+    gap: 0.07, max: 3, prio: 0, v: 0.55,
     build: (b) => {
       tone(b, { w: 'pulse25', f: 720, to: 240, dur: 0.065, v: 0.45, a: 0.001, flt: { type: 'lowpass', f: 3200 } });
       noise(b, { dur: 0.015, v: 0.18, flt: { type: 'highpass', f: 3000 } });
     },
   },
   shot_sidekick: {
-    gap: 0.065, max: 3, prio: 0, v: 0.17,
+    gap: 0.065, max: 3, prio: 0, v: 0.47,
     build: (b) => {
       tone(b, { w: 'pulse12', f: 1900, to: 950, dur: 0.045, v: 0.4, a: 0.001 });
       tone(b, { w: 'triangle', f: 950, to: 475, dur: 0.04, v: 0.25 });
@@ -106,14 +106,14 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
   },
   // ------------------------------------------------------------------ enemy weapons
   enemy_shot: {
-    gap: 0.06, max: 4, prio: 0, v: 0.2,
+    gap: 0.06, max: 4, prio: 0, v: 0.32,
     build: (b) => {
       tone(b, { w: 'triangle', f: 540, to: 250, dur: 0.09, v: 0.5, a: 0.002 });
       tone(b, { w: 'pulse25', f: 270, to: 125, dur: 0.07, v: 0.22, a: 0.002, flt: { type: 'lowpass', f: 2000 } });
     },
   },
   enemy_laser: {
-    gap: 0.15, max: 2, prio: 1, v: 0.3,
+    gap: 0.15, max: 2, prio: 1, v: 0.33,
     build: (b) => {
       tone(b, { w: 'sawtooth', f: 110, to: 116, dur: 0.6, v: 0.35, a: 0.05, hold: 0.3, flt: { type: 'lowpass', f: 300, to: 3200, q: 6, sw: 0.45 } });
       tone(b, { w: 'square', f: 220, to: 233, dur: 0.55, v: 0.12, a: 0.08, vib: [14, 40] });
@@ -122,14 +122,14 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
   },
   // ------------------------------------------------------------------ impacts
   hit: {
-    gap: 0.035, max: 4, prio: 0, v: 0.2,
+    gap: 0.035, max: 4, prio: 0, v: 0.34,
     build: (b) => {
       fm(b, { f: 2300, ratio: 1.41, i0: 2.5, i1: 0.1, dur: 0.05, v: 0.4 });
       noise(b, { dur: 0.02, v: 0.3, flt: { type: 'highpass', f: 5000 } });
     },
   },
   hit_armor: {
-    gap: 0.08, max: 2, prio: 2, v: 0.45, crunch: true,
+    gap: 0.08, max: 2, prio: 2, v: 0.7, crunch: true,
     build: (b) => {
       noise(b, { n: 'lfsr', rate: 0.7, dur: 0.18, v: 0.55, flt: { type: 'bandpass', f: 1400, to: 500, q: 1.1 } });
       tone(b, { w: 'square', f: 200, to: 55, dur: 0.16, v: 0.4, a: 0.001, flt: { type: 'lowpass', f: 1500 } });
@@ -137,7 +137,7 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   shield_hit: {
-    gap: 0.07, max: 2, prio: 2, v: 0.4,
+    gap: 0.07, max: 2, prio: 2, v: 0.62,
     build: (b) => {
       tone(b, { w: 'sine', f: 240, to: 110, dur: 0.3, v: 0.6, a: 0.004 });
       tone(b, { w: 'triangle', f: 480, to: 220, dur: 0.22, v: 0.25, vib: [9, 60] });
@@ -145,7 +145,7 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   shield_down: {
-    gap: 0.3, max: 1, prio: 3, v: 0.42,
+    gap: 0.3, max: 1, prio: 3, v: 0.72,
     build: (b) => {
       tone(b, { w: 'sawtooth', f: 640, to: 60, dur: 0.6, v: 0.4, a: 0.002, vib: [18, 90], flt: { type: 'lowpass', f: 3200, to: 220, q: 3 } });
       tone(b, { w: 'pulse25', f: 1280, to: 120, dur: 0.45, v: 0.15, a: 0.002 });
@@ -154,18 +154,18 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
   },
   // ------------------------------------------------------------------ explosions
   explode_s: {
-    gap: 0.04, max: 5, prio: 1, v: 0.38, crunch: true,
+    gap: 0.04, max: 5, prio: 1, v: 0.66, crunch: true,
     build: (b) => boom(b, 0, 1, 1),
   },
   explode_m: {
-    gap: 0.06, max: 4, prio: 1, v: 0.42, crunch: true,
+    gap: 0.06, max: 4, prio: 1, v: 0.68, crunch: true,
     build: (b) => {
       boom(b, 0, 2, 1);
       tone(b, { w: 'square', f: 95, to: 32, dur: 0.3, v: 0.22, a: 0.001, flt: { type: 'lowpass', f: 700, to: 200 } });
     },
   },
   explode_l: {
-    gap: 0.11, max: 3, prio: 2, v: 0.46, crunch: true,
+    gap: 0.11, max: 3, prio: 2, v: 0.61, crunch: true,
     build: (b) => {
       boom(b, 0, 3.6, 1);
       noise(b, { at: 0.09, dur: 0.3, v: 0.22, flt: { type: 'highpass', f: 2500 } });
@@ -174,7 +174,7 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   explode_boss: {
-    gap: 0.4, max: 2, prio: 3, v: 0.5, crunch: true, vary: 0.02,
+    gap: 0.4, max: 2, prio: 3, v: 0.63, crunch: true, vary: 0.02,
     build: (b) => {
       boom(b, 0, 3, 1);
       boom(b, 0.32, 3.5, 0.85);
@@ -186,28 +186,28 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
   },
   // ------------------------------------------------------------------ pickups
   pickup_credit: {
-    gap: 0.035, max: 3, prio: 1, v: 0.22, vary: 0,
+    gap: 0.035, max: 3, prio: 1, v: 0.44, vary: 0,
     build: (b) => {
       seq(b, { w: 'pulse12', notes: [m(88), m(95)], step: 0.034, v: 0.42, nd: 0.03, last: 0.12 });
       tone(b, { w: 'sine', at: 0.034, f: m(107), dur: 0.08, v: 0.1 });
     },
   },
   pickup_power: {
-    gap: 0.15, max: 1, prio: 2, v: 0.32, vary: 0,
+    gap: 0.15, max: 1, prio: 2, v: 0.6, vary: 0,
     build: (b) => {
       seq(b, { w: 'square', notes: [m(72), m(79), m(84), m(88), m(91), m(96)], step: 0.045, v: 0.32, nd: 0.04, last: 0.22, vib: [12, 30] });
       tone(b, { w: 'sine', f: 400, to: 1600, dur: 0.3, v: 0.22, a: 0.02 });
     },
   },
   pickup_repair: {
-    gap: 0.15, max: 1, prio: 2, v: 0.32, vary: 0,
+    gap: 0.15, max: 1, prio: 2, v: 0.62, vary: 0,
     build: (b) => {
       tone(b, { w: 'triangle', f: 330, to: 1320, dur: 0.38, v: 0.45, a: 0.01, vib: [11, 50] });
       seq(b, { w: 'pulse25', notes: [m(72), m(76), m(79), m(84)], step: 0.06, at: 0.16, v: 0.25, nd: 0.05, last: 0.2 });
     },
   },
   pickup_intel: {
-    gap: 0.3, max: 1, prio: 2, v: 0.3, vary: 0,
+    gap: 0.3, max: 1, prio: 2, v: 0.55, vary: 0,
     build: (b) => {
       seq(b, { w: 'pulse12', notes: [m(91), m(96), m(88), m(100), m(93), m(98), m(95), m(103)], step: 0.032, v: 0.3, nd: 0.026, last: 0.03 });
       seq(b, { w: 'pulse25', notes: [m(84), m(91)], step: 0.09, at: 0.3, v: 0.35, nd: 0.08, last: 0.25 });
@@ -215,19 +215,19 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
   },
   // ------------------------------------------------------------------ UI
   ui_move: {
-    gap: 0.03, max: 2, prio: 2, v: 0.2, vary: 0.01,
+    gap: 0.03, max: 2, prio: 2, v: 0.47, vary: 0.01,
     build: (b) => tone(b, { w: 'pulse25', f: 1320, dur: 0.035, v: 0.4, a: 0.001 }),
   },
   ui_select: {
-    gap: 0.06, max: 2, prio: 2, v: 0.24, vary: 0.01,
+    gap: 0.06, max: 2, prio: 2, v: 0.43, vary: 0.01,
     build: (b) => seq(b, { w: 'pulse25', notes: [880, 1320], step: 0.045, v: 0.4, nd: 0.04, last: 0.08 }),
   },
   ui_back: {
-    gap: 0.06, max: 2, prio: 2, v: 0.24, vary: 0.01,
+    gap: 0.06, max: 2, prio: 2, v: 0.43, vary: 0.01,
     build: (b) => seq(b, { w: 'pulse25', notes: [1175, 784], step: 0.045, v: 0.4, nd: 0.04, last: 0.08 }),
   },
   ui_buy: {
-    gap: 0.1, max: 2, prio: 2, v: 0.3, vary: 0,
+    gap: 0.1, max: 2, prio: 2, v: 0.47, vary: 0,
     build: (b) => {
       seq(b, { w: 'pulse12', notes: [m(84), m(88), m(91), m(96)], step: 0.04, v: 0.3, nd: 0.035, last: 0.06 });
       fm(b, { f: m(96), ratio: 3.5, i0: 1.5, i1: 0.05, at: 0.15, dur: 0.45, v: 0.32 });
@@ -235,14 +235,14 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   ui_sell: {
-    gap: 0.1, max: 2, prio: 2, v: 0.3, vary: 0,
+    gap: 0.1, max: 2, prio: 2, v: 0.53, vary: 0,
     build: (b) => {
       seq(b, { w: 'pulse12', notes: [m(91), m(88), m(84)], step: 0.05, v: 0.3, nd: 0.045, last: 0.08 });
       fm(b, { f: m(88), ratio: 3.5, i0: 1.2, i1: 0.05, at: 0.12, dur: 0.35, v: 0.28 });
     },
   },
   ui_error: {
-    gap: 0.12, max: 1, prio: 2, v: 0.3, vary: 0,
+    gap: 0.12, max: 1, prio: 2, v: 0.42, vary: 0,
     build: (b) => {
       seq(b, { w: 'square', notes: [139, 139], step: 0.11, v: 0.35, nd: 0.08, last: 0.09, flt: { type: 'lowpass', f: 1400 } });
       seq(b, { w: 'square', notes: [147, 147], step: 0.11, v: 0.25, nd: 0.08, last: 0.09, flt: { type: 'lowpass', f: 1400 } });
@@ -250,7 +250,7 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
   },
   // ------------------------------------------------------------------ events & jingles
   boss_alarm: {
-    gap: 1.0, max: 1, prio: 3, v: 0.36, vary: 0,
+    gap: 1.0, max: 1, prio: 3, v: 0.45, vary: 0,
     build: (b) => {
       for (let i = 0; i < 4; i++) {
         tone(b, { w: 'square', at: i * 0.36, f: 520, to: 1040, sw: 0.3, dur: 0.34, v: 0.3, a: 0.01, hold: 0.24, flt: { type: 'lowpass', f: 2800 } });
@@ -259,7 +259,7 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   warning: {
-    gap: 0.6, max: 1, prio: 3, v: 0.3, vary: 0,
+    gap: 0.6, max: 1, prio: 3, v: 0.53, vary: 0,
     build: (b) => {
       seq(b, { w: 'square', notes: [1046, 1046, 1046], step: 0.16, v: 0.35, nd: 0.1, last: 0.1, flt: { type: 'lowpass', f: 4000 } });
       seq(b, { w: 'pulse25', notes: [523, 523, 523], step: 0.16, v: 0.2, nd: 0.1, last: 0.1 });
@@ -284,7 +284,7 @@ export const SFX_DEFS: Record<SfxKey, SfxDef> = {
     },
   },
   rear_toggle: {
-    gap: 0.1, max: 1, prio: 2, v: 0.28, vary: 0.02,
+    gap: 0.1, max: 1, prio: 2, v: 0.45, vary: 0.02,
     build: (b) => {
       noise(b, { dur: 0.012, v: 0.4, flt: { type: 'bandpass', f: 3200, q: 2 } });
       tone(b, { w: 'pulse25', f: 440, to: 880, dur: 0.05, v: 0.35, a: 0.001 });

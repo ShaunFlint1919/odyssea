@@ -235,7 +235,7 @@ export class DigitRow {
     }
   }
 
-  setTint(c: number): void { for (const img of this.imgs) img.setTint(c); }
+  setTint(c: number): void { for (let i = 0; i < this.imgs.length; i++) this.imgs[i].setTint(c); }
 }
 
 /** Colours for an LCD string. */

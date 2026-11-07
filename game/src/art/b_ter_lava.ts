@@ -4,7 +4,7 @@
 import { valueNoise } from './noise';
 import {
   CH, Chunk, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, scratch, scratchU8, sites, Site, Voronoi,
-  Meander, mixPacked, pack,
+  Meander, mixPacked, pack, ensureSite,
 } from './b_ter_core';
 
 const BASALT = rampN(7, 0x0b080a, 0x130e11, 0x1b1418, 0x241b1f, 0x2e2327, 0x392b2f, 0x463438);
@@ -30,6 +30,7 @@ export function paintLava(c: Chunk): void {
   }, valueNoise);
   const river = flow.rows(c);
   const pools = sites(c, 430, 1201, 0.6, 60, 40);
+  ensureSite(c, pools);
   // lava distance field (<0 inside lava, px)
   const L = scratch(c.N);
   lavaField(c, L, river.xc, river.hw, river.slope, pools, MID, DET);

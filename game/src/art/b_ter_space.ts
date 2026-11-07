@@ -4,7 +4,7 @@
 import { fbm, hash2, valueNoise } from './noise';
 import {
   CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, pack, scratch, scratchU8, sites,
-  Site, Voronoi,
+  Site, Voronoi, ensureSite,
 } from './b_ter_core';
 
 const NEB_V = rampN(8, 0x040309, 0x08060f, 0x0d0918, 0x130c22, 0x1a102c, 0x221436, 0x2b1840, 0x351d4a);
@@ -76,6 +76,7 @@ export function paintSpace(c: Chunk): void {
   const DET = lattice(c, 4, s + 5, 12);
   const G = grain(c, s + 6, 0);
   const plats = sites(c, 640, 1001, 0.55, 130, 80);
+  ensureSite(c, plats);
   const cls = scratchU8(W * CH);
   paintVoid(c, cls, NEB, HUE, LANE, MID, DET);
   paintStars(c);

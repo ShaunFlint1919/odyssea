@@ -5,7 +5,7 @@
 import { fbm, hash2, valueNoise } from './noise';
 import {
   CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, scratch, scratchU8, sites, Site,
-  Voronoi, mixPacked, pack,
+  Voronoi, mixPacked, ensureSite,
 } from './b_ter_core';
 
 const WALL = rampN(8, 0x150f0e, 0x221814, 0x30221b, 0x3e2c22, 0x4e382a, 0x5e4533, 0x6e533d, 0x806248);
@@ -36,6 +36,8 @@ export function paintCavern(c: Chunk): void {
   const G = grain(c, s + 9, 0);
   const crystals = sites(c, 300, 901, 0.75, 60, 40);
   const nests = sites(c, 420, 951, 0.6, 70, 50);
+  ensureSite(c, crystals);
+  ensureSite(c, nests);
 
   // --- solid rock field (>0 = raised rock): side walls + rare central pillars
   const R = scratch(c.N);

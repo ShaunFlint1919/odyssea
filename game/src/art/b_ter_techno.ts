@@ -56,7 +56,7 @@ class Trenches {
     this.x1 = new Int32Array(n);
     for (let j = 0; j < n; j++) {
       const k = this.k0 + j;
-      if (k < 0 || hash2(k, 3, seed) > 0.7) { this.x0[j] = -1; continue; }
+      if (k < 0 || (!c.force && hash2(k, 3, seed) > 0.7)) { this.x0[j] = -1; continue; }
       const width = 32 + Math.floor(hash2(k, 4, seed) * 4) * 4;
       const cx = 34 + Math.floor((hash2(k, 5, seed) * (c.w - 68)) / 4) * 4;
       this.x0[j] = cx - (width >> 1);
@@ -253,7 +253,7 @@ function paintPipes(c: Chunk, cls: Uint8Array, G: Float32Array): void {
   for (let r = 0; r < CH; r++) {
     const wy = c.wy0 - r;
     const band = Math.floor(wy / PBAND);
-    if (hash2(band, 7, s + 201) > 0.5) continue;
+    if (!c.force && hash2(band, 7, s + 201) > 0.5) continue;
     const thick = 8 + Math.floor(hash2(band, 9, s + 201) * 2) * 2;
     const twin = hash2(band, 13, s + 201) < 0.6;
     const span = twin ? thick * 2 + 2 : thick;

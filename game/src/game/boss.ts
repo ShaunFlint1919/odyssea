@@ -358,7 +358,8 @@ export class Boss {
     w.services.shake(0.005, 200);
     w.services.hitStop(45);
     w.services.haptic('medium');
-    const bonus = Math.round((this.def!.credits * 0.05 + p.maxHp) * w.diff.credits);
+    // bonus = 1.5x the boss's own credits-per-hp for the part's hp (+ a flat 20)
+    const bonus = Math.round((this.def!.credits * (p.maxHp / this.maxHp) * 1.5 + 20) * w.diff.credits);
     w.pickups.spawnCredits(p.x, p.y, bonus, 80);
     w.stats.score += Math.round(this.def!.score * 0.05);
     w.fx.text(p.x, p.y - 12, 'PART DESTROYED', COLORS.gold, 900);

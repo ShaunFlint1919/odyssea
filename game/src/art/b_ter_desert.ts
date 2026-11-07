@@ -5,7 +5,7 @@
 import { fbm, hash2, valueNoise } from './noise';
 import {
   CH, Chunk, field, lattice, grain, sites, eachCell, Meander, farFromDoodads, rampN, tone, bayer4, lin, shade,
-  scratchU8, list, Site,
+  scratchU8, list, ensureSite, Site,
 } from './b_ter_core';
 
 const ANG = 0.45, CA = Math.cos(ANG), SA = Math.sin(ANG);
@@ -409,6 +409,8 @@ export function paintDesert(c: Chunk): void {
   const river = wadi.rows(c);
   const oases = sites(c, 560, 301, 0.6, 110, 60);
   const ruinSites = sites(c, 760, 401, 0.5, 140, 60);
+  ensureSite(c, oases);
+  ensureSite(c, ruinSites);
   const ruins = list<Ruin>();
   for (let q = 0; q < ruinSites.length; q++) {
     const R = makeRuin(ruinSites[q], c, wadi);

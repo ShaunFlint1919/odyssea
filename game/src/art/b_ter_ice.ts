@@ -4,6 +4,7 @@
 import { fbm, valueNoise } from './noise';
 import {
   CH, Chunk, field, lattice, grain, eachCell, farFromDoodads, rampN, tone, bayer4, shade, scratchU8, sites, Site, Meander,
+  ensureSite,
 } from './b_ter_core';
 
 // Snow is the brightest biome surface: kept mid-high value and low saturation so bullets pop.
@@ -26,6 +27,7 @@ export function paintIce(c: Chunk): void {
   const DET = lattice(c, 4, s + 6);
   const G = grain(c, s + 7, 1);
   const lakes = sites(c, 520, 1401, 0.55, 100, 70);
+  ensureSite(c, lakes);
   const crev = new Meander(W, s + 30, {
     amp: W * 0.34, wave: 300, wave2: 60, amp2: 10, width: 2.4, widthVar: 1.2, widthWave: 90,
     gateWave: 500, gateLo: 0.62, gateHi: 0.66,

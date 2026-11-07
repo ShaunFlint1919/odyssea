@@ -27,6 +27,8 @@ export interface RenderReport {
   maxWindowRmsDb: number;
   /** Samples at or above 0.999 (digital clipping). */
   clipped: number;
+  /** Fraction of samples inside the soft-clip shoulder (|x| > 0.62). */
+  shoulder: number;
   /** Ungated integrated loudness, K-weighted per ITU-R BS.1770 (LUFS; NaN unless 48 kHz). */
   lufs: number;
   /** Loudest 400 ms block (momentary loudness, LUFS; NaN unless 48 kHz). */
@@ -100,6 +102,7 @@ export async function renderOffline(req: RenderRequest): Promise<RenderReport | 
   let peak = 0;
   let sum = 0;
   let clipped = 0;
+  let shoulder = 0;
   let maxWin = 0;
   const win = Math.floor(sr * 0.4);
   const chans = Array.from({ length: buf.numberOfChannels }, (_, c) => buf.getChannelData(c));
@@ -112,6 +115,7 @@ export async function renderOffline(req: RenderRequest): Promise<RenderReport | 
       const a = Math.abs(v);
       if (a > peak) peak = a;
       if (a >= 0.999) clipped++;
+      if (a > 0.62) shoulder++;
       s2 += v * v;
     }
     s2 /= chans.length;
@@ -134,6 +138,7 @@ export async function renderOffline(req: RenderRequest): Promise<RenderReport | 
     rmsDb: db(rms),
     maxWindowRmsDb: db(maxWin),
     clipped,
+    shoulder: shoulder / (buf.length * chans.length),
     lufs: ld.lufs,
     momentaryMaxLufs: ld.momentaryMax,
     sfxStarted: st.started,

@@ -4,7 +4,7 @@
 import { hash2, valueNoise } from './noise';
 import {
   CH, Chunk, lattice, grain, eachCell, Meander, farFromDoodads, rampN, tone, bayer4, shade, scratch, scratchU8,
-  sites, Site,
+  sites, ensureSite, Site,
 } from './b_ter_core';
 
 // Crown species ramps (dark gap -> sunlit top), 8 tones each — close hues, subtle variety.
@@ -75,6 +75,7 @@ export function paintJungle(c: Chunk): void {
   }, valueNoise);
   const river = flow.rows(c);
   const ruinSites = sites(c, 640, 611, 0.45, 70, 60);
+  ensureSite(c, ruinSites);
   const H = scratch(c.N), ID = scratch(c.N);
   H.fill(0, 0, c.N);
 

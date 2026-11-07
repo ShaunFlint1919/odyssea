@@ -25,7 +25,10 @@ export interface TerrainChunk {
 
 type Painter = (c: Chunk) => void;
 
-const PAINTERS: Partial<Record<Biome, Painter>> = {
+/** Biomes whose painter already ran its JIT warm-up in this session. */
+const WARMED = new Set<Biome>();
+
+const PAINTERS: Record<Biome, Painter> = {
   desert: paintDesert,
   jungle: paintJungle,
   ocean: paintOcean,
@@ -47,14 +50,33 @@ export class TerrainGenerator {
 
   constructor(public readonly biome: Biome, public readonly seed: number, public readonly width: number) {}
 
+  /** 20-bit mixed seed: keeps every hash2 product exact in float64 (see noise.ts). */
+  private mixedSeed(): number {
+    return (Math.imul(this.seed ^ 0x5bd1e995, 0x9e3779b1) >>> 12) & 0xfffff;
+  }
+
+  /**
+   * JIT warm-up: paints two throw-away chunks in which every optional feature of the biome
+   * appears, so later chunks never hit unoptimised / deoptimising code paths mid-level.
+   * Runs automatically on the first chunk() of each biome per session (~10-60 ms once);
+   * call it during level loading to move that cost there.
+   */
+  warmup(): void {
+    WARMED.add(this.biome);
+    const paint = PAINTERS[this.biome];
+    for (let k = 0; k < 2; k++) {
+      const c = new Chunk(this.width, 4096 + k * 7, this.mixedSeed(), this.img, true);
+      this.img = c.img;
+      paint(c);
+    }
+  }
+
   /** Renders chunk `index` (opaque canvas width x CHUNK_H) and its doodad placements. */
   chunk(index: number): TerrainChunk {
-    // 20-bit mixed seed: keeps every hash2 product exact in float64 (see noise.ts).
-    const c = new Chunk(this.width, index, (Math.imul(this.seed ^ 0x5bd1e995, 0x9e3779b1) >>> 12) & 0xfffff, this.img);
+    if (!WARMED.has(this.biome)) this.warmup();
+    const c = new Chunk(this.width, index, this.mixedSeed(), this.img);
     this.img = c.img;
-    const paint = PAINTERS[this.biome];
-    if (paint) paint(c);
-    else c.px.fill(0xff302020);
+    PAINTERS[this.biome](c);
     const canvas = document.createElement('canvas');
     canvas.width = this.width;
     canvas.height = CH;
