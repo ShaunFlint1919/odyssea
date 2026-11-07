@@ -125,6 +125,7 @@ function applyCraters(s: V3, out: Sample, ctx: PlanetCtx, craters: readonly Crat
 
 const CRATERS_MOON = makeCraters(4401, 26, 0.07, 0.32);
 const CRATERS_LAVA = makeCraters(9127, 10, 0.05, 0.14);
+const CRYSTALS = makeCraters(3313, 70, 0, 0.12);
 
 const STYLES: Record<Biome, PlanetStyle> = {
   // Kessra: wind-combed dunes, red mesas with dark cliffs, canyons on the large globe.
@@ -147,9 +148,9 @@ const STYLES: Record<Biome, PlanetStyle> = {
     surface(s, out, ctx) {
       const n = n3(s, 2.5, 2202);
       set(out, GREEN, 0.5 + (n - 0.5) * 0.9 + (n3(s, 7, 2203, 3) - 0.5) * (0.06 + 0.2 * ctx.detail));
-      if (n3(s, 3.2, 2204) > 0.66) set(out, BROWN, 0.55 + (n3(s, 8, 2205, 2) - 0.5) * 0.4 * ctx.detail);
+      if (n3(s, 3.6, 2204) > 0.7) set(out, BROWN, 0.55 + (n3(s, 8, 2205, 2) - 0.5) * 0.4 * ctx.detail);
       if (Math.abs(n3(s, 1.9, 2206, 3) - 0.5) < ctx.pxAngle * 0.42) set(out, WATER, 0.72, 0.6);
-      if (n3(s, 2.6, 2207) > 0.71) set(out, WATER, 0.62, 0.8);
+      if (n3(s, 2.6, 2207) > 0.73) set(out, WATER, 0.62, 0.8);
       clouds(s, out, 2202, 0.655, ctx);
     },
   },
@@ -158,9 +159,10 @@ const STYLES: Record<Biome, PlanetStyle> = {
     tilt: -0.2, lean: 0.35, spin: 4.0, atmo: '#7cc4ff', atmoStrength: 0.75, halo: 0.55,
     surface(s, out, ctx) {
       const h = n3(s, 2.3, 3303, ctx.detail > 0.5 ? 5 : 4);
-      if (h > 0.625) set(out, GREEN, 0.45 + (h - 0.625) * 2.4 + (n3(s, 9, 3304, 2) - 0.5) * 0.2 * ctx.detail);
-      else if (h > 0.607) set(out, SAND, 0.8);
-      else if (h > 0.55) set(out, SHALLOW, 0.5 + (h - 0.55) * 4, 0.6);
+      const beach = 0.63 - ctx.pxAngle * 0.5;
+      if (h > 0.63) set(out, GREEN, 0.45 + (h - 0.63) * 2.4 + (n3(s, 9, 3304, 2) - 0.5) * 0.2 * ctx.detail);
+      else if (h > beach) set(out, SAND, 0.8);
+      else if (h > 0.56) set(out, SHALLOW, 0.5 + (h - 0.56) * 4, 0.6);
       else set(out, WATER, 0.5 + (h - 0.35) * 0.55, 1);
       clouds(s, out, 3303, 0.665, ctx);
     },
@@ -173,11 +175,18 @@ const STYLES: Record<Biome, PlanetStyle> = {
       set(out, MOON, 0.7 + (n - 0.5) * 0.6 + (n3(s, 10, 4405, 2) - 0.5) * 0.18 * ctx.detail);
       if (n3(s, 2.2, 4406) > 0.6) out.level -= 0.14; // dark maria
       applyCraters(s, out, ctx, CRATERS_MOON);
-      const vein = Math.abs(n3(s, 2.6, 4408, 3) - 0.5);
-      if (ctx.detail > 0.5 && vein < ctx.pxAngle * 0.5 && n3(s, 9, 4407, 2) > 0.5) {
-        out.emis = '#2ee6c8';
-        out.emisA = 0.85;
-        out.night = true;
+      // Bioluminescent crystal clusters glimmering on the night side.
+      for (let i = 0; i < CRYSTALS.length; i++) {
+        const k = CRYSTALS[i];
+        const dx = s.x - k.c.x, dy = s.y - k.c.y, dz = s.z - k.c.z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        const rr = ctx.pxAngle * (0.75 + k.r * 6);
+        if (d2 < rr * rr) {
+          out.emis = d2 < rr * rr * 0.2 ? '#c8fff6' : i % 3 === 0 ? '#e070ff' : '#2ee6c8';
+          out.emisA = 0.95;
+          out.night = true;
+          break;
+        }
       }
     },
   },
@@ -187,8 +196,8 @@ const STYLES: Record<Biome, PlanetStyle> = {
     surface(s, out, ctx) {
       set(out, CRUST, 0.62 + (n3(s, 6, 5505, 3) - 0.5) * (0.25 + 0.3 * ctx.detail));
       applyCraters(s, out, ctx, CRATERS_LAVA);
-      const ridge = 1 - Math.abs(n3(s, 2.6 + 0.5 * ctx.detail, 5506) - 0.5) * 2;
-      const w = ctx.pxAngle * 0.55;
+      const ridge = 1 - Math.abs(n3(s, 2.9 + 0.5 * ctx.detail, 5506) - 0.5) * 2;
+      const w = ctx.pxAngle * 0.75;
       if (ridge > 1 - w * 2.2) {
         out.emis = ridge > 1 - w * 0.9 ? '#fff2a0' : ridge > 1 - w * 1.6 ? '#ffa030' : '#e04810';
         out.emisA = 1;
@@ -206,7 +215,7 @@ const STYLES: Record<Biome, PlanetStyle> = {
     surface(s, out, ctx) {
       const polar = smooth(0.6, 0.85, Math.abs(s.y));
       set(out, ICE, 0.72 + (n3(s, 2.6, 6606) - 0.5) * 0.45 + polar * 0.2, 0.45);
-      if (n3(s, 3, 6607) > 0.715 && polar < 0.5) set(out, ICE_ROCK, 0.55 + (n3(s, 9, 6608, 2) - 0.5) * 0.4 * ctx.detail);
+      if (n3(s, 2.4, 6607) > 0.73 && polar < 0.5) set(out, ICE_ROCK, 0.55 + (n3(s, 9, 6608, 2) - 0.5) * 0.4 * ctx.detail);
       if (Math.abs(n3(s, 2.8, 6609, 2) - 0.5) < ctx.pxAngle * 0.8) set(out, ICE, 0.4, 0.2);
     },
   },

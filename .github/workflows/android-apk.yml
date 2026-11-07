@@ -51,6 +51,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default ('tools platform-tools') fails: the legacy 'tools' package no
+          # longer exists. Gradle downloads the platform / build-tools it needs (licenses accepted).
+          packages: 'platform-tools'
 
       - name: Install dependencies
         run: npm ci

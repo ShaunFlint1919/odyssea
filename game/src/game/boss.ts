@@ -26,6 +26,8 @@ const CONTACT_DAMAGE = 12;
 const CORE_MULT = 1.5;
 const DEATH_TIME = 2.1;
 const MAX_MINIONS = 8;
+/** Minion launch points (offsets from the body centre); default = both flanks. */
+const MINION_BAYS: Record<string, [number, number][]> = { boss_voidcarrier: [[0, 44]] };
 /** Bosses that sit on the ground / sea (short shadow) instead of hovering. */
 const SURFACE_BOSSES: Record<string, boolean> = { boss_colossus: true, boss_dreadnought: true, boss_forge: true, boss_hydra: true };
 
@@ -57,6 +59,8 @@ class PartRt implements LaserOwner {
   /** Pulse animation of the weak-point core (bossCorePulseAnim), if the art provides it. */
   anim: FrameAnim | null = null;
   animIdx = -1;
+  /** Ground shadow of the part (shadowKey of its plain texture), or null. */
+  shadow: Phaser.GameObjects.Image | null = null;
 
   constructor(
     readonly boss: Boss,
@@ -168,7 +172,8 @@ export class Boss {
     this.shadowDx = surface ? 4 : 10;
     this.shadowDy = surface ? 6 : 18;
     const sk = shadowKey(key);
-    if (scene.textures.exists(sk)) this.shadow = scene.add.image(0, 0, sk).setDepth(surface ? DEPTH.ground + 1 : DEPTH.shadows);
+    const shadowDepth = surface ? DEPTH.ground + 1 : DEPTH.shadows;
+    if (scene.textures.exists(sk)) this.shadow = scene.add.image(0, 0, sk).setDepth(shadowDepth);
     this.img = scene.add.image(0, 0, key).setDepth(depth);
     const dk = bossDamagedKey(def.sprite, def.palette);
     this.dmgKey = scene.textures.exists(dk) ? dk : '';
@@ -185,7 +190,9 @@ export class Boss {
       const pk = scene.textures.exists(bossKey(p.sprite, def.palette)) ? bossKey(p.sprite, def.palette)
         : scene.textures.exists(p.sprite) ? p.sprite : fallbackTex(scene, 'part');
       const img = scene.add.image(0, 0, pk).setDepth(depth + 1);
-      if (p.sprite === 'part_wing' && p.offset[0] > 0) img.setFlipX(true);
+      const flip = p.sprite === 'part_wing' && p.offset[0] > 0; // wing art is the LEFT wing
+      if (flip) img.setFlipX(true);
+      const psk = shadowKey(pk);
       const glow = p.sprite === 'part_core'
         ? scene.add.image(0, 0, glowKey).setDepth(depth + 2).setBlendMode(Phaser.BlendModes.ADD).setTint(COLORS.accent).setAlpha(0.5)
         : null;
@@ -194,6 +201,8 @@ export class Boss {
       if (rt.core && scene.textures.exists(bossCorePulseKey(def.palette))) {
         rt.anim = new FrameAnim(scene, bossCorePulseAnim(def.palette), bossCorePulseKey(def.palette), 'part', 6, true);
       }
+      // the plain part key owns the shadow (also under the pulsing core sheet)
+      if (scene.textures.exists(psk)) rt.shadow = scene.add.image(0, 0, psk).setDepth(shadowDepth).setFlipX(flip);
       return rt;
     });
     // muzzles per phase
@@ -442,6 +451,7 @@ export class Boss {
     for (const p of this.parts) {
       p.img.setVisible(false);
       p.glow?.setVisible(false);
+      p.shadow?.setVisible(false);
     }
   }
 
@@ -633,6 +643,14 @@ export class Boss {
     for (const e of w.enemies.list) if (!e.isMidboss) alive++;
     if (alive >= MAX_MINIONS) return;
     const def = this.minionDef;
+    const bays = MINION_BAYS[this.def!.sprite];
+    if (bays) {
+      for (let i = 0; i < bays.length; i++) {
+        const e = w.enemies.spawn(def, clamp(this.x + bays[i][0], 12, PLAY_W - 12), this.y + bays[i][1], def.move, i % 2 ? -1 : 1);
+        if (e) w.fx.glow(e.x, e.y, COLORS.accent, 1, 200);
+      }
+      return;
+    }
     for (let s = -1; s <= 1; s += 2) {
       const x = clamp(this.x + s * this.bw * 0.38, 12, PLAY_W - 12);
       w.enemies.spawn(def, x, this.y + this.bh * 0.15, def.move, s);
@@ -691,6 +709,10 @@ export class Boss {
       const px = x + p.def.offset[0], py = y + p.def.offset[1];
       p.img.setPosition(px, py);
       if (p.turret) p.img.rotation = p.rot;
+      if (p.shadow) {
+        p.shadow.setPosition(px + this.shadowDx, py + this.shadowDy);
+        p.shadow.rotation = p.img.rotation;
+      }
       if (p.core && !p.dead) {
         const pulse = 0.5 + 0.5 * Math.sin(this.t * 6);
         if (p.anim) {
@@ -712,6 +734,7 @@ export class Boss {
     for (const p of this.parts) {
       p.img.destroy();
       p.glow?.destroy();
+      p.shadow?.destroy();
     }
     this.parts = [];
     this.img = null;

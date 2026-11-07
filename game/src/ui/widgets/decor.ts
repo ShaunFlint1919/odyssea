@@ -159,7 +159,7 @@ export function vignette(scene: Phaser.Scene, color = 0x000000, alpha = 0.85, de
         const dx = (x - (w - 1) / 2) / (w / 2);
         const dy = (y - (h - 1) / 2) / (h / 2);
         const d = Math.min(1, Math.sqrt(dx * dx * 1.1 + dy * dy * 0.9));
-        const a = Math.max(0, (d - 0.45) / 0.55) ** 1.8;
+        const a = Math.max(0, (d - 0.55) / 0.45) ** 1.6;
         const i = (y * w + x) * 4;
         img.data[i] = 255; img.data[i + 1] = 255; img.data[i + 2] = 255; img.data[i + 3] = Math.round(a * 255);
       }

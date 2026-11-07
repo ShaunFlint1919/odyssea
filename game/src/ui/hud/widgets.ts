@@ -186,7 +186,8 @@ export class DigitRow {
     scene: Phaser.Scene, parent: Phaser.GameObjects.Container, texKey: string, private readonly frames: readonly string[],
     private readonly x: number, y: number, private readonly opts: DigitRowOpts,
   ) {
-    this.max = 10 ** opts.maxDigits - 1;
+    // Capped below 2^31 so set() can use int32 arithmetic.
+    this.max = Math.min(10 ** opts.maxDigits - 1, 999999999);
     for (let i = 0; i < opts.maxDigits; i++) {
       const img = scene.add.image(x, y, texKey, frames[0]).setOrigin(0).setScrollFactor(0).setVisible(false);
       if (opts.tint !== undefined) img.setTint(opts.tint);
@@ -201,21 +202,22 @@ export class DigitRow {
     return len * this.opts.advance + this.groupGaps(len) * (this.opts.group ?? 0);
   }
 
-  private groupGaps(len: number): number { return this.opts.group ? Math.floor((len - 1) / 3) : 0; }
+  private groupGaps(len: number): number { return this.opts.group ? ((len - 1) / 3) | 0 : 0; }
 
+  /** Shows `value` (clamped to the digit count). Int32 math only: no boxed doubles. */
   set(value: number): void {
-    const v = value <= 0 ? 0 : value >= this.max ? this.max : Math.floor(value);
+    const v = value <= 0 ? 0 : value >= this.max ? this.max : value | 0;
     if (v === this.last) return;
     this.last = v;
     let len = 1;
-    for (let t = v; t >= 10; t = Math.floor(t / 10)) len++;
+    for (let t = v; t >= 10; t = (t / 10) | 0) len++;
     if (len !== this.lastLen) {
       this.lastLen = len;
       const adv = this.opts.advance;
       const g = this.opts.group ?? 0;
       const total = len * adv + this.groupGaps(len) * g;
       const area = this.opts.width ?? total;
-      const x0 = this.opts.align === 'right' ? this.x + area - total : this.opts.align === 'center' ? this.x + Math.floor((area - total) / 2) : this.x;
+      const x0 = this.opts.align === 'right' ? this.x + area - total : this.opts.align === 'center' ? this.x + ((area - total) >> 1) : this.x;
       let gx = 0;
       for (let i = 0; i < this.imgs.length; i++) {
         const img = this.imgs[i];
@@ -226,8 +228,9 @@ export class DigitRow {
     }
     let t = v;
     for (let i = len - 1; i >= 0; i--) {
-      this.imgs[i].setFrame(this.frames[t % 10]);
-      t = Math.floor(t / 10);
+      const q = (t / 10) | 0;
+      this.imgs[i].setFrame(this.frames[t - q * 10]);
+      t = q;
     }
   }
 

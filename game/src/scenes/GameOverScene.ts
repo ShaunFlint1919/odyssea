@@ -13,7 +13,7 @@ import type { GameStartData } from '../game/contracts';
 import { audio } from '../audio';
 import { getSave } from '../state/save';
 import { FAILED_CREDIT_RATIO } from '../state/progress';
-import { MenuList, fadeIn, goto, onBack, panel, starfield, text, type MenuItem } from '../ui/kit';
+import { MenuList, fadeIn, goto, onBack, panel, starfield, text, wrapText, type MenuItem } from '../ui/kit';
 import {
   Board, Sequence, applyOnce, badge, cachedTexture, demoResult, fmtInt, header, isLevelResult, levelInfo,
   normalizeResult, vignette, type BoardRow, type SequenceStep,
@@ -54,13 +54,12 @@ export class GameOverScene extends Phaser.Scene {
     fadeIn(this, 320);
     const { width, height } = this.scale.gameSize;
     starfield(this, { density: 0.7, speed: 5 });
-    vignette(this, 0x6a0810, 0.75, -5);
+    vignette(this, 0x5a0610, 0.7, -5);
     audio.music(null);
     audio.sfx('game_over');
 
     const head = header(this, 'MISSION FAILED', { y: 12, sub: aborted ? 'MISSION ABORTED' : 'SHIP DESTROYED', subColor: COLORS.bad });
-    const top = head.getData('bottom') as number;
-    this.buildWreck(width / 2, top + 44);
+    const top = (head.getData('bottom') as number) + 10;
 
     // ---- salvage board
     const salvage = Math.max(0, applied.creditsAfter - applied.creditsBefore);
@@ -70,7 +69,7 @@ export class GameOverScene extends Phaser.Scene {
       { label: 'CREDITS COLLECTED', value: result.creditsEarned, color: COLORS.textDim },
       { label: `SALVAGED (${pct}%)`, value: salvage, color: COLORS.gold, format: (n) => `+${fmtInt(n)}` },
     ];
-    const by = top + 92;
+    const by = top;
     const rowH = 20;
     const ph = rows.length * rowH + 24 + 22;
     panel(this, 10, by, width - 20, ph, 'inset');
@@ -96,9 +95,17 @@ export class GameOverScene extends Phaser.Scene {
     }
     const tip = this.add.container(16, ny);
     tip.add(text(this, 0, 0, 'TIP', { size: 's', color: COLORS.accent }));
-    tip.add(text(this, 24, 0, TIPS[Math.floor(Math.random() * TIPS.length)], { size: 's', color: COLORS.textDim, maxWidth: width - 48 }));
+    const tipText = text(this, 24, 0, wrapText(TIPS[Math.floor(Math.random() * TIPS.length)], width - 48, 's'), { size: 's', color: COLORS.textDim });
+    tipText.setLineSpacing(2);
+    tip.add(tipText);
     tip.setAlpha(0);
     extras.push(tip);
+    const contentBottom = ny + tipText.height + 4;
+
+    // ---- the wreck drifts in the space left between the tip and the menu
+    const menuY = height - 2 * ROW_H - 16 - 34;
+    const wreckY = Math.round(Math.max(contentBottom + 36, (contentBottom + menuY) / 2));
+    if (menuY - contentBottom > 76) this.buildWreck(width / 2, wreckY);
 
     // ---- sequence, then the menu
     const steps: SequenceStep[] = [];
@@ -108,7 +115,6 @@ export class GameOverScene extends Phaser.Scene {
       wait: 300,
       run: (inst) => { if (inst) o.setAlpha(1); else this.tweens.add({ targets: o, alpha: 1, duration: 200 }); },
     }));
-    const menuY = Math.max(ny + 40, height - 2 * ROW_H - 16 - 34);
     this.seq = new Sequence(this, steps, () => this.showMenu(width, menuY));
     this.seq.start();
     this.input.on('pointerdown', () => { if (this.seq && !this.seq.done) this.seq.skip(); });

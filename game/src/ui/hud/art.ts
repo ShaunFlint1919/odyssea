@@ -344,6 +344,11 @@ export function paintPanel(scene: Phaser.Scene, L: HudLayout, fonts: HudFonts, l
     ledColumn(ctx, bar.x, bar.y, bar.w, bar.h, (t) => ramp(off, t));
     fill(ctx, num.x, num.y - 1, num.w, num.h + 1, '#0b0912');
   }
+  // Back-fill every transparent pixel (rounded plate / lamp corners) with the panel background:
+  // the panel must be fully opaque or the shaking world would show through it.
+  ctx.globalCompositeOperation = 'destination-over';
+  ctx.drawImage(bgC.canvas, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
   return canvas;
 }
 
