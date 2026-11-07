@@ -580,7 +580,7 @@ export class ShopScene extends Phaser.Scene {
         : res.reason === 'slot' ? (isGun(this.cat) ? 'NO GUN FITTED' : 'NO SLOT')
           : res.reason === 'max' ? 'MAX POWER' : res.reason === 'min' ? 'MINIMUM POWER' : 'NOT AVAILABLE';
     toast(this, msg, COLORS.bad, this.toastY);
-    this.cameras.main.shake(90, 0.003);
+    if (getSave().settings.shake) this.cameras.main.shake(90, 0.003);
   }
 
   private explainDisabled(i: number): void {

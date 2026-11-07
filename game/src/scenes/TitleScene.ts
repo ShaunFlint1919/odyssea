@@ -321,7 +321,7 @@ export class TitleScene extends Phaser.Scene {
 
   private showPressStart(width: number, height: number): void {
     this.mode = 'press';
-    this.status.setText('Drag anywhere to steer - your guns fire on their own');
+    this.status.setText('Drag anywhere to steer - guns fire on their own');
     const prompt = text(this, width / 2, Math.round(height * 0.62), 'TAP TO START', { size: 'm', color: COLORS.teal, originX: 0.5, originY: 0.5 })
       .setDepth(20);
     const keyHint = this.sys.game.device.os.desktop
@@ -413,7 +413,7 @@ export class TitleScene extends Phaser.Scene {
     confirm(this, 'Start a new campaign? Your current progress will be lost.', (yes) => {
       this.menu?.setEnabled(true);
       if (yes) begin();
-    });
+    }, { danger: true });
   }
 
   private buildMenu(title: string | null, items: MenuItem[], start: number, onSelect: (i: number) => void, animated: boolean): void {

@@ -342,7 +342,7 @@ export class LevelEndScene extends Phaser.Scene {
   private showContinue(): void {
     const toMap = this.target === SCENES.Map;
     const b = bottomButton(this, toMap ? 'STAR CHART' : 'CONTINUE', () => this.leave());
-    this.status.setText(this.campaignDone ? 'Every world is free. Replay any mission for credits.'
+    this.status.setText(this.campaignDone ? 'Every world is free - replay missions for credits'
       : toMap ? 'New routes are open on the star chart.' : 'Return to the hangar: repair and upgrade.');
     b.container.setAlpha(0);
     b.container.y += 6;

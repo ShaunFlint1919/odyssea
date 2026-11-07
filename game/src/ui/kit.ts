@@ -1561,8 +1561,23 @@ export function goto(scene: Phaser.Scene, key: SceneKey | string, data?: object,
   if (dark > 0) fx._elapsed = dark * ms;
 }
 
-/** Simple modal confirm dialog (YES / NO) centred on screen. Calls back with the choice. */
-export function confirm(scene: Phaser.Scene, message: string, onDone: (yes: boolean) => void): void {
+/** (added) Optional settings of confirm(). */
+export interface ConfirmOpts {
+  /**
+   * Destructive question (erase / overwrite / abort): NO has the focus by default and YES is
+   * drawn red, so a mashed Enter can never accept it.
+   */
+  danger?: boolean;
+}
+
+/** Keys and taps are ignored for this long after a confirm dialog opens (mash protection). */
+const CONFIRM_ARM_MS = 350;
+
+/**
+ * Simple modal confirm dialog (YES / NO) centred on screen. Calls back with the choice. Input is
+ * ignored for the first 350 ms; `opts.danger` focuses NO (see ConfirmOpts).
+ */
+export function confirm(scene: Phaser.Scene, message: string, onDone: (yes: boolean) => void, opts: ConfirmOpts = {}): void {
   const { width, height } = scene.scale.gameSize;
   const w = Math.min(264, width - 24);
   const msg = wrapText(message, w - 28, 's');
@@ -1594,8 +1609,9 @@ export function confirm(scene: Phaser.Scene, message: string, onDone: (yes: bool
   let done = false;
   let focus = 0;
   let back: BackEntry | null = null;
+  const armed = () => performance.now() - openedAt >= CONFIRM_ARM_MS;
   const keyFn = (e: KeyboardEvent) => {
-    if (done || e.repeat || performance.now() - openedAt < 120) return;
+    if (done || e.repeat || !armed()) return;
     switch (e.code) {
       case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown': case 'KeyA': case 'KeyD': case 'Tab':
         setFocus(1 - focus);
@@ -1622,8 +1638,9 @@ export function confirm(scene: Phaser.Scene, message: string, onDone: (yes: bool
   const by = h - bh - 12;
   const bw = Math.min(96, Math.floor((w - 36) / 2));
   const gap = w - 24 - bw * 2;
-  const yes = button(scene, 12, by, bw, bh, 'YES', () => finish(true), { size: 's', color: COLORS.good });
-  const no = button(scene, 12 + bw + gap, by, bw, bh, 'NO', () => finish(false), { size: 's', color: COLORS.bad });
+  const danger = opts.danger === true;
+  const yes = button(scene, 12, by, bw, bh, 'YES', () => { if (armed()) finish(true); }, { size: 's', color: danger ? COLORS.bad : COLORS.good });
+  const no = button(scene, 12 + bw + gap, by, bw, bh, 'NO', () => { if (armed()) finish(false); }, { size: 's', color: danger ? COLORS.teal : COLORS.text });
   const ring = scene.add.image(0, by - 2, outlineTex(scene, bw + 4, bh + 4)).setOrigin(0).setTint(COLORS.teal);
   box.add([yes.container, no.container, ring]);
   scene.tweens.add({ targets: ring, alpha: 0.45, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
@@ -1631,7 +1648,7 @@ export function confirm(scene: Phaser.Scene, message: string, onDone: (yes: bool
     focus = f;
     ring.x = (f === 0 ? 12 : 12 + bw + gap) - 2;
   };
-  setFocus(0);
+  setFocus(danger ? 1 : 0);
   // entrance: shade + panel slide/fade (pixel-crisp, no scaling)
   shade.setAlpha(0);
   box.setAlpha(0);

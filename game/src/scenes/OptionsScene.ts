@@ -288,8 +288,8 @@ export class OptionsScene extends Phaser.Scene {
           this.from = SCENES.Title;
           this.time.delayedCall(700, () => goto(this, SCENES.Title));
         }
-      });
-    });
+      }, { danger: true });
+    }, { danger: true });
   }
 
   /** Why the campaign reset row is disabled. */

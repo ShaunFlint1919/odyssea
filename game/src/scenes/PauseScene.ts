@@ -12,7 +12,7 @@ import Phaser from 'phaser';
 import { COLORS, DEPTH, SCENES } from '../config';
 import { DEBUG, markSceneReady } from '../debug';
 import type { Settings } from '../types';
-import { PAUSE_EVENTS } from '../game/contracts';
+import { PAUSE_EVENTS, type GameStartData } from '../game/contracts';
 import { audio } from '../audio';
 import { haptic } from '../platform/haptics';
 import { DEFAULT_SETTINGS, getSave, updateSettings } from '../state/save';
@@ -51,7 +51,10 @@ export class PauseScene extends Phaser.Scene {
   create(data?: { levelId?: string }): void {
     this.leaving = false;
     this.toggles = new Map();
-    this.levelId = data?.levelId ?? getSave().currentLevel;
+    // The paused mission is the Game scene's own start data (GameStartData): launch data can be
+    // stale, as Phaser keeps a scene's previous data when it is relaunched without any.
+    const game = this.scene.get(SCENES.Game)?.sys.settings.data as GameStartData | undefined;
+    this.levelId = game?.levelId ?? data?.levelId ?? getSave().currentLevel;
     holdInput(this, 150); // a double tap on the HUD pause button must not hit a pause row
     const { width, height } = this.scale.gameSize;
     const base = DEPTH.overlay;
@@ -174,7 +177,7 @@ export class PauseScene extends Phaser.Scene {
       this.leaving = true;
       this.scene.get(SCENES.Game).events.emit(PAUSE_EVENTS.abort);
       this.scene.stop();
-    });
+    }, { danger: true });
   }
 
   /** Full Options over the frozen game; its back action returns here. */
