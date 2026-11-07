@@ -12,3 +12,5 @@ android/local.properties
 android/app/release/
 *.keystore
 *.jks
+# agent scratch scripts
+tools/tmp-*

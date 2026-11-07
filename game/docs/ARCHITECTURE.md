@@ -40,6 +40,21 @@ tests/  tools/  android/  ../.github/workflows/    PLATFORM
 docs/                                              everyone (append-only notes)
 ```
 
+## Parallel build split (phase 2 contracts)
+
+| Owner | Files |
+|---|---|
+| WORLD | `src/scenes/GameScene.ts`, `src/game/**` except `contracts.ts`, `arsenal/**`, `preview.ts` |
+| ARSENAL | `src/game/arsenal/**` (except `api.ts`), `src/game/preview.ts` |
+| UI-KIT & FLOW | `src/ui/kit.ts` internals (API frozen), `src/ui/widgets/**`, Title/Options/Pause/LevelEnd/GameOver/Intel scenes |
+| UI-META | Hangar/Shop/Specs/Map scenes, `src/ui/meta/**` |
+| UI-HUD | `src/ui/Hud.ts`, `src/ui/hud/**` |
+
+Extra contracts: `src/game/arsenal/api.ts` (World ↔ Arsenal: ArsenalHost, PlayerShot,
+Arsenal) and `src/ui/kit.ts` (text/panel/MenuList/Gauge/button/iconButton/statusBar/starfield/
+onBack/fadeIn/goto/confirm). Phaser note: `RetroFont.Parse()` returns the whole bitmap-font
+cache entry — add it to `scene.cache.bitmapFont` as is.
+
 ## Contracts (read these files first)
 
 * `src/types.ts` — every data shape (HullDef, WeaponDef, EnemyDef, BossDef, LevelDef, SaveData, …).
