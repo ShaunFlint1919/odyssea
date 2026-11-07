@@ -8,6 +8,7 @@
 import Phaser from 'phaser';
 import { COLORS, DEPTH, H, PLAY_W } from '../config';
 import { ANIM, SHOT_RGB, hullKey, shadowKey } from '../art/keys';
+import { HULL_MOUNTS } from '../art/player';
 import type { GeneratorDef, HullDef, ShieldDef } from '../types';
 import type { ControlsState } from '../input/controls';
 import { EnergyModel } from './energy';
@@ -22,6 +23,8 @@ const BANK_THRESHOLD = 26; // px/s of horizontal motion before the hull banks
 const INTRO_TIME = 1.1;
 const SHADOW_DX = 6;
 const SHADOW_DY = 10;
+/** Times (s) of the chained explosions of the death sequence. */
+const DEATH_STEPS = [0.12, 0.26, 0.38, 0.55, 0.7];
 
 export class Ship {
   x = PLAY_W / 2;
@@ -36,7 +39,11 @@ export class Ship {
 
   private readonly sprite: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Image;
-  private readonly flame: Phaser.GameObjects.Image;
+  /** One engine flame per nozzle (HULL_MOUNTS), merged when nozzles nearly touch. */
+  private readonly flames: Phaser.GameObjects.Image[] = [];
+  private readonly flameDX: number[] = [];
+  private readonly flameDY: number[] = [];
+  private flameSX = 1;
   private readonly bubble: Phaser.GameObjects.Image;
   private readonly flameAnim: FrameAnim;
   private readonly frames: number;
@@ -69,8 +76,25 @@ export class Ship {
       .setDepth(DEPTH.shadows);
     if (shadowTex === key) this.shadow.setTintFill(0x000000).setAlpha(0.4);
     this.flameAnim = new FrameAnim(scene, ANIM.engine, 'fx_engine', 'glow', 18, true);
-    this.flame = scene.add.image(this.x, this.y + 15, this.flameAnim.keys[0], this.flameAnim.frames[0])
-      .setDepth(DEPTH.player - 1).setOrigin(0.5, 0);
+    const engines = HULL_MOUNTS[hull.id]?.engines ?? [[0, 13]];
+    let minX = Infinity, maxX = -Infinity, minGap = Infinity;
+    for (const [ex] of engines) { minX = Math.min(minX, ex); maxX = Math.max(maxX, ex); }
+    for (let i = 1; i < engines.length; i++) minGap = Math.min(minGap, Math.abs(engines[i][0] - engines[i - 1][0]));
+    if (maxX - minX <= 6) {
+      // nozzles closer than a flame width: one wider flame between them
+      let sy = 0;
+      for (const [, ey] of engines) sy += ey;
+      this.flameDX.push((minX + maxX) / 2);
+      this.flameDY.push(sy / engines.length);
+      this.flameSX = 1 + (maxX - minX) / 10;
+    } else {
+      for (const [ex, ey] of engines) { this.flameDX.push(ex); this.flameDY.push(ey); }
+      this.flameSX = Math.min(1, minGap / 7);
+    }
+    for (let i = 0; i < this.flameDX.length; i++) {
+      this.flames.push(scene.add.image(this.x, this.y + 15, this.flameAnim.keys[0], this.flameAnim.frames[0])
+        .setDepth(DEPTH.player - 1).setOrigin(0.5, 0));
+    }
     this.sprite = scene.add.image(this.x, this.y, key, this.frames > 1 ? 0 : undefined).setDepth(DEPTH.player);
     this.shieldTint = SHOT_RGB[shield.color]?.glow ?? COLORS.shield;
     const bubbleKey = scene.textures.exists('fx_shield_bubble') ? 'fx_shield_bubble' : fallbackTex(scene, 'ring');
@@ -225,9 +249,13 @@ export class Ship {
     this.shadow.setPosition(Math.round(this.x) + SHADOW_DX, Math.round(this.y) + SHADOW_DY);
     if (this.shadowFrames >= 3) this.shadow.setFrame(frame);
     const fi = this.flameAnim.index(this.age * 1000);
-    this.flameAnim.apply(this.flame, fi);
-    const boost = this.flyOut ? 1.6 : 1;
-    this.flame.setPosition(Math.round(this.x), Math.round(this.y) + 13).setScale(1, boost * (0.9 + 0.2 * ((fi + 1) % 2)));
+    const boost = this.flyOut ? 1.6 : this.intro ? 1.3 : 1;
+    const rx = Math.round(this.x), ry = Math.round(this.y);
+    for (let i = 0; i < this.flames.length; i++) {
+      const f = this.flames[i];
+      this.flameAnim.apply(f, (fi + i) % this.flameAnim.length);
+      f.setPosition(rx + this.flameDX[i], ry + this.flameDY[i]).setScale(this.flameSX, boost * (0.9 + 0.2 * ((fi + i + 1) % 2)));
+    }
     if (this.bubbleA > 0) {
       this.bubbleA = Math.max(0, this.bubbleA - dt * 4);
       this.bubble.setPosition(this.x, this.y).setAlpha(this.bubbleA).setScale(1 + (0.95 - this.bubbleA) * 0.15);
@@ -238,7 +266,7 @@ export class Ship {
   private updateDeath(dt: number): void {
     const w = this.w;
     this.deathT += dt;
-    const steps = [0.12, 0.26, 0.38, 0.55, 0.7];
+    const steps = DEATH_STEPS;
     while (this.deathStep < steps.length && this.deathT >= steps[this.deathStep]) {
       const a = w.fxRng() * Math.PI * 2, d = 4 + w.fxRng() * 12;
       w.fx.blast(this.x + Math.cos(a) * d, this.y + Math.sin(a) * d, this.deathStep % 2 === 0 ? 'm' : 's');
@@ -248,7 +276,7 @@ export class Ship {
       if (this.deathStep === 2) {
         this.sprite.setVisible(false);
         this.shadow.setVisible(false);
-        this.flame.setVisible(false);
+        for (const f of this.flames) f.setVisible(false);
         this.bubble.setVisible(false);
       }
     }
@@ -263,6 +291,11 @@ export class Ship {
     }
   }
 
+  /** Still flying in at the level start. */
+  private get intro(): boolean {
+    return this.introT < INTRO_TIME;
+  }
+
   /** Off the top of the screen after the fly-out. */
   get gone(): boolean {
     return this.flyOut && this.y < -40;
@@ -271,7 +304,7 @@ export class Ship {
   destroy(): void {
     this.sprite.destroy();
     this.shadow.destroy();
-    this.flame.destroy();
+    for (const f of this.flames) f.destroy();
     this.bubble.destroy();
   }
 }

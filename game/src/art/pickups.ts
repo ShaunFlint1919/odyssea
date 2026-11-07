@@ -54,7 +54,7 @@ function gemFrames(style: GemStyle): HTMLCanvasElement[] {
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
       const v = light[y * size + x];
       if (v < 0) continue;
-      const col = v > 0.93 ? '#ffffff' : v > 0.74 ? ramp[4] : v > 0.56 ? ramp[3] : v > 0.38 ? ramp[2] : v > 0.24 ? ramp[1] : ramp[0];
+      const col = v > 0.92 ? '#ffffff' : v > 0.7 ? ramp[4] : v > 0.5 ? ramp[3] : v > 0.32 ? ramp[2] : v > 0.2 ? ramp[1] : ramp[0];
       buf.put(x, y, col);
     }
     // twinkle: a white glint on the upper-left of the crown on two frames
@@ -184,7 +184,7 @@ function armorFrame(blink: boolean): HTMLCanvasElement {
 function powerFrame(blink: boolean): HTMLCanvasElement {
   const s = 16;
   const buf = new PixBuf(s, s);
-  sphere(buf, 8, 8, 6.3, LIME, blink ? 1 : 0);
+  sphere(buf, 8, 8.5, 6.0, LIME, blink ? 1 : 0);
   stamp(buf, [
     'kkkk.',
     'kwwwk',
@@ -194,10 +194,10 @@ function powerFrame(blink: boolean): HTMLCanvasElement {
     'kwk..',
     'kkk..',
   ], { k: '#1a3204', w: '#ffffff' }, 6, 4);
-  const arrow = ['..w..', '.www.', 'wwwww', '.kwk.', '.kkk.'];
+  const arrow = ['.w.', 'w.w', '.w.', 'w.w'];
   const ac = { w: blink ? '#ffffff' : LIME[4], k: LIME[0] };
-  stamp(buf, arrow.map((r) => r.slice(1, 4)), ac, 1, 5);
-  stamp(buf, arrow.map((r) => r.slice(1, 4)), ac, 12, 5);
+  stamp(buf, arrow, ac, 0, 1);
+  stamp(buf, arrow, ac, 13, 1);
   return outlineCanvas(buf.toCanvas(), '#0c1802');
 }
 

@@ -145,6 +145,14 @@ const PLAYER_MAPS: Partial<Record<keyof typeof PROJECTILE_SPRITES, string[]>> = 
     '.GD..',
     '..D..',
   ],
+  pj_wave: [
+    '...hhhh...',
+    '.hgLwwLgh.',
+    'hgLcwwcLgh',
+    'gLc.hh.cLg',
+    'Gc......cG',
+    'h........h',
+  ],
   pj_mine: [
     '....3....',
     '..12321..',
@@ -196,29 +204,6 @@ function ring(p: ShotPal): HTMLCanvasElement {
   return buf.toCanvas();
 }
 
-/** Crescent convex towards the top (direction of travel). */
-function wave(p: ShotPal): HTMLCanvasElement {
-  const w = 10, h = 6;
-  const buf = new PixBuf(w, h);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const px = x + 0.5, py = y + 0.5;
-    const dOuter = Math.hypot(px - 5, (py - 7.6) * 1.15) ; // outer circle
-    const dInner = Math.hypot(px - 5, (py - 9.4) * 1.15);
-    const r = 6.6;
-    if (dOuter > r || dInner < r) continue;
-    const depth = r - dOuter; // 0 at the leading edge
-    const col = depth < 0.9 ? p.w : depth < 1.7 ? p.c : depth < 2.4 ? p.L : p.G;
-    const a = depth < 2.4 ? 1 : 0.6;
-    buf.put(x, y, col, a);
-  }
-  // soft translucent fringe ahead of the leading edge
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (buf.alphaAt(x, y) > 0) continue;
-    if (buf.alphaAt(x, y + 1) > 200 || buf.alphaAt(x - 1, y + 1) > 200 || buf.alphaAt(x + 1, y + 1) > 200) buf.put(x, y, p.G, 0.3);
-  }
-  return buf.toCanvas();
-}
-
 /** Irregular flame puff (same shape for every colour). */
 function flame(p: ShotPal): HTMLCanvasElement {
   const buf = new PixBuf(10, 10);
@@ -241,7 +226,6 @@ function playerShot(sprite: keyof typeof PROJECTILE_SPRITES, color: ShotColor): 
     case 'pj_beam': return beam(p);
     case 'pj_bigorb': return bigOrb(p);
     case 'pj_ring': return ring(p);
-    case 'pj_wave': return wave(p);
     case 'pj_flame': return flame(p);
     default: return fromMap(PLAYER_MAPS[sprite] as string[], playerChars(p));
   }
@@ -283,13 +267,13 @@ const ENEMY_MAPS: Partial<Record<keyof typeof ENEMY_BULLET_SPRITES, string[]>> =
     '..cc..',
     '.kwwk.',
     'kDkkDk',
-    'kD43Dk',
-    '.k43k.',
-    '.k43k.',
-    '.kGLk.',
-    '.kGwk.',
-    '..kLk.',
-    '...k..',
+    'kDGGDk',
+    '.kLLk.',
+    '.kGGk.',
+    '.kLLk.',
+    '.kwwk.',
+    '.kwwk.',
+    '..kk..',
   ],
   eb_laser: [
     'kGLwwLGk',

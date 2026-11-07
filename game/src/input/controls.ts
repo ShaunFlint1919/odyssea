@@ -9,7 +9,9 @@
 //    (pointer.x / pointer.y are already mapped through the FIT scale).
 //  - Gamepad (standard mapping): left stick / d-pad move (radial deadzone), A / RB / RT fire,
 //    B / X rear toggle, Start pause.
-//  - Android back button -> pausePressed while this instance exists (top of the back stack).
+//  - Android back button -> pausePressed while this instance exists and its scene is running
+//    (top of the back stack); while the scene is paused the press falls through to the next
+//    handler (e.g. the pause menu).
 //  The instance destroys itself when its scene shuts down.
 // =====================================================================================
 import Phaser from 'phaser';
@@ -120,7 +122,10 @@ export class Controls {
       this.padCount = this.countPads();
     }
 
+    // Back = pause while the scene runs. While it is paused / asleep (pause menu open) the press
+    // is NOT consumed, so the overlay's own back handler (lower in the stack) can resume.
     this.unsubscribeBack = pushBackHandler(() => {
+      if (this.destroyed || !this.scene.sys.isActive()) return false;
       this.pendingPause = true;
       return true;
     });

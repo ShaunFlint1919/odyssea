@@ -42,6 +42,7 @@ export class BootScene extends Phaser.Scene {
     if (DEBUG.max) {
       save.credits = Math.max(save.credits, 999999);
       save.unlockedLevels = levelOrder();
+      save.completedLevels = levelOrder(); // also unlocks every unlockLevel-gated shop item
     }
     if (DEBUG.level && LEVELS.some((l) => l.id === DEBUG.level)) save.currentLevel = DEBUG.level;
     saveNow();

@@ -8,7 +8,7 @@
 import Phaser from 'phaser';
 import { COLORS, DEPTH, H, PLAY_W } from '../config';
 import { ENEMY_SPRITES, enemyKey, shadowKey } from '../art/keys';
-import { mineAnimKey, spinnerAnimKey, turretTopKey } from '../art/enemies';
+import { enemyAnimKey, turretTopKey } from '../art/enemies';
 import type { EnemyDef, EnemyLayer, MovePattern } from '../types';
 import { getSave } from '../state/save';
 import type { LaserOwner } from './enemyBullets';
@@ -19,7 +19,21 @@ import type { World } from './world';
 import { angleDiff } from './world';
 
 const HALF_PI = Math.PI / 2;
-const FLASH_TIME = 0.045;
+/** White hit flash duration (~2 frames) and the minimum gap before the next flash, so an
+ *  enemy under continuous fire blinks instead of turning solid white. */
+const FLASH_TIME = 0.032;
+const FLASH_GAP = 0.05;
+/** Barrel tip distance from the centre of rotatable heads (art facts, px). */
+const HEAD_TIP: Record<string, number> = { gr_turret: 9, gr_twin: 12, gr_tank: 11 };
+/** Lateral barrel offsets of multi-barrel heads (volleys alternate between them). */
+const HEAD_BARRELS: Record<string, number[]> = { gr_twin: [-4, 4] };
+/** Built-in gun muzzles of big hulls, offsets from the sprite centre (+y = down, nose). Index 0 = main gun. */
+const BODY_MUZZLES: Record<string, [number, number][]> = {
+  en_frigate: [[0, 25], [-19, 17], [19, 17]],
+  en_carrier: [[-16, 15], [16, 15]],
+  en_gunship: [[-13, 18], [13, 18]],
+  sea_destroyer: [[0, 16]],
+};
 const MAX_LIFE = 70;
 const CONTACT_COOLDOWN = 0.5;
 
@@ -60,11 +74,20 @@ export class Enemy implements LaserOwner, FireSpec {
   entered = false;
   isMidboss = false;
   flash = 0;
+  flashCd = 0;
   smokeT = 0;
   contactCd = 0;
   headRot = 0;
   anim: FrameAnim | null = null;
   animIdx = -1;
+  /** Volley counter (round-robin between muzzles / barrels). */
+  shot = 0;
+  /** Muzzle point computed by aimMuzzle() (no allocation). */
+  mzX = 0;
+  mzY = 0;
+  headTip = 0;
+  barrels: number[] | null = null;
+  muzzles: [number, number][] | null = null;
   hasShadow = false;
   shadowAnimated = false;
   hasHead = false;
@@ -79,15 +102,39 @@ export class Enemy implements LaserOwner, FireSpec {
     return this.active;
   }
 
-  /** Muzzle point: barrel tip for turrets, else the nose (sprites face down at rotation 0). */
+  /**
+   * Compute muzzle `k` into mzX / mzY: barrel tip of a rotatable head (alternating barrels),
+   * a built-in hull gun (round robin), else the nose (sprites face down at rotation 0).
+   */
+  aimMuzzle(k: number): void {
+    if (this.hasHead) {
+      const a = this.headRot + HALF_PI;
+      const c = Math.cos(a), s = Math.sin(a);
+      const lat = this.barrels ? this.barrels[k % this.barrels.length] : 0;
+      this.mzX = this.x + c * this.headTip - s * lat;
+      this.mzY = this.y + s * this.headTip + c * lat;
+      return;
+    }
+    const c = Math.cos(this.rot), s = Math.sin(this.rot);
+    let ox = 0, oy = this.radius * 0.55;
+    if (this.muzzles) {
+      const m = this.muzzles[k % this.muzzles.length];
+      ox = m[0];
+      oy = m[1];
+    }
+    this.mzX = this.x + ox * c - oy * s;
+    this.mzY = this.y + ox * s + oy * c;
+  }
+
+  /** Laser origin: the main gun (muzzle 0). */
   laserX(): number {
-    if (this.hasHead) return this.x + Math.cos(this.headRot + HALF_PI) * this.radius * 0.7;
-    return this.x - Math.sin(this.rot) * this.radius * 0.55;
+    this.aimMuzzle(0);
+    return this.mzX;
   }
 
   laserY(): number {
-    if (this.hasHead) return this.y + Math.sin(this.headRot + HALF_PI) * this.radius * 0.7;
-    return this.y + Math.cos(this.rot) * this.radius * 0.55;
+    this.aimMuzzle(0);
+    return this.mzY;
   }
 }
 
@@ -144,11 +191,8 @@ export class Enemies {
     if (a !== undefined) return a;
     const scene = this.w.scene;
     a = null;
-    if (frameCount(scene, key) > 1) {
-      const animKey = def.sprite === 'en_spinner' ? spinnerAnimKey(def.palette)
-        : def.sprite === 'hz_mine' ? mineAnimKey(def.palette) : '';
-      a = new FrameAnim(scene, animKey, key, 'enemy', def.sprite === 'en_spinner' ? 16 : 6, true);
-    }
+    const animKey = enemyAnimKey(def.sprite, def.palette);
+    if (animKey || frameCount(scene, key) > 1) a = new FrameAnim(scene, animKey ?? '', key, 'enemy', 12, true);
     this.animCache.set(key, a);
     return a;
   }
@@ -187,6 +231,7 @@ export class Enemies {
     e.fs.reset(def.fireRate * w.diff.fireRate, w.rng);
     e.entered = false;
     e.flash = 0;
+    e.flashCd = 0;
     e.smokeT = 0;
     e.contactCd = 0;
     e.animIdx = -1;
@@ -203,6 +248,10 @@ export class Enemies {
     const hk = this.tex(turretTopKey(def.sprite, def.palette));
     e.hasHead = hk !== '';
     e.headRot = 0;
+    e.headTip = HEAD_TIP[def.sprite] ?? e.radius * 0.7;
+    e.barrels = HEAD_BARRELS[def.sprite] ?? null;
+    e.muzzles = BODY_MUZZLES[def.sprite] ?? null;
+    e.shot = 0;
     if (e.hasHead) e.head.setTexture(hk).clearTint().setVisible(true).setPosition(x, y).setRotation(0);
     else e.head.setVisible(false);
     initMove(e, w);
@@ -238,11 +287,12 @@ export class Enemies {
   damage(e: Enemy, amount: number): boolean {
     if (!e.active) return false;
     e.hp -= amount;
-    if (e.flash <= 0) {
+    if (e.flash <= 0 && e.flashCd <= 0) {
       e.img.setTintFill(0xffffff);
       if (e.hasHead) e.head.setTintFill(0xffffff);
+      e.flash = FLASH_TIME;
+      e.flashCd = FLASH_TIME + FLASH_GAP;
     }
-    e.flash = FLASH_TIME;
     if (e.hp <= 0) {
       this.kill(e, true);
       return true;
@@ -384,10 +434,12 @@ export class Enemies {
       // firing
       if (e.fire !== 'none') {
         const armed = shipOk && e.entered && e.y > 6 && e.y < H - 36 && e.x > 4 && e.x < PLAY_W - 4;
-        updateFire(w, e.fs, e, e.laserX(), e.laserY(), dt, armed, e);
+        e.aimMuzzle(e.shot);
+        if (updateFire(w, e.fs, e, e.mzX, e.mzY, dt, armed, e)) e.shot++;
       }
       if (e.contactCd > 0) e.contactCd -= dt;
       // hit flash
+      if (e.flashCd > 0) e.flashCd -= dt;
       if (e.flash > 0) {
         e.flash -= dt;
         if (e.flash <= 0) {

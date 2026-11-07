@@ -750,3 +750,53 @@ export function generatorChip(scene: Phaser.Scene, id: string, tier: number): st
 export function weaponChip(scene: Phaser.Scene, id: string, projectileKey: string, color: number): string | null {
   return chipIcon(scene, `w_${id}`, projectileKey, color, { fit: 12 });
 }
+
+/**
+ * Blueprint render of a sprite frame: teal outline pixels, dimmer inner detail edges and a
+ * faint fill (cached). Display it with an integer scale.
+ */
+export function schematic(scene: Phaser.Scene, srcKey: string, frame: string | number = 0): string | null {
+  if (!scene.textures.exists(srcKey)) return null;
+  const key = `meta_schem_${srcKey}_${frame}`;
+  if (scene.textures.exists(key)) return key;
+  const tex = scene.textures.get(srcKey);
+  const fr = tex.has(String(frame)) ? tex.get(frame) : tex.get();
+  const w = fr.cutWidth, h = fr.cutHeight;
+  const a = makeCanvas(w, h);
+  a.ctx.drawImage(fr.source.image as CanvasImageSource, fr.cutX, fr.cutY, w, h, 0, 0, w, h);
+  const sd = a.ctx.getImageData(0, 0, w, h).data;
+  const out = makeCanvas(w, h);
+  const od = out.ctx.createImageData(w, h);
+  const op = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && sd[(y * w + x) * 4 + 3] > 100;
+  const lum = (x: number, y: number) => { const i = (y * w + x) * 4; return sd[i] * 0.3 + sd[i + 1] * 0.59 + sd[i + 2] * 0.11; };
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!op(x, y)) continue;
+      const edge = !op(x - 1, y) || !op(x + 1, y) || !op(x, y - 1) || !op(x, y + 1);
+      const l = lum(x, y);
+      const detail = (op(x + 1, y) && Math.abs(lum(x + 1, y) - l) > 48) || (op(x, y + 1) && Math.abs(lum(x, y + 1) - l) > 48);
+      const o = (y * w + x) * 4;
+      if (edge) { od.data[o] = 120; od.data[o + 1] = 255; od.data[o + 2] = 230; od.data[o + 3] = 255; }
+      else if (detail) { od.data[o] = 46; od.data[o + 1] = 230; od.data[o + 2] = 200; od.data[o + 3] = 150; }
+      else { od.data[o] = 46; od.data[o + 1] = 230; od.data[o + 2] = 200; od.data[o + 3] = 40 + Math.round(l / 12); }
+    }
+  }
+  out.ctx.putImageData(od, 0, 0);
+  addTexture(scene, key, out.canvas);
+  return key;
+}
+
+/** Blueprint grid backdrop (w x h, cached): dark blue with fine and coarse grid lines. */
+export function blueprintGrid(scene: Phaser.Scene, w: number, h: number): string {
+  w = Math.round(w); h = Math.round(h);
+  const key = `meta_bp_${w}x${h}`;
+  if (scene.textures.exists(key)) return key;
+  const { canvas, ctx } = makeCanvas(w, h);
+  ctx.fillStyle = '#081420';
+  ctx.fillRect(0, 0, w, h);
+  const cx = Math.floor(w / 2), cy = Math.floor(h / 2);
+  for (let x = cx % 6; x < w; x += 6) { ctx.fillStyle = (x - cx) % 24 === 0 ? 'rgba(46,230,200,0.22)' : 'rgba(46,230,200,0.08)'; ctx.fillRect(x, 0, 1, h); }
+  for (let y = cy % 6; y < h; y += 6) { ctx.fillStyle = (y - cy) % 24 === 0 ? 'rgba(46,230,200,0.22)' : 'rgba(46,230,200,0.08)'; ctx.fillRect(0, y, w, 1); }
+  addTexture(scene, key, canvas);
+  return key;
+}

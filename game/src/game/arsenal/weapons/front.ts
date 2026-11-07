@@ -1,21 +1,21 @@
 // =====================================================================================
 //  FRONT GUNS — one class per FrontPattern. Every level changes the look:
 //   pulse    1 -> 5 parallel streams, bolts grow + glow (big/huge bolts hit harder)
-//   scatter  3 -> 11 pellet fan, half-angle 10 deg -> 40.6 deg
-//   gatling  needle stream, cadence x1 -> x1.54, 1 -> 4 barrels, jitter grows
-//   lance    piercing beam bursts, 2 -> 5 segments long, width x1 -> x1.81
-//   seeker   2 -> 6 homing micro-missiles per volley, fanned launch
-//   helix    two interleaved sine streams (amplitude grows), four from p6
-//   mortar   heavy orbs with splash 22 -> 54 px, 1 -> 3 orbs per volley
-//   prism    crystal bolts splitting after 80 px into 2 -> 5 shards, shards re-split at p9+
+//   scatter  3 -> 11 pellet fan, half-angle 10 deg -> 40.6 deg, bigger glowing pellets
+//   gatling  dense needle stream (2 sub-volleys), cadence x1 -> x1.54, 1 -> 4 barrels
+//   lance    piercing beam bursts, 2 -> 5 segments long (42 -> 96 px), width x1 -> x1.81
+//   seeker   2 -> 6 homing micro-missiles per volley, ripple-fired in a widening fan
+//   helix    two interleaved sine streams (amplitude 10 -> 22 px), four from p6
+//   mortar   heavy orbs, splash 22 -> 54 px, 1 -> 3 orbs per volley
+//   prism    crystal bolts splitting after 80 px into 3/5/7 spectrum shards, 2 bolts from
+//            p6, shards re-split at p10
 //  Damage follows the balance model (src/data/weapons.ts PROJECTILES_AT_P1 / powerFactor):
 //  total DPS = def.damage * def.fireRate * N1 * (1 + 0.45 (p - 1)).
 // =====================================================================================
 import type { FrontPattern } from '../../../types';
 import { SLOT_FRONT } from '../fx';
-import {
-  HIT_BLAST, HIT_SOFT, HitRegistry, MOVE_HOMING, MOVE_SINE, type ShotSpec,
-} from '../shots';
+import { HIT_BLAST, HIT_SOFT, HitRegistry, MOVE_HOMING, MOVE_SINE, makeSpec, type ShotSpec } from '../shots';
+import { fxTexture } from '../textures';
 import { DEG, TAU, UP, dpsMul, rateMul, ramp, table } from '../scaling';
 import { WeaponGun, type ArsenalCore } from './gun';
 
@@ -127,6 +127,7 @@ class ScatterGun extends WeaponGun {
 const GATLING_BARRELS: readonly (readonly number[])[] = [[0], [-2.5, 2.5], [-5, 0, 5], [-7, -2.5, 2.5, 7]];
 const GATLING_N = [1, 1, 2, 2, 2, 3, 3, 3, 4, 4];
 
+/** Two sub-volleys per paid volley; with several barrels they alternate (odd / even). */
 class GatlingGun extends WeaponGun {
   private barrels: readonly number[] = GATLING_BARRELS[0];
   private jitter = 0;
@@ -136,12 +137,13 @@ class GatlingGun extends WeaponGun {
     const p = this.p;
     const r = rateMul(p, 0.06);
     const nb = table(p, GATLING_N);
+    this.subs = 2;
     this.barrels = GATLING_BARRELS[nb - 1];
     this.jitter = ramp(p, 2.2, 4.5) * DEG;
     const s = this.spec();
     s.speed = 800;
     s.life = 900;
-    s.damage = this.dmg(1, nb, r);
+    s.damage = this.dmg(1, nb === 1 ? 2 : nb, r);
     s.radius = 3;
     s.scaleY = ramp(p, 1, 1.3);
     s.additive = p >= 7;
@@ -149,15 +151,16 @@ class GatlingGun extends WeaponGun {
     return r;
   }
 
-  protected volley(late: number): void {
+  protected volley(late: number, sub: number): void {
     const nx = this.core.noseX, ny = this.core.noseY;
     const x = this.shipX() + nx, y = this.shipY() + ny;
     const B = this.barrels;
     for (let b = 0; b < B.length; b++) {
+      if (B.length > 1 && (b & 1) !== sub) continue;
       const ox = B[b] + (Math.random() - 0.5) * 1.4;
       const a = UP + (Math.random() * 2 - 1) * this.jitter;
       const s = this.core.shots.fire(this.needle, x + ox, y + Math.abs(B[b]) * 0.3, a);
-      this.core.shots.advance(s, late + Math.random() * 6);
+      this.core.shots.advance(s, late + Math.random() * 4);
       this.flash(SLOT_FRONT + b, nx + B[b], ny, UP, 0.6);
     }
   }
@@ -165,11 +168,18 @@ class GatlingGun extends WeaponGun {
 
 // ------------------------------------------------------------------------------ lance
 
-const BEAM_SEGMENT_STEP = 18; // pj_beam is 24 px tall: segments overlap their tapered ends
+const BEAM_STEP = 18; // collision segment spacing (px)
 
+/**
+ * One burst = one stretched beam sprite (pointed ends) + a soft additive aura + hidden
+ * collision segments every 18 px, all sharing a hit registry (each enemy is hit once).
+ */
 class LanceGun extends WeaponGun {
   private segments = 2;
-  private beam!: ShotSpec;
+  private length = 42;
+  private body!: ShotSpec;
+  private aura!: ShotSpec;
+  private seg!: ShotSpec;
   private readonly regs: HitRegistry[] = [];
 
   constructor(core: ArsenalCore) {
@@ -181,30 +191,62 @@ class LanceGun extends WeaponGun {
     const p = this.p;
     const r = rateMul(p, 0.03);
     this.segments = 2 + Math.floor((p - 1) / 3);
+    this.length = this.segments * BEAM_STEP + 6;
     const w = ramp(p, 1, 1.81);
-    const s = this.spec();
-    s.speed = 920;
-    s.life = 800;
-    s.pierce = true;
-    s.damage = this.dmg(1, 1, r); // one burst = one projectile; segments share one hit registry
-    s.radius = 3 + 2.2 * w;
-    s.scaleX = w;
-    s.halo = 16 + 2.5 * p;
-    s.haloAlpha = 0.38;
-    s.hit = HIT_SOFT;
-    this.beam = s;
+    const dmg = this.dmg(1, 1, r); // one burst = one projectile
+
+    const body = this.spec();
+    body.speed = 920;
+    body.life = 800;
+    body.pierce = true;
+    body.damage = dmg;
+    body.radius = 3 + 2.2 * w;
+    body.scaleX = w;
+    body.scaleY = this.length / 24;
+    body.cull = this.length / 2;
+    body.hit = HIT_SOFT;
+    this.body = body;
+
+    const glow = fxTexture(this.core.env.scene, 'fx_glow');
+    const aura = makeSpec(glow.key, this.glow, this.coreColor);
+    aura.speed = 920;
+    aura.life = 800;
+    aura.damage = 0; // visual only (never iterated for collisions)
+    aura.additive = true;
+    aura.scaleX = (10 + 5 * w) / glow.w;
+    aura.scaleY = (this.length + 22) / glow.w;
+    aura.cull = this.length / 2 + 12;
+    this.aura = aura;
+
+    const seg = this.spec();
+    seg.hidden = true;
+    seg.speed = 920;
+    seg.life = 800;
+    seg.pierce = true;
+    seg.damage = dmg;
+    seg.radius = body.radius;
+    seg.hit = HIT_SOFT;
+    this.seg = seg;
     return r;
   }
 
   protected volley(late: number): void {
     const nx = this.core.noseX, ny = this.core.noseY;
-    const x = this.shipX() + nx, y = this.shipY() + ny - 10;
+    const shots = this.core.shots;
+    const x = this.shipX() + nx, y = this.shipY() + ny - 4;
     const reg = this.regs[this.volleys & 7];
     reg.reset();
+    const cy = y - this.length / 2;
+    const a = shots.fire(this.aura, x, cy, UP);
+    a.setTint(this.glow);
+    shots.advance(a, late);
+    const b = shots.fire(this.body, x, cy, UP);
+    b.reg = reg;
+    shots.advance(b, late);
     for (let k = 0; k < this.segments; k++) {
-      const s = this.core.shots.fire(this.beam, x, y - k * BEAM_SEGMENT_STEP, UP);
+      const s = shots.fire(this.seg, x, y - 9 - k * BEAM_STEP, UP);
       s.reg = reg;
-      this.core.shots.advance(s, late);
+      shots.advance(s, late);
     }
     this.flash(SLOT_FRONT, nx, ny, UP, 1.1 + this.p * 0.07);
     this.core.fx.flash(x, this.shipY() + ny, this.glow, 14 + this.p * 2, 110, 0.8);
@@ -215,14 +257,16 @@ class LanceGun extends WeaponGun {
 
 const SEEKER_N = [2, 2, 3, 3, 4, 4, 5, 5, 6, 6];
 
+/** Missiles of a volley are ripple-fired (alternating wings) over 45 % of the interval. */
 class SeekerGun extends WeaponGun {
-  private n = 2;
   private missile!: ShotSpec;
 
   protected build(): number {
     const p = this.p;
     const r = rateMul(p, 0.03);
-    this.n = table(p, SEEKER_N);
+    const n = table(p, SEEKER_N);
+    this.subs = n;
+    this.subSpread = 0.45;
     const s = this.spec();
     s.move = MOVE_HOMING;
     s.speed = 150;
@@ -232,37 +276,45 @@ class SeekerGun extends WeaponGun {
     s.seekRange = 460;
     s.launchMs = 100;
     s.life = 2600;
-    s.damage = this.dmg(2, this.n, r);
+    s.damage = this.dmg(2, n, r);
     s.radius = 4;
-    s.trailMs = 28;
-    s.trailSize = 7;
+    s.trailMs = 20;
+    s.trailSize = 9;
     s.popOnExpire = true;
     this.missile = s;
     return r;
   }
 
-  protected volley(late: number): void {
+  protected volley(late: number, sub: number): void {
     const sx = this.shipX(), sy = this.shipY();
-    let k = 0;
-    if (this.n & 1) {
-      const s = this.core.shots.fire(this.missile, sx + this.core.noseX, sy + this.core.noseY + 4, UP);
-      this.core.shots.advance(s, late);
-      k = 1;
-    }
-    for (let j = 0; k < this.n; j++) {
-      for (let side = -1; side <= 1 && k < this.n; side += 2, k++) {
-        const a = UP + side * (32 + 16 * j) * DEG;
-        const ox = side * (6 + 3 * j), oy = -2 + 2 * j;
-        const s = this.core.shots.fire(this.missile, sx + ox, sy + oy, a);
-        this.core.shots.advance(s, late);
-        this.flash(SLOT_FRONT + 1 + k, ox, oy, a, 0.55);
+    const shots = this.core.shots;
+    let j = 0, side = 0;
+    if (this.subs & 1) {
+      if (sub > 0) {
+        j = (sub - 1) >> 1;
+        side = (sub - 1) & 1 ? 1 : -1;
       }
+    } else {
+      j = sub >> 1;
+      side = sub & 1 ? 1 : -1;
     }
+    if (side === 0) {
+      const s = shots.fire(this.missile, sx + this.core.noseX, sy + this.core.noseY + 4, UP);
+      shots.advance(s, late);
+      this.flash(SLOT_FRONT, this.core.noseX, this.core.noseY + 4, UP, 0.7);
+      return;
+    }
+    const a = UP + side * (32 + 16 * j) * DEG;
+    const ox = side * (6 + 3 * j), oy = -2 + 2 * j;
+    const s = shots.fire(this.missile, sx + ox, sy + oy, a);
+    shots.advance(s, late);
+    this.flash(SLOT_FRONT + 1 + sub, ox, oy, a, 0.6);
   }
 }
 
 // ------------------------------------------------------------------------------ helix
 
+/** Three sub-volleys per paid volley so each stream shows ~4 shots per wavelength. */
 class HelixGun extends WeaponGun {
   private four = false;
   private inner!: ShotSpec;
@@ -271,8 +323,9 @@ class HelixGun extends WeaponGun {
   protected build(): number {
     const p = this.p;
     const r = rateMul(p, 0.03);
+    this.subs = 3;
     this.four = p >= 6;
-    const n = this.four ? 4 : 2;
+    const n = (this.four ? 4 : 2) * this.subs;
     const speed = 440;
     const make = (amp: number, wavelength: number, scale: number): ShotSpec => {
       const s = this.spec();
@@ -289,12 +342,12 @@ class HelixGun extends WeaponGun {
       s.hit = HIT_SOFT;
       return s;
     };
-    this.inner = make(ramp(p, 10, 22), 88, ramp(p, 1, 1.3));
-    this.outer = make(ramp(p, 22, 34), 124, 1);
+    this.inner = make(ramp(p, 10, 22), 118, ramp(p, 1, 1.3));
+    this.outer = make(ramp(p, 22, 34), 164, 1);
     return r;
   }
 
-  protected volley(late: number): void {
+  protected volley(late: number, sub: number): void {
     const nx = this.core.noseX, ny = this.core.noseY;
     const x = this.shipX() + nx, y = this.shipY() + ny;
     const shots = this.core.shots;
@@ -310,7 +363,7 @@ class HelixGun extends WeaponGun {
         shots.advance(s, late);
       }
     }
-    this.flash(SLOT_FRONT, nx, ny, UP, 0.9);
+    if (sub === 0) this.flash(SLOT_FRONT, nx, ny, UP, 0.9);
   }
 }
 
@@ -360,8 +413,14 @@ class MortarGun extends WeaponGun {
 
 // ------------------------------------------------------------------------------ prism
 
-const PRISM_SHARDS = [2, 2, 3, 3, 3, 4, 4, 5, 5, 5];
+const PRISM_BOLTS = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2];
+const PRISM_SHARDS = [3, 3, 5, 5, 7, 3, 5, 5, 7, 7];
 
+/**
+ * White crystal bolts split after 80 px into an odd fan of spectrum-tinted piercing shards
+ * (always a centre shard). A bolt that hits before splitting shatters through the target.
+ * Damage: bolt = full projectile damage; the k shards share 2 x bolt damage.
+ */
 class PrismGun extends WeaponGun {
   private bolts = 1;
   private bolt!: ShotSpec;
@@ -369,10 +428,10 @@ class PrismGun extends WeaponGun {
   protected build(): number {
     const p = this.p;
     const r = rateMul(p, 0.03);
-    this.bolts = p < 6 ? 1 : 2;
+    this.bolts = table(p, PRISM_BOLTS);
     const k = table(p, PRISM_SHARDS);
     const boltDmg = this.dmg(1, this.bolts, r);
-    const shardDmg = (boltDmg * 1.5) / k;
+    const shardDmg = (boltDmg * 2) / k;
 
     const shard = this.spec('pj_shard');
     shard.speed = 580;
@@ -380,21 +439,23 @@ class PrismGun extends WeaponGun {
     shard.pierce = true;
     shard.damage = shardDmg;
     shard.radius = 3.5;
+    shard.scaleX = shard.scaleY = ramp(p, 1.1, 1.4);
+    shard.additive = true;
     shard.hit = HIT_SOFT;
     shard.fadeMs = 160;
-    if (p >= 9) {
+    if (p >= 10) {
       const fine = this.spec('pj_shard');
       fine.speed = 600;
       fine.life = 420;
       fine.pierce = true;
       fine.damage = shardDmg * 0.6;
       fine.radius = 3;
-      fine.scaleX = fine.scaleY = 0.75;
+      fine.additive = true;
       fine.hit = HIT_SOFT;
       fine.fadeMs = 140;
       shard.splitDist = 70;
       shard.splitN = 2;
-      shard.splitSpread = 9 * DEG;
+      shard.splitSpread = 7 * DEG;
       shard.shard = fine;
     }
 
@@ -404,12 +465,13 @@ class PrismGun extends WeaponGun {
     b.damage = boltDmg;
     b.radius = 4.5;
     b.scaleX = b.scaleY = ramp(p, 1.5, 1.9);
-    b.halo = 16 + p;
-    b.haloAlpha = 0.55;
+    b.halo = 18 + p;
+    b.haloAlpha = 0.6;
     b.splitDist = 80;
     b.splitN = k;
-    b.splitSpread = ramp(p, 14, 35.6) * DEG;
+    b.splitSpread = ramp(p, 10, 30) * DEG;
     b.shard = shard;
+    b.rainbow = true;
     this.bolt = b;
     return r;
   }
@@ -422,7 +484,7 @@ class PrismGun extends WeaponGun {
       this.core.shots.advance(s, late);
     } else {
       for (let side = -1; side <= 1; side += 2) {
-        const s = this.core.shots.fire(this.bolt, x + side * 6, y + 2, UP + side * 2 * DEG);
+        const s = this.core.shots.fire(this.bolt, x + side * 7, y + 2, UP + side * 3 * DEG);
         this.core.shots.advance(s, late);
       }
     }
@@ -449,3 +511,4 @@ export function isFrontPattern(pattern: string): pattern is FrontPattern {
   return pattern === 'pulse' || pattern === 'scatter' || pattern === 'gatling' || pattern === 'lance'
     || pattern === 'seeker' || pattern === 'helix' || pattern === 'mortar' || pattern === 'prism';
 }
+

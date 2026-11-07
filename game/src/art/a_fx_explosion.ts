@@ -97,34 +97,68 @@ export function explosionFrames(spec: ExplosionSpec): HTMLCanvasElement[] {
   const SL = new Float32Array(size * size);
   const SZ = new Float32Array(size * size);
 
+  const nL = lobes.length;
+  const LX = new Float32Array(nL), LY = new Float32Array(nL), LR = new Float32Array(nL);
+  const LH = new Float32Array(nL), LE = new Float32Array(nL), LW = new Float32Array(nL), LReach = new Float32Array(nL);
+  const LOn = new Uint8Array(nL);
+
   for (let f = 0; f < frames; f++) {
     const t = frames === 1 ? 0 : f / (frames - 1);
-    D.fill(0); T.fill(0);
+    D.fill(0); T.fill(0); N2.fill(NaN);
+    // per-frame lobe state (hoisted out of the pixel loop)
+    for (let j = 0; j < nL; j++) {
+      const L = lobes[j];
+      const a = (t - L.birth) / (1 - L.birth);
+      LOn[j] = a >= 0 ? 1 : 0;
+      if (a < 0) continue;
+      const grow = a < 0.34 ? 0.42 + 0.58 * easeOut(a / 0.34, 2.2) : 1 + 0.3 * (a - 0.34);
+      const r = L.rad * grow;
+      LR[j] = r;
+      LX[j] = L.x + L.dx * R * 0.12 * a;
+      LY[j] = L.y + L.dy * R * 0.12 * a;
+      LH[j] = L.heat * (1.45 - 1.75 * Math.pow(a, 0.85));
+      LE[j] = 0.3 + 1.5 * a;
+      LW[j] = spec.noise * r * 2 + 1.2;            // warp amplitude
+      const reach = r + LW[j] * 0.5 + 0.8;          // warp is within [-0.5, 0.5]
+      LReach[j] = reach * reach;
+    }
     for (let y = 0; y < size; y++) {
+      const py = y + 0.5;
       for (let x = 0; x < size; x++) {
-        const px = x + 0.5, py = y + 0.5;
+        const px = x + 0.5;
+        let near = false;
+        for (let j = 0; j < nL; j++) {
+          if (!LOn[j]) continue;
+          const dx = px - LX[j], dy = py - LY[j];
+          if (dx * dx + dy * dy < LReach[j]) { near = true; break; }
+        }
+        if (!near) continue;
         const warp = fbm(px / ns + t * 1.1, py / ns - t * 0.7, seed, 3) - 0.5;
-        N2[y * size + x] = fbm(px / (ns * 0.55) - t * 0.6, py / (ns * 0.55) + t * 0.9, seed + 77, 2) - 0.5;
         let d0 = 0, t0 = 0;
-        for (const L of lobes) {
-          const a = (t - L.birth) / (1 - L.birth);
-          if (a < 0) continue;
-          const grow = a < 0.34 ? 0.42 + 0.58 * easeOut(a / 0.34, 2.2) : 1 + 0.3 * (a - 0.34);
-          const r = L.rad * grow;
-          const lx = L.x + L.dx * R * 0.12 * a, ly = L.y + L.dy * R * 0.12 * a;
-          const d = Math.hypot(px - lx, py - ly) + warp * (spec.noise * r * 2 + 1.2);
-          const s = 1 - d / r;
-          const heat = L.heat * (1.45 - 1.75 * Math.pow(a, 0.85));
-          if (s > 0) {
-            if (s > d0) d0 = s;
-            const th = heat * Math.pow(s, 0.3 + 1.5 * a);
-            if (th > t0) t0 = th;
-          }
+        for (let j = 0; j < nL; j++) {
+          if (!LOn[j]) continue;
+          const r = LR[j];
+          const d = Math.sqrt((px - LX[j]) * (px - LX[j]) + (py - LY[j]) * (py - LY[j])) + warp * LW[j];
+          const sv = 1 - d / r;
+          if (sv <= 0) continue;
+          if (sv > d0) d0 = sv;
+          const th = LH[j] * Math.pow(sv, LE[j]);
+          if (th > t0) t0 = th;
         }
         D[y * size + x] = d0;
         T[y * size + x] = t0;
       }
     }
+    // fine billow noise, evaluated lazily for drawn pixels only
+    const n2 = (x: number, y: number): number => {
+      const k = y * size + x;
+      let v = N2[k];
+      if (v !== v) {
+        v = fbm((x + 0.5) / (ns * 0.55) - t * 0.6, (y + 0.5) / (ns * 0.55) + t * 0.9, seed + 77, 2) - 0.5;
+        N2[k] = v;
+      }
+      return v;
+    };
 
     // smoke puffs: per pixel, the front-most live puff wins; sphere-lit from the top-left
     S.fill(-1);
@@ -161,7 +195,8 @@ export function explosionFrames(spec: ExplosionSpec): HTMLCanvasElement[] {
       for (let x = 0; x < size; x++) {
         const i = y * size + x;
         const shadeF = clamp((at(D, x + 1, y + 1) - at(D, x - 1, y - 1)) * R * 0.32, -1, 1);
-        const temp = T[i] > 0 ? T[i] + 0.14 * shadeF + N2[i] * (0.1 + 0.25 * t) : 0;
+        if (D[i] <= 0 && S[i] < 0) continue;
+        const temp = T[i] > 0 ? T[i] + 0.14 * shadeF + n2(x, y) * (0.1 + 0.25 * t) : 0;
         // smoke billows hide the cooling fire: it only peeks through gaps and thin edges
         const cover = S[i] >= 0 ? SZ[i] * smoothstep(0.3, 0.7, t) * 0.45 : 0;
         const fi = D[i] > 0 && temp - cover >= FIRE_T[FIRE_T.length - 1] ? fireIndex(temp) : -1;
@@ -170,7 +205,7 @@ export function explosionFrames(spec: ExplosionSpec): HTMLCanvasElement[] {
           continue;
         }
         if (S[i] < 0) continue;
-        const v = SL[i] + N2[i] * 0.25;
+        const v = SL[i] + n2(x, y) * 0.25;
         if (temp - cover > 0.11 && D[i] > 0) {
           buf.put(x, y, SMOKE_WARM[v > 0.75 ? 0 : v > 0.35 ? 1 : 2]);
           continue;

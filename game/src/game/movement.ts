@@ -178,6 +178,10 @@ export function stepMove(e: Enemy, w: World, dt: number): void {
           e.ms = 2;
           e.vy = 0;
         }
+      } else if (e.isMidboss) {
+        // a mid-boss that was not destroyed in time retreats upward
+        e.vy = Math.max(-s * 1.6 - 20, e.vy - 70 * dt);
+        e.y += e.vy * dt;
       } else {
         e.vy = Math.min(s * 1.6, e.vy + 90 * dt);
         e.y += e.vy * dt;

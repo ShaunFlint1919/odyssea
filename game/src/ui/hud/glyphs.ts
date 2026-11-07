@@ -221,6 +221,25 @@ export function brightMask(src: HTMLCanvasElement, threshold = 70): HTMLCanvasEl
   return canvas;
 }
 
+/** Recolours by luminance through a colour ramp (dark -> light), keeping alpha. */
+export function gradientMap(canvas: HTMLCanvasElement, stops: string[]): void {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D;
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = img.data;
+  const rgb = stops.map(hexRgb);
+  const n = rgb.length - 1;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    const l = (d[i] * 0.3 + d[i + 1] * 0.55 + d[i + 2] * 0.15) / 255;
+    const f = Math.min(0.9999, Math.max(0, l)) * n;
+    const k = Math.floor(f), t = f - k;
+    d[i] = rgb[k][0] + (rgb[k + 1][0] - rgb[k][0]) * t;
+    d[i + 1] = rgb[k][1] + (rgb[k + 1][1] - rgb[k][1]) * t;
+    d[i + 2] = rgb[k][2] + (rgb[k + 1][2] - rgb[k][2]) * t;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
 export function hexRgb(hex: string): Rgb {
   const h = hex.replace('#', '');
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];

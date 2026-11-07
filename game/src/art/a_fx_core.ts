@@ -20,18 +20,20 @@ export class PixBuf {
   /** Overwrite a pixel with a colour (alpha 0..1 multiplies the colour's own alpha). */
   put(x: number, y: number, hex: string, alpha = 1): void {
     x |= 0; y |= 0;
-    if (!this.inside(x, y)) return;
-    const [r, g, b, a] = parseColor(hex);
+    if (x < 0 || y < 0 || x >= this.w || y >= this.h) return;
+    const c = parseColor(hex);
     const i = (y * this.w + x) * 4;
-    this.data[i] = r; this.data[i + 1] = g; this.data[i + 2] = b;
-    this.data[i + 3] = Math.round(a * Math.max(0, Math.min(1, alpha)));
+    const d = this.data;
+    d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2];
+    d[i + 3] = alpha >= 1 ? c[3] : Math.round(c[3] * (alpha > 0 ? alpha : 0));
   }
 
   /** Alpha-over a colour onto a pixel. */
   blend(x: number, y: number, hex: string, alpha = 1): void {
     x |= 0; y |= 0;
     if (!this.inside(x, y)) return;
-    const [r, g, b, a0] = parseColor(hex);
+    const c = parseColor(hex);
+    const r = c[0], g = c[1], b = c[2], a0 = c[3];
     const sa = (a0 / 255) * Math.max(0, Math.min(1, alpha));
     if (sa <= 0) return;
     const i = (y * this.w + x) * 4;

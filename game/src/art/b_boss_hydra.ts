@@ -2,9 +2,8 @@
 // hull with a magenta reactor, wide shoulder flanges, and five ribbed serpentine necks that
 // fan out downwards, each ending in a hooded armoured gun head (glowing eyes, twin barrels).
 import {
-  Grid, type Shape, plate, poly, circle, ellipse, arcShape, sym, barrel, groove,
-  rivet, rivetRing, vent, glow, lamp, socket, ngon, frame, tube, bezPath, fill, rect,
-  GREY, FIRE, MAGENTA,
+  Grid, type Shape, plate, poly, circle, ellipse, arcShape, sym, barrel, groove, rivet, rivetRing,
+  vent, glow, lamp, socket, ngon, frame, tube, bezPath, fill, rect, GREY, FIRE, MAGENTA,
 } from './b_boss_kit';
 import type { BossMounts } from './b_boss_types';
 
@@ -125,6 +124,5 @@ export function drawHydra(): Grid {
 
   // ---- vent slits on the shell flanks with magenta glow
   for (const x of [31, S - 35]) { fill(g, rect(x, 28, 4, 1), 'k'); fill(g, rect(x, 31, 4, 1), 'm'); fill(g, rect(x, 34, 4, 1), 'k'); }
-  void FIRE;
   return g;
 }

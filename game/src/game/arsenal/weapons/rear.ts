@@ -1,17 +1,18 @@
 // =====================================================================================
 //  REAR GUNS — one class per RearPattern, two modes each (0 = A, 1 = B):
 //   tail     A: 1 -> 5 bolt streams straight back      B: 1 -> 4 parallel pairs at 45 deg forward
-//   flame    A: rear flame cone (1 -> 4 puffs/volley)   B: flames out of both flanks
+//   flame    A: rear flame cone (1 -> 4 puffs/burst)    B: flames out of both flanks
 //   mines    A: 1 -> 3 proximity mines dropped behind   B: 1 -> 2 pairs lobbed sideways
 //   arc      A: 3 -> 7 ring arc fanned to the rear      B: 2 -> 5 rings per flank arc
-//   seekers  A: 2 -> 5 hunters launched backwards       B: 1 -> 3 hunters per flank
+//   seekers  A: 2 -> 5 hunters ripple-launched back     B: 1 -> 3 hunters per flank
 //  Both modes have the same total DPS (balance model: damage * fireRate * N1 * M(p)).
 // =====================================================================================
 import type { RearPattern } from '../../../types';
 import { SLOT_REAR } from '../fx';
 import { HIT_BLAST, HIT_SOFT, MOVE_FLAME, MOVE_HOMING, MOVE_MINE, type ShotSpec } from '../shots';
 import { DEG, DOWN, LEFT, RIGHT, UP, rateMul, ramp, table } from '../scaling';
-import { WeaponGun, type ArsenalCore } from './gun';
+import { WeaponGun } from './gun';
+import type { ArsenalCore } from './gun';
 
 /** Rear muzzle (tail) and flank muzzle offsets from the ship centre. */
 const TAIL_Y = 12;
@@ -70,6 +71,7 @@ class TailGun extends WeaponGun {
 
 // ------------------------------------------------------------------------------ flame
 
+/** Two sub-volleys per paid volley: a continuous short jet even at power 1. */
 class FlameGun extends WeaponGun {
   private perSide = 1;
   private half = 0;
@@ -78,15 +80,16 @@ class FlameGun extends WeaponGun {
   protected build(): number {
     const p = this.p;
     const r = rateMul(p, 0.02);
+    this.subs = 2;
     let count: number;
     if (this.mode === 0) {
       this.perSide = table(p, [1, 1, 1, 2, 2, 2, 3, 3, 3, 4]);
       this.half = ramp(p, 8, 22.4) * DEG;
-      count = this.perSide;
+      count = this.perSide * this.subs;
     } else {
       this.perSide = table(p, [1, 1, 1, 1, 2, 2, 2, 2, 3, 3]);
       this.half = ramp(p, 6, 16.8) * DEG;
-      count = this.perSide * 2;
+      count = this.perSide * 2 * this.subs;
     }
     const life = ramp(p, 230, 392);
     const s = this.spec();
@@ -96,7 +99,7 @@ class FlameGun extends WeaponGun {
     s.life = life;
     s.pierce = true;
     s.damage = this.dmg(1, count, r);
-    s.radius = 3; // grows with scaleEnd: <= 9.6 px
+    s.radius = 3; // grows with scaleEnd: <= 9.6 px (World grid assumes shot radius <= 10)
     s.scaleX = s.scaleY = 0.6;
     s.scaleEnd = ramp(p, 2.3, 3.2);
     s.fadeMs = life * 0.55;
@@ -176,7 +179,11 @@ class MinesGun extends WeaponGun {
     if (this.mode === 0) {
       const L = MINE_DROP[this.n - 1];
       for (let i = 0; i < L.length; i++) {
-        const s = shots.fire(this.mine, sx + L[i], sy + TAIL_Y - 2, DOWN - L[i] * 1.3 * DEG);
+        const a = DOWN - L[i] * 1.3 * DEG + (Math.random() - 0.5) * 16 * DEG;
+        const s = shots.fire(this.mine, sx + L[i], sy + TAIL_Y - 2, a);
+        const k = 0.75 + Math.random() * 0.5;
+        s.vx *= k;
+        s.vy *= k;
         shots.advance(s, late);
       }
       this.flash(SLOT_REAR, 0, TAIL_Y, DOWN, 0.9);
@@ -185,13 +192,12 @@ class MinesGun extends WeaponGun {
     for (let side = -1; side <= 1; side += 2) {
       const dir = side < 0 ? LEFT : RIGHT;
       for (let j = 0; j < this.n; j++) {
-        const lift = (j === 0 ? 8 : 26) * DEG;
+        const lift = (j === 0 ? 8 : 26) * DEG + (Math.random() - 0.5) * 6 * DEG;
         const a = dir - side * lift;
         const s = shots.fire(this.mine, sx + side * FLANK_X, sy + FLANK_Y, a);
-        const k = j === 0 ? 270 / 120 : 180 / 120;
+        const k = ((j === 0 ? 270 : 180) / 120) * (0.9 + Math.random() * 0.2);
         s.vx *= k;
         s.vy *= k;
-        s.speed *= k;
         shots.advance(s, late);
       }
       this.flash(SLOT_REAR + (side < 0 ? 0 : 1), side * FLANK_X, FLANK_Y, dir, 0.8);
@@ -223,9 +229,10 @@ class ArcGun extends WeaponGun {
     s.speed = 400;
     s.life = 1100;
     s.damage = this.dmg(3, count, r);
-    s.radius = 5;
+    s.radius = 4.5;
     s.rotate = false;
-    s.scaleX = s.scaleY = ramp(p, 0.9, 1.2);
+    s.scaleX = s.scaleY = ramp(p, 0.85, 1.1);
+    s.scaleEnd = 1.5; // rings ripple outwards (radius <= 7.4 px)
     s.halo = p >= 5 ? 14 : 0;
     s.haloAlpha = 0.35;
     s.hit = HIT_SOFT;
@@ -259,6 +266,13 @@ class ArcGun extends WeaponGun {
 
 // ------------------------------------------------------------------------------ seekers
 
+/** k-th slot of n slots centred on 0, visited centre-out: 0, +1, -1, +2 ... (odd n) or +0.5, -0.5 ... (even n). */
+function centreOut(k: number, n: number): number {
+  if (n & 1) return k === 0 ? 0 : (k & 1 ? 1 : -1) * Math.ceil(k / 2);
+  return (k & 1 ? -1 : 1) * (Math.floor(k / 2) + 0.5);
+}
+
+/** Hunters are ripple-launched (one per sub-volley, both flanks together in mode B). */
 class SeekersGun extends WeaponGun {
   private n = 2;
   private missile!: ShotSpec;
@@ -268,6 +282,8 @@ class SeekersGun extends WeaponGun {
     const r = rateMul(p, 0.03);
     this.n = this.mode === 0 ? table(p, [2, 2, 2, 3, 3, 3, 4, 4, 4, 5]) : (p < 4 ? 1 : p < 8 ? 2 : 3);
     const count = this.mode === 0 ? this.n : this.n * 2;
+    this.subs = this.n;
+    this.subSpread = 0.45;
     const s = this.spec();
     s.move = MOVE_HOMING;
     s.speed = 120;
@@ -279,35 +295,29 @@ class SeekersGun extends WeaponGun {
     s.life = 2600;
     s.damage = this.dmg(2, count, r);
     s.radius = 4;
-    s.trailMs = 30;
-    s.trailSize = 7;
+    s.trailMs = 20;
+    s.trailSize = 9;
     s.popOnExpire = true;
     this.missile = s;
     return r;
   }
 
-  protected volley(late: number): void {
+  protected volley(late: number, sub: number): void {
     const sx = this.shipX(), sy = this.shipY();
     const shots = this.core.shots;
+    const c = centreOut(sub, this.n);
     if (this.mode === 0) {
-      const n = this.n;
-      for (let i = 0; i < n; i++) {
-        const c = i - (n - 1) / 2;
-        const a = DOWN + c * 26 * DEG;
-        const s = shots.fire(this.missile, sx + c * 5, sy + TAIL_Y, a);
-        shots.advance(s, late);
-      }
-      this.flash(SLOT_REAR, 0, TAIL_Y, DOWN, 0.9);
+      const a = DOWN + c * 22 * DEG;
+      const s = shots.fire(this.missile, sx + c * 4, sy + TAIL_Y, a);
+      shots.advance(s, late);
+      this.flash(SLOT_REAR + sub, c * 4, TAIL_Y, a, 0.7);
       return;
     }
     for (let side = -1; side <= 1; side += 2) {
       const dir = side < 0 ? LEFT : RIGHT;
-      for (let j = 0; j < this.n; j++) {
-        const c = j - (this.n - 1) / 2;
-        const a = dir + c * 18 * DEG;
-        const s = shots.fire(this.missile, sx + side * FLANK_X, sy + FLANK_Y + c * 4, a);
-        shots.advance(s, late);
-      }
+      const a = dir + c * 18 * DEG;
+      const s = shots.fire(this.missile, sx + side * FLANK_X, sy + FLANK_Y + c * 3, a);
+      shots.advance(s, late);
       this.flash(SLOT_REAR + (side < 0 ? 0 : 1), side * FLANK_X, FLANK_Y, dir, 0.7);
     }
   }

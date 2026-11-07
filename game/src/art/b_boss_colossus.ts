@@ -3,8 +3,7 @@
 // and a central raised cannon deck with a twin heavy cannon pointing down (towards the player).
 import {
   Grid, type Shape, plate, chamferRect, rect, poly, circle, sym, dome, barrel, groove, ridge,
-  rivet, rivetLine, rivetRing, vent, ventV, glow, lamp, socket, fill,
-  GREY, RAMP, FIRE, TEAL,
+  rivet, rivetLine, rivetRing, vent, ventV, glow, lamp, socket, fill, GREY, FIRE, TEAL,
 } from './b_boss_kit';
 import type { BossMounts } from './b_boss_types';
 
@@ -149,6 +148,5 @@ export function drawColossus(): Grid {
   lamp(g, S - 27, 26, TEAL);
   lamp(g, 38, 9, FIRE);
   lamp(g, S - 39, 9, FIRE);
-  void RAMP;
   return g;
 }

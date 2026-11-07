@@ -37,15 +37,34 @@ export abstract class Gun {
   /** Energy drawn per volley. */
   energy = 0;
   sfx: SfxKey | null = null;
+  /**
+   * Sub-volleys per volley: one paid volley is fired as `subs` evenly spaced bursts spread
+   * over `subSpread` x interval (dense streams / ripple-fired missiles at the same DPS).
+   */
+  protected subs = 1;
+  protected subSpread = 1;
   /** Volleys fired so far (alternating patterns, shared beam registries). */
   protected volleys = 0;
   private cooldown = 0;
   private idle = true;
+  private subLeft = 0;
+  private subIndex = 0;
+  private subTimer = 0;
 
   constructor(protected readonly core: ArsenalCore) {}
 
   /** Advances the cadence; fires while `active` (trigger held and ship able to fire). */
   update(dtMs: number, active: boolean): void {
+    // the remaining sub-volleys of a paid volley always complete
+    if (this.subLeft > 0) {
+      this.subTimer -= dtMs;
+      while (this.subLeft > 0 && this.subTimer <= 0) {
+        this.subIndex++;
+        this.subLeft--;
+        this.volley(-this.subTimer < dtMs ? -this.subTimer : dtMs, this.subIndex);
+        this.subTimer += this.subStep();
+      }
+    }
     if (!active) {
       this.cooldown = this.cooldown > dtMs ? this.cooldown - dtMs : 0;
       this.idle = true;
@@ -75,17 +94,30 @@ export abstract class Gun {
     this.cooldown = 0;
     this.idle = true;
     this.volleys = 0;
+    this.subLeft = 0;
+  }
+
+  private subStep(): number {
+    return (this.interval * this.subSpread) / this.subs;
   }
 
   private trigger(lateMs: number): void {
     if (!this.core.host.trySpendEnergy(this.energy)) return;
-    this.volley(lateMs);
+    this.subIndex = 0;
+    this.volley(lateMs, 0);
+    if (this.subs > 1) {
+      this.subLeft = this.subs - 1;
+      this.subTimer = this.subStep() - lateMs;
+    }
     this.volleys++;
     if (this.sfx) this.core.host.sfx(this.sfx);
   }
 
-  /** Spawns one volley; `lateMs` = how long ago it was due (pre-advance the shots). */
-  protected abstract volley(lateMs: number): void;
+  /**
+   * Spawns one (sub-)volley; `lateMs` = how long ago it was due (pre-advance the shots),
+   * `sub` = 0..subs-1 within the paid volley.
+   */
+  protected abstract volley(lateMs: number, sub: number): void;
 }
 
 /** A front or rear gun built from a WeaponDef at a power level (and rear mode). */

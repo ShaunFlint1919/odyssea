@@ -23,19 +23,10 @@ function radii(st: Site): [number, number] {
   return [56 + st.h3 * 50, 42 + st.h4 * 40];
 }
 
-/** Paints one space chunk. */
-export function paintSpace(c: Chunk): void {
-  const s = c.seed, W = c.w, M = c.M, S = c.S;
-  const NEB = field(c, 8, (x, y) => fbm(x / 150, y / 210, s + 1, 3) + 0.25 * (valueNoise(x / 520, y / 700, s + 2) - 0.5), 0);
-  const HUE = lattice(c, 96, s + 3, 0, 1.6);
-  const LANE = lattice(c, 36, s + 7, 0, 1.6);
-  const MID = lattice(c, 12, s + 4, 12);
-  const DET = lattice(c, 4, s + 5, 12);
-  const G = grain(c, s + 6, 0);
-  const plats = sites(c, 640, 1001, 0.55, 130, 80);
-  const px = c.px, cls = scratchU8(W * CH);
-
-  // --- nebula void
+/** Nebula void: dithered clouds (teal / violet / red by a slow hue field) with soft dust lanes. */
+function paintVoid(c: Chunk, cls: Uint8Array, NEB: Float32Array, HUE: Float32Array, LANE: Float32Array,
+  MID: Float32Array, DET: Float32Array): void {
+  const W = c.w, M = c.M, S = c.S, px = c.px;
   for (let r = 0; r < CH; r++) {
     const wy = c.wy0 - r;
     let i = (r + M) * S + M, o = r * W;
@@ -44,7 +35,7 @@ export function paintSpace(c: Chunk): void {
       let t = (NEB[i] - 0.42) * 2.6;
       t = t < 0 ? 0 : t * t * 0.9;
       t += (MID[i] - 0.5) * 0.3 * t + (DET[i] - 0.5) * 0.08 * t;
-      const lane = LANE[i] - 0.5;                                     // broad soft dust lanes
+      const lane = LANE[i] - 0.5;
       const la = lane < 0 ? -lane : lane;
       if (la < 0.1 && HUE[i] > 0.3) t *= 1 - (0.1 - la) * 5 * (HUE[i] - 0.3);
       const h = HUE[i] + (d - 0.5) * 0.12;
@@ -52,29 +43,42 @@ export function paintSpace(c: Chunk): void {
       cls[o] = K_VOID;
     }
   }
+}
 
-  // --- stars: one candidate per 5x5 world cell (seamless, never repeats)
+/** Stars: one candidate per 5x5 world cell (seamless, never repeats); rare bright crosses. */
+function paintStars(c: Chunk): void {
+  const W = c.w, px = c.px, s = c.seed;
   const cy0 = Math.floor((c.wy0 - CH) / 5), cy1 = Math.floor((c.wy0 + 1) / 5);
   for (let cy = cy0; cy <= cy1; cy++) {
     for (let cx = 0; cx * 5 < W + 1; cx++) {
-      const h = hash2(cx, cy, s + 21);
-      if (h > 0.2) continue;
+      if (hash2(cx, cy, s + 21) > 0.2) continue;
       const x = cx * 5 + Math.floor(hash2(cx, cy, s + 22) * 5), r = c.wy0 - (cy * 5 + Math.floor(hash2(cx, cy, s + 23) * 5));
       const b = hash2(cx, cy, s + 24);
       const lvl = b < 0.62 ? 0 : b < 0.86 ? 1 : b < 0.96 ? 2 : b < 0.993 ? 3 : 4;
       if (x >= 0 && x < W && r >= 0 && r < CH) px[r * W + x] = STARS[lvl];
       if (lvl === 4) {
-        // rare bright star: dim cross arms (also drawn when the centre is just outside the chunk)
-        const arms = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-        for (const [ax, ay] of arms) {
-          const qx = x + ax, qr = r + ay;
+        for (let k = 0; k < 4; k++) {
+          const qx = x + (k === 0 ? 1 : k === 1 ? -1 : 0), qr = r + (k === 2 ? 1 : k === 3 ? -1 : 0);
           if (qx >= 0 && qx < W && qr >= 0 && qr < CH) px[qr * W + qx] = STARS[2];
         }
       }
     }
   }
+}
 
-  // --- asteroid platforms
+/** Paints one space chunk. */
+export function paintSpace(c: Chunk): void {
+  const s = c.seed, W = c.w;
+  const NEB = field(c, 8, (x, y) => fbm(x / 150, y / 210, s + 1, 3) + 0.25 * (valueNoise(x / 520, y / 700, s + 2) - 0.5), 0);
+  const HUE = lattice(c, 96, s + 3, 0, 1.6);
+  const LANE = lattice(c, 36, s + 7, 0, 1.6);
+  const MID = lattice(c, 12, s + 4, 12);
+  const DET = lattice(c, 4, s + 5, 12);
+  const G = grain(c, s + 6, 0);
+  const plats = sites(c, 640, 1001, 0.55, 130, 80);
+  const cls = scratchU8(W * CH);
+  paintVoid(c, cls, NEB, HUE, LANE, MID, DET);
+  paintStars(c);
   for (let k = 0; k < plats.length; k++) paintPlatform(c, cls, plats[k], MID, DET, G);
   placeSpaceDoodads(c, cls, plats);
 }
@@ -84,8 +88,8 @@ function paintPlatform(c: Chunk, cls: Uint8Array, st: Site, MID: Float32Array, D
   const W = c.w, M = c.M, S = c.S, px = c.px, s = c.seed;
   const [ax, ay] = radii(st);
   // shape buffer over the bounding box (+7 px for neighbour / shadow lookups)
-  const xa = Math.max(-7, Math.floor(st.wx - ax * 1.45)), xb = Math.min(W + 1, Math.ceil(st.wx + ax * 1.45));
-  const ra = Math.max(-7, Math.floor(st.r - ay * 1.45)), rb = Math.min(CH + 1, Math.ceil(st.r + ay * 1.45));
+  const xa = Math.max(-7, Math.floor(st.wx - ax * 1.45)) | 0, xb = Math.min(W + 1, Math.ceil(st.wx + ax * 1.45)) | 0;
+  const ra = Math.max(-7, Math.floor(st.r - ay * 1.45)) | 0, rb = Math.min(CH + 1, Math.ceil(st.r + ay * 1.45)) | 0;
   if (xa > xb || ra > rb || rb < 0 || ra >= CH) return;
   const V = scratch(c.N);
   for (let r = ra; r <= rb; r++) {
@@ -99,10 +103,12 @@ function paintPlatform(c: Chunk, cls: Uint8Array, st: Site, MID: Float32Array, D
   const vor = new Voronoi(c, 26, s + 41 + Math.floor(st.wy), 0.85, 8);
   const id = Math.floor(st.wy);
   const mw = 30 + Math.floor(st.h1 * 24), mh = 18 + Math.floor(st.h2 * 14);
-  const mx0 = Math.round(st.wx - mw / 2 + (hash2(id, 1, s) - 0.5) * 30), mr0 = Math.round(st.r - mh / 2 + (hash2(id, 2, s) - 0.5) * 20);
+  const mx0 = Math.round(st.wx - mw / 2 + (hash2(id, 1, s) - 0.5) * 30) | 0;
+  const mr0 = Math.round(st.r - mh / 2 + (hash2(id, 2, s) - 0.5) * 20) | 0;
   const gy = mr0 + Math.floor(mh / 2) - 1, gLen = 34 + Math.floor(hash2(id, 3, s) * 30);
   const gDir = hash2(id, 4, s) < 0.5 ? -1 : 1;
   const padX = mx0 + (gDir > 0 ? -16 : mw + 16), padR = mr0 + mh + 10, padRad = 9;
+  const stx = st.wx, str = st.r;
   for (let r = Math.max(0, ra + 7); r <= Math.min(CH - 1, rb); r++) {
     const wy = c.wy0 - r;
     for (let x = Math.max(0, xa + 7); x <= Math.min(W - 1, xb); x++) {

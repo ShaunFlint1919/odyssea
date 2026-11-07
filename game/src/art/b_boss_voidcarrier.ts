@@ -3,8 +3,7 @@
 // big swept-back wings with hardpoints, a reactor/bridge spine and a bank of engines at the rear.
 import {
   Grid, type Shape, plate, poly, circle, rect, chamferRect, sym, dome, barrel, groove, ridge,
-  rivetLine, glow, lamp, socket, fill, vent, quant,
-  GREY, TEAL, MAGENTA,
+  rivetLine, glow, lamp, socket, fill, vent, quant, GREY, TEAL, MAGENTA,
 } from './b_boss_kit';
 import type { BossMounts } from './b_boss_types';
 
@@ -61,10 +60,17 @@ export function drawVoidcarrier(): Grid {
     vent(g, s < 0 ? 40 : S - 46, 46, 5, 11, MAGENTA, 2, 1);
     barrel(g, X(43), 62, X(43), 84, 1.5, { ramp: GREY, spec: 0.8, rim: 1 });
   }
-  // dorsal spine
-  plate(g, chamferRect(50, 22, 28, 64, 6), { base: 4, bevel: 2, hi: 1.2, lo: 2, rim: 2, drop: 1 });
-  for (const y of [36, 60, 74]) groove(g, 51, y, S - 52, y, 1);
-  for (const x of [53, S - 54]) rivetLine(g, x, 26, x, 82, 6);
+  // flank plating seams
+  for (const y of [30, 58, 66, 74]) { groove(g, 37, y, 47, y, 1); groove(g, S - 48, y, S - 38, y, 1); }
+  // dorsal spine: long tapered hexagon with hatches and a centre seam
+  plate(g, poly([56, 19, 72, 19, 79, 30, 79, 78, 72, 88, 56, 88, 49, 78, 49, 30]), { base: 4, bevel: 2, hi: 1.2, lo: 2, rim: 2, drop: 2 });
+  plate(g, poly([58, 22, 70, 22, 74, 28, 54, 28]), { base: 3, bevel: 1, hi: 1.4, lo: 1.6, rim: 1 });
+  for (const y of [34, 58, 78]) groove(g, 51, y, S - 52, y, 1);
+  for (const x of [52, S - 53]) rivetLine(g, x, 32, x, 76, 6);
+  for (const [x, y] of [[54, 76], [S - 58, 76]]) {
+    plate(g, chamferRect(x, y, 4, 7, 1), { base: 3, bevel: 1, hi: -1, lo: -1 });
+    g.set(x + 1, y + 1, 'T');
+  }
 
   // ---- reactor (core mount) + command bridge
   const [cx, cy] = [C + VOIDCARRIER_MOUNTS.core[0][0], C + VOIDCARRIER_MOUNTS.core[0][1]];

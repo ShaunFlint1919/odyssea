@@ -265,9 +265,11 @@ export class Marquee {
     const ctx = this.tex.getContext();
     const winCells = Math.max(1, Math.floor(this.win.w / this.cw));
     let str = raw.toUpperCase();
-    // The strip must hold one period (text + gap) plus one window width.
-    const maxChars = Math.max(1, Math.floor((canvas.width - 2 - this.win.w) / this.cw) - Marquee.GAP_CELLS);
-    if (str.length > maxChars) str = str.slice(0, maxChars);
+    // A scrolling strip must hold one period (text + gap) plus one window; otherwise truncate.
+    const scrollCap = Math.floor((canvas.width - 2 - this.win.w) / this.cw) - Marquee.GAP_CELLS;
+    if (str.length > winCells && str.length > scrollCap) {
+      str = scrollCap > winCells ? str.slice(0, scrollCap) : str.slice(0, winCells);
+    }
     const glyphs = renderText(this.font, str, {
       tint: style.color,
       halo: style.halo !== undefined ? { color: style.halo, alpha: style.haloAlpha ?? 0.25 } : undefined,
@@ -289,15 +291,16 @@ export class Marquee {
       const c0 = Math.floor((winCells - str.length) / 2);
       ctx.drawImage(glyphs, 1 - m, 1 - m);
       this.tex.refresh();
-      this.img.setCrop(0, 0, glyphs.width + 2, canvas.height);
+      this.img.setCrop(0, 0, Math.min(canvas.width, glyphs.width + 2), canvas.height);
       this.img.setPosition(this.win.x - 1 + c0 * this.cw, this.win.y - 1);
     }
     this.img.setVisible(str.length > 0);
   }
 
+  /** Crop exactly to the window (whole cells) so no sliver of the next glyph shows. */
   private apply(): void {
     const ox = this.idx * this.cw;
-    this.img.setCrop(ox, 0, this.win.w + 2, this.tex.height);
+    this.img.setCrop(ox + 1, 0, this.win.w, this.tex.height);
     this.img.setPosition(this.win.x - 1 - ox, this.win.y - 1);
   }
 

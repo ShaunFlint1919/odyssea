@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import { COLORS, DEPTH, H, PLAY_W } from '../config';
 import { ANIM } from '../art/keys';
+import { idleAnimKey } from '../art/fx';
 import type { PickupKind } from '../types';
 import { FrameAnim, texOr } from './tex';
 import type { World } from './world';
@@ -46,7 +47,8 @@ export class Pickups {
   private readonly gemS: FrameAnim;
   private readonly gemM: FrameAnim;
   private readonly gemL: FrameAnim;
-  private readonly keys: Record<number, string>;
+  /** Idle blink animations of the drop pickups (2-frame sheets), by kind. */
+  private readonly dropAnims: Record<number, FrameAnim>;
   private magnetAllOn = false;
 
   constructor(private readonly w: World) {
@@ -54,14 +56,12 @@ export class Pickups {
     this.gemS = new FrameAnim(scene, ANIM.credit_s, 'pk_credit_s', 'gem', 10, true);
     this.gemM = new FrameAnim(scene, ANIM.credit_m, 'pk_credit_m', 'gem', 10, true);
     this.gemL = new FrameAnim(scene, ANIM.credit_l, 'pk_credit_l', 'gem', 10, true);
-    this.keys = {
-      [K_ARMOR]: texOr(scene, 'pk_armor', 'pickup'),
-      [K_SHIELD]: texOr(scene, 'pk_shield', 'pickup'),
-      [K_POWER]: texOr(scene, 'pk_power', 'pickup'),
-      [K_INTEL]: texOr(scene, 'pk_intel', 'pickup'),
+    const idle = (key: string) => new FrameAnim(scene, idleAnimKey(key), key, 'pickup', 5, true);
+    this.dropAnims = {
+      [K_ARMOR]: idle('pk_armor'), [K_SHIELD]: idle('pk_shield'), [K_POWER]: idle('pk_power'), [K_INTEL]: idle('pk_intel'),
     };
     for (let i = 0; i < MAX; i++) {
-      const p = new Pickup(scene.add.image(-50, -50, this.keys[K_ARMOR]).setDepth(DEPTH.pickups).setVisible(false));
+      const p = new Pickup(scene.add.image(-50, -50, texOr(scene, 'pk_credit_s', 'gem')).setDepth(DEPTH.pickups).setVisible(false));
       this.items.push(p);
       this.freeList.push(p);
     }
@@ -135,8 +135,9 @@ export class Pickups {
     p.y = y;
     p.vx = (this.w.fxRng() - 0.5) * 30;
     p.vy = -55;
-    p.anim = null;
-    p.img.setTexture(this.keys[p.kind]).setPosition(p.x, y).setScale(1).setAlpha(1).setAngle(0).setVisible(true);
+    p.anim = this.dropAnims[p.kind];
+    p.anim.apply(p.img, 0);
+    p.img.setPosition(p.x, y).setScale(1).setAlpha(1).setAngle(0).setVisible(true);
     this.w.fx.glow(x, y, 0xffffff, 1.2, 260);
   }
 
@@ -184,13 +185,14 @@ export class Pickups {
       }
       const img = p.img;
       img.setPosition(p.x, p.y);
-      if (p.anim) {
-        const idx = p.anim.index(p.age * 1000 + p.phase);
-        if (idx !== p.lastIdx) {
-          p.anim.apply(img, idx);
-          p.lastIdx = idx;
-        }
-      } else {
+      const anim = p.anim!;
+      const idx = anim.index(p.age * 1000 + (p.kind === K_CREDIT ? p.phase : 0));
+      if (idx !== p.lastIdx) {
+        anim.apply(img, idx);
+        p.lastIdx = idx;
+      }
+      if (p.kind !== K_CREDIT) {
+        // drops bob gently and blink before leaving the bottom of the screen
         img.setScale(1 + 0.08 * Math.sin(p.age * 7));
         img.setAlpha(p.y > H - 60 && Math.floor(p.age * 10) % 2 === 0 ? 0.6 : 1);
       }

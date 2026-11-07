@@ -10,7 +10,7 @@ export const LOGO_W = 256;
 export const LOGO_H = 64;
 
 const LH = 28;          // letter height
-const TOP = 11;         // letter top row
+const TOP = 13;         // letter top row
 const SLANT = 0.2;      // italic shear (px of x per px of y)
 const GAP = 3;          // space between letters
 const WORD_GAP = 10;
@@ -57,6 +57,7 @@ const FACE: ReadonlyArray<readonly [number, string]> = [
 ];
 const EXTRUDE = ['#62208a', '#45166a', '#2c0d47'];
 const OUTLINE = '#07050d';
+const CONTOUR = '#1a1030';
 
 function shear(p: Poly, penX: number): Poly {
   const out: Poly = [];
@@ -90,13 +91,16 @@ export function buildLogo(): HTMLCanvasElement {
   const buf = new PixBuf(LOGO_W, LOGO_H);
   drawStreak(buf, startX - 2, startX + total + 8);
 
-  // Extrusion (down-right), outline around face + extrusion.
+  // Extrusion (down-right), dark outline around face + extrusion, then a second contour ring
+  // that fuses the letters into one solid badge (reads on any background).
   const ext = [face.shift(1, 1), face.shift(2, 2), face.shift(3, 3)];
   let solid = face;
   for (const e of ext) solid = solid.or(e);
   const outline = solid.ring(true);
+  const contour = solid.or(outline).ring(true);
   for (let y = 0; y < LOGO_H; y++) {
     for (let x = 0; x < LOGO_W; x++) {
+      if (contour.get(x, y)) { buf.set(x, y, CONTOUR); continue; }
       if (outline.get(x, y)) { buf.set(x, y, OUTLINE); continue; }
       if (face.get(x, y)) continue;
       for (let k = 0; k < ext.length; k++) {
@@ -125,53 +129,50 @@ export function buildLogo(): HTMLCanvasElement {
   return buf.toCanvas();
 }
 
-/** Magenta speed streak under the letters: thick on the left, tapering to a point on the right. */
+/**
+ * Magenta speed blade under the letters: italic-cut left end (same slant as the letters),
+ * constant body, long pointed tail on the right, plus a thin detached speed line.
+ */
 function drawStreak(buf: PixBuf, x0: number, x1: number): void {
   const m = new Mask(LOGO_W, LOGO_H);
-  const yL = TOP + LH + 9, yR = TOP + LH + 5;
-  const top: Poly = [];
-  const bot: Poly = [];
-  const n = 24;
-  for (let i = 0; i <= n; i++) {
-    const s = i / n;
-    const x = x0 + (x1 - x0) * s;
-    const cy = yL + (yR - yL) * s;
-    const half = 3.2 * Math.min(1, s / 0.05) * Math.pow(1 - s, 0.8) + 0.3;
-    top.push(x, cy - half);
-    bot.push(x, cy + half);
-  }
-  const poly: Poly = [...top];
-  for (let i = bot.length - 2; i >= 0; i -= 2) poly.push(bot[i], bot[i + 1]);
-  fillPolygon(m, poly);
-  const ring = m.ring(true);
+  const y0 = TOP + LH + 6;
+  const T = 5;
+  const tail = 22;
+  fillPolygon(m, [x0 + T * SLANT * 2, y0, x1 - tail, y0, x1, y0 + T / 2, x1 - tail, y0 + T, x0, y0 + T]);
+  const line = new Mask(LOGO_W, LOGO_H);
+  fillPolygon(line, [x0 + 22, y0 + T + 2, x0 + 96, y0 + T + 2, x0 + 104, y0 + T + 3, x0 + 21, y0 + T + 3]);
+  const ring = m.or(line).ring(true);
+  const ROWS = ['#ffd0ff', '#f07cff', '#d04cff', '#a838d6', '#6c1f8e'];
   for (let y = 0; y < LOGO_H; y++) {
     for (let x = 0; x < LOGO_W; x++) {
-      if (ring.get(x, y)) buf.set(x, y, OUTLINE);
-      else if (m.get(x, y)) {
-        const up = m.get(x, y - 1), down = m.get(x, y + 1);
-        buf.set(x, y, !up ? '#ffd2ff' : !m.get(x, y - 2) ? '#f2a6ff' : !down ? '#6a1f8a' : '#d04cff');
-      }
+      if (m.get(x, y)) {
+        let r = y - y0;
+        if (!m.get(x, y - 1)) r = 0;
+        else if (!m.get(x, y + 1)) r = 4;
+        buf.set(x, y, ROWS[Math.max(0, Math.min(4, r))]);
+      } else if (line.get(x, y)) buf.set(x, y, '#d04cff');
+      else if (ring.get(x, y)) buf.set(x, y, OUTLINE);
     }
   }
 }
 
 /** Four-point star flare with a soft glow (additive-looking, alpha blended). */
 function drawFlare(buf: PixBuf, cx: number, cy: number): void {
-  const R = 9;
+  const R = 10;
   for (let y = -R; y <= R; y++) {
     for (let x = -R; x <= R; x++) {
       const d = Math.hypot(x, y) / R;
-      if (d < 1) buf.blend(cx + x, cy + y, '#7ff6e6', 0.45 * (1 - d) * (1 - d));
+      if (d < 1) buf.blend(cx + x, cy + y, '#7ff6e6', 0.5 * (1 - d) * (1 - d));
     }
   }
   const ray = (len: number, dx: number, dy: number) => {
     for (let i = 1; i <= len; i++) {
-      const a = Math.pow(1 - i / (len + 1), 1.3);
+      const a = Math.pow(1 - i / (len + 1), 1.2);
       buf.blend(cx + dx * i, cy + dy * i, i < len * 0.45 ? '#ffffff' : '#b8fff4', a);
     }
   };
-  ray(13, 1, 0); ray(13, -1, 0); ray(9, 0, 1); ray(9, 0, -1);
-  ray(3, 1, 1); ray(3, -1, -1); ray(3, 1, -1); ray(3, -1, 1);
+  ray(16, 1, 0); ray(16, -1, 0); ray(11, 0, 1); ray(11, 0, -1);
+  ray(4, 1, 1); ray(4, -1, -1); ray(4, 1, -1); ray(4, -1, 1);
   buf.set(cx, cy, '#ffffff');
   buf.set(cx + 1, cy, '#ffffff'); buf.set(cx - 1, cy, '#ffffff');
   buf.set(cx, cy + 1, '#ffffff'); buf.set(cx, cy - 1, '#ffffff');

@@ -9,7 +9,7 @@ import * as kit from '../ui/kit';
 import { META, ensureMetaArt, iconOr } from '../ui/meta/art';
 import { HEADER_H, MD, backdrop, badge, header, scanlines, sectionLabel } from '../ui/meta/chrome';
 import {
-  campaignProgress, dec, findLevel, findShield, findWeapon, fmt, nextMissionId, planetOfLevel, signed, unreadIntelCount, upper, wrapLines,
+  campaignProgress, dec, findGenerator, findLevel, findShield, findWeapon, fmt, nextMissionId, planetOfLevel, signed, unreadIntelCount, upper, wrapLines,
 } from '../ui/meta/common';
 import { ShipBay } from '../ui/meta/shipBay';
 import { energyBalance, totalDps } from '../ui/meta/stats';
@@ -54,7 +54,7 @@ export class HangarScene extends Phaser.Scene {
     const chipsH = chips ? 38 : 0;
     const screenH = bayH - 10 - infoH - chipsH;
     const bayScale = screenH >= 290 ? 4 : screenH >= 150 ? 3 : 2;
-    new ShipBay(this, { x: px + 5, y: top + 5, w: pw - 10, h: screenH, depth: MD.content, scale: bayScale, tag: 'BAY 07' }, loadout);
+    new ShipBay(this, { x: px + 5, y: top + 5, w: pw - 10, h: screenH, depth: MD.content, scale: bayScale }, loadout);
 
     let iy = top + 5 + screenH + 4;
     if (chips) {
@@ -94,24 +94,24 @@ export class HangarScene extends Phaser.Scene {
         label: 'LAUNCH MISSION', icon: META.icLaunch, color: COLORS.teal,
         value: mission && planet ? `${upper(planet.name).split(' ')[0]} ${mission.index}` : undefined, valueColor: COLORS.accentLight,
         disabled: !mission,
-        help: mission ? `LAUNCH "${upper(mission.name)}" - ARMOR AND SHIELD FULLY REPAIRED` : 'NO MISSION DATA AVAILABLE',
+        help: mission ? kit.fit(`FLY "${upper(mission.name)}" - FULL REPAIR INCLUDED`, 296, 's') : 'NO MISSION DATA AVAILABLE',
       },
-      { label: 'UPGRADE SHIP', icon: META.icUpgrade, help: 'BUY OR TRADE HULLS, GUNS, SHIELDS, GENERATORS AND DRONES' },
+      { label: 'UPGRADE SHIP', icon: META.icUpgrade, help: 'BUY AND TRADE HULLS, GUNS, SHIELDS AND DRONES' },
       {
         label: 'GALAXY MAP', icon: META.icMap, value: total ? `${done}/${total}` : undefined, valueColor: COLORS.textDim,
-        help: 'PICK YOUR NEXT TARGET OR REPLAY CLEARED MISSIONS FOR CREDITS',
+        help: 'PICK A TARGET OR REPLAY MISSIONS FOR CREDITS',
       },
       {
         label: 'SHIP SPECS', icon: META.icSpecs, value: `${signed(bal.net)} EN/S`, valueColor: bal.net < 0 ? COLORS.bad : COLORS.good,
-        help: bal.net < 0 ? 'WARNING: GUNS + SHIELD DRAIN MORE THAN THE GENERATOR MAKES' : 'FULL STATS OF YOUR LOADOUT AND ITS ENERGY BALANCE',
+        help: bal.net < 0 ? 'WARNING: YOUR GUNS DRAIN MORE THAN THE GENERATOR' : 'FULL LOADOUT STATS AND ENERGY BALANCE',
       },
       {
         label: 'COMMS', icon: iconOr(this, 'ui_icon_intel', META.icComms),
         value: unread === 0 && save.intel.length ? `${save.intel.length} MSG` : undefined, valueColor: COLORS.textDim,
-        help: unread ? `${unread} UNREAD TRANSMISSION${unread > 1 ? 'S' : ''} RECOVERED IN THE FIELD` : 'READ THE TRANSMISSIONS YOU HAVE RECOVERED',
+        help: unread ? `${unread} UNREAD TRANSMISSION${unread > 1 ? 'S' : ''}` : 'READ THE TRANSMISSIONS YOU RECOVERED',
       },
-      { label: 'OPTIONS', icon: META.icOptions, help: 'SOUND, CONTROLS, DISPLAY AND DIFFICULTY SETTINGS' },
-      { label: 'SAVE & QUIT', icon: META.icQuit, help: 'SAVE YOUR PROGRESS AND RETURN TO THE TITLE SCREEN' },
+      { label: 'OPTIONS', icon: META.icOptions, help: 'SOUND, CONTROLS AND DISPLAY SETTINGS' },
+      { label: 'SAVE & QUIT', icon: META.icQuit, help: 'SAVE AND RETURN TO THE TITLE SCREEN' },
     ];
     const status = kit.statusBar(this, items[0].help ?? '');
     const listX = px + 20, listW = pw - 28;
@@ -136,20 +136,18 @@ export class HangarScene extends Phaser.Scene {
     const front = findWeapon(l.front);
     const rear = findWeapon(l.rear);
     const shield = findShield(l.shield);
-    const chip = (cx: number, cy: number, icon: string, label: string, name: string, extra: string, extraColor: number) => {
+    const chip = (cx: number, cy: number, icon: string, name: string, extra: string, extraColor: number) => {
       kit.panel(this, cx, cy, cw, 17, 'inset').setDepth(MD.content);
       if (this.textures.exists(icon)) this.add.image(cx + 10, cy + 8, icon).setDepth(MD.content).setScale(0.75);
-      kit.text(this, cx + 20, cy + 5, label, { size: 's', color: COLORS.textDim, depth: MD.content });
       const ex = extra ? kit.measure(this, extra, 's') + 6 : 0;
-      const lx = cx + 20 + kit.measure(this, label, 's') + 5;
-      kit.text(this, lx, cy + 5, kit.fit(name, cw - (lx - cx) - ex - 6, 's'), { size: 's', color: COLORS.text, depth: MD.content });
+      kit.text(this, cx + 20, cy + 5, kit.fit(name, cw - 26 - ex, 's'), { size: 's', color: COLORS.text, depth: MD.content });
       if (extra) kit.text(this, cx + cw - 5, cy + 5, extra, { size: 's', color: extraColor, originX: 1, depth: MD.content });
     };
-    chip(x, y, 'ui_icon_front', 'FRONT', upper(front?.name ?? l.front), `P${l.frontPower}`, COLORS.teal);
-    chip(x + cw + 4, y, 'ui_icon_rear', 'REAR', rear ? upper(rear.name) : 'NONE', rear ? `P${l.rearPower}` : '', COLORS.teal);
-    chip(x, y + 19, 'ui_icon_shield', 'SHLD', upper(shield?.name ?? l.shield), '', COLORS.teal);
+    chip(x, y, 'ui_icon_front', upper(front?.name ?? l.front), `P${l.frontPower}`, COLORS.teal);
+    chip(x + cw + 4, y, 'ui_icon_rear', rear ? upper(rear.name) : 'NO REAR GUN', rear ? `P${l.rearPower}` : '', COLORS.teal);
+    chip(x, y + 19, 'ui_icon_shield', upper(shield?.name ?? l.shield), shield ? `${shield.capacity}` : '', COLORS.shield);
     const bal = energyBalance(l);
-    chip(x + cw + 4, y + 19, 'ui_icon_generator', 'GEN', `${dec(bal.output)}/S`, signed(bal.net), bal.net < 0 ? COLORS.bad : COLORS.good);
+    chip(x + cw + 4, y + 19, 'ui_icon_generator', upper(findGenerator(l.generator)?.name ?? l.generator), `${signed(bal.net)}/S`, bal.net < 0 ? COLORS.bad : COLORS.good);
   }
 
   /** "Next mission" panel: planet globe, level name, briefing. */

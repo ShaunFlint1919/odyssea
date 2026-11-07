@@ -3,9 +3,8 @@
 // chitin thorax with three pairs of jointed legs, a many-eyed head and two serrated mandibles
 // framing an acid-glowing maw.
 import {
-  Grid, type Shape, type Ramp, plate, poly, circle, ellipse, sym, dome, groove, glow, socket, tube, bezPath,
-  lightN, quant, frame,
-  ACID,
+  Grid, type Shape, type Ramp, plate, poly, circle, ellipse, sym, dome, groove, glow, socket, tube,
+  bezPath, lightN, quant, frame, ACID,
 } from './b_boss_kit';
 import type { BossMounts } from './b_boss_types';
 
@@ -107,7 +106,7 @@ export function drawHive(): Grid {
   // ---- bio-luminescent egg sacs on the flanks
   for (const [x, y, r] of [[33, 14, 4.6], [27, 28, 5.4], [31, 43, 4.6]]) {
     for (const X of [x, S - x]) {
-      plate(g, circle(X, y, r + 1.4), { base: 1, bevel: 1, hi: 0.6, lo: -0.6, rim: 2 });
+      plate(g, circle(X, y, r + 1.6), { base: 2, bevel: 1, hi: -0.6, lo: -0.4, rim: 1 });
       dome(g, X, y, r, r, { ramp: SAC, amb: 0.45, diff: 0.55, spec: 0, dither: 0.6 });
       glow(g, X + 0.4, y + 0.6, r * 0.5, ACID, 0, 4.6);
       g.set(Math.round(X - r * 0.45), Math.round(y - r * 0.5), 'w');

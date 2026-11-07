@@ -237,7 +237,8 @@ export class HudController implements HudApi {
     this.edgeL = new AlphaCache(img(X, 0, PART.edgeRed).setDisplaySize(8, H));
     this.edgeR = new AlphaCache(img(X + L.pw, 0, PART.edgeRed).setDisplaySize(8, H).setFlipX(true).setOrigin(1, 0));
 
-    // score / credits (playfield, bottom-left)
+    // score / credits (playfield, bottom-left) over a soft dark backdrop
+    img(L.scoreShade.x, L.scoreShade.y, PART.scoreShade);
     this.score = new DigitRow(scene, R, P, DIGIT_M, L.score.x, L.score.y, { maxDigits: 8, advance: f.m.cellW, group: 3 });
     this.credC = scene.add.container(L.creditIcon.x + 5, L.creditIcon.y + 5).setScrollFactor(0);
     R.add(this.credC);

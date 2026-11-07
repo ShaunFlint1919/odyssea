@@ -2,9 +2,8 @@
 // outer ring with glowing nodes, a circuit ring of teal traces, an armoured inner ring) around a
 // great magenta eye core, two armoured arms with claws reaching DOWN and two upper pylons.
 import {
-  Grid, type Shape, type Ramp, plate, poly, circle, ring, arcShape, sym, dome, groove,
-  rivet, glow, lamp, socket, frame, tube, line, quant, chamferRect,
-  GREY, TEAL, MAGENTA,
+  Grid, type Shape, type Ramp, plate, poly, circle, ring, arcShape, sym, dome, groove, rivet, glow,
+  lamp, socket, frame, tube, line, quant, GREY, TEAL, MAGENTA,
 } from './b_boss_kit';
 import type { BossMounts } from './b_boss_types';
 
@@ -20,35 +19,39 @@ export const ARCHITECT_MOUNTS: BossMounts = {
   cannon: [[0, 34]],
   pod: [[-48, -44], [48, -44]],
   core: [[0, -12]],
-  wing: [[-46, 6], [46, 6]],
-  muzzle: [[-44, 57], [44, 57], [0, 44]],
+  wing: [[-44, 4], [44, 4]],
+  muzzle: [[-43, 60], [43, 60], [0, 44]],
 };
 
 /** Armoured arm: shoulder -> elbow -> claw (left side; mirrored by the caller via flip). */
 function arm(g: Grid, sh: number[], el: number[], wr: number[], flip: boolean): void {
   const X = (x: number) => (flip ? S - x : x);
   const A = [X(sh[0]), sh[1]], E = [X(el[0]), el[1]], W = [X(wr[0]), wr[1]];
-  tube(g, [[A[0], A[1]], [E[0], E[1]]], 5.5, 4.5, { ramp: GREY, amb: 0.18, spec: 0.6, rim: 1, rib: 4, ribDepth: 1.2 });
-  tube(g, [[E[0], E[1]], [W[0], W[1]]], 4.5, 3.6, { ramp: GREY, amb: 0.18, spec: 0.6, rim: 1, rib: 4, ribDepth: 1.2 });
+  tube(g, [[A[0], A[1]], [E[0], E[1]]], 6, 5, { ramp: GREY, amb: 0.18, spec: 0.6, rim: 1, rib: 4, ribDepth: 1.2 });
+  tube(g, [[E[0], E[1]], [W[0], W[1]]], 5, 4, { ramp: GREY, amb: 0.18, spec: 0.6, rim: 1, rib: 4, ribDepth: 1.2 });
+  // claw: three long talons pointing along the forearm direction (under the wrist)
+  const f2 = frame(E[0], E[1], W[0] - E[0], W[1] - E[1]);
+  for (const v of [-4.5, 0, 4.5]) {
+    const fc = frame(W[0] + f2.px * v, W[1] + f2.py * v, f2.fx + f2.px * v * 0.07, f2.fy + f2.py * v * 0.07);
+    plate(g, fc.poly([-2, -2.6, 9, -1.8, 14, 0, 9, 1.8, -2, 2.6]), { base: 3, bevel: 1, hi: 1.8, lo: 1.8, rim: 2, drop: 1 });
+    const [tx, ty] = fc.pt(12.5, 0);
+    g.set(Math.round(tx), Math.round(ty), '5');
+  }
   // armour sleeves
   const f1 = frame(A[0], A[1], E[0] - A[0], E[1] - A[1]);
   const l1 = Math.hypot(E[0] - A[0], E[1] - A[1]);
-  plate(g, f1.poly([4, -7, l1 - 5, -6, l1 - 3, 0, l1 - 5, 6, 4, 7, 2, 0]), { base: 3, bevel: 2, hi: 1.8, lo: 1.8, rim: 2, drop: 2 });
-  const f2 = frame(E[0], E[1], W[0] - E[0], W[1] - E[1]);
+  plate(g, f1.poly([4, -8, l1 - 5, -7, l1 - 2, 0, l1 - 5, 7, 4, 8, 1, 0]), { base: 3, bevel: 2, hi: 1.8, lo: 1.8, rim: 2, drop: 2 });
+  const [s0x, s0y] = f1.pt(6, 0), [s1x, s1y] = f1.pt(l1 - 6, 0);
+  groove(g, s0x, s0y, s1x, s1y, 1, 1);
   const l2 = Math.hypot(W[0] - E[0], W[1] - E[1]);
-  plate(g, f2.poly([3, -5.5, l2 - 3, -5, l2 - 1, 0, l2 - 3, 5, 3, 5.5]), { base: 4, bevel: 2, hi: 1.2, lo: 2, rim: 2, drop: 2 });
+  plate(g, f2.poly([3, -6.5, l2 - 3, -6, l2, 0, l2 - 3, 6, 3, 6.5]), { base: 4, bevel: 2, hi: 1.2, lo: 2, rim: 2, drop: 2 });
   const [t0x, t0y] = f2.pt(4, 0), [t1x, t1y] = f2.pt(l2 - 4, 0);
   line(g, t0x, t0y, t1x, t1y, 'T');
-  // elbow joint
-  dome(g, E[0], E[1], 5, 5, { ramp: GREY, amb: 0.2, spec: 0.8, rim: 1, drop: 1 });
-  glow(g, E[0], E[1], 2, TEAL, 0, 4.6);
-  // claw: three talons pointing along the forearm direction
-  for (const v of [-4, 0, 4]) {
-    const fc = frame(W[0] + f2.px * v, W[1] + f2.py * v, f2.fx + f2.px * v * 0.06, f2.fy + f2.py * v * 0.06);
-    plate(g, fc.poly([-2, -2.2, 8, -1.4, 12, 0, 8, 1.4, -2, 2.2]), { base: 3, bevel: 1, hi: 1.8, lo: 1.8, rim: 2, drop: 1 });
-  }
-  plate(g, circle(W[0], W[1], 4.5), { ramp: GREY, base: 3, bevel: 1, hi: 1.6, lo: 1.8, rim: 2 });
-  glow(g, W[0], W[1], 1.8, MAGENTA, 0, 4.8);
+  // elbow joint + wrist hub
+  dome(g, E[0], E[1], 5.5, 5.5, { ramp: GREY, amb: 0.2, spec: 0.8, rim: 1, drop: 1 });
+  glow(g, E[0], E[1], 2.2, TEAL, 0, 4.6);
+  plate(g, circle(W[0], W[1], 5), { ramp: GREY, base: 3, bevel: 1, hi: 1.6, lo: 1.8, rim: 2, drop: 1 });
+  glow(g, W[0], W[1], 2.2, MAGENTA, 0, 4.8);
 }
 
 /** Draws the Architect body as a palette-independent code grid. */
@@ -64,11 +67,14 @@ export function drawArchitect(): Grid {
   for (let i = 0; i < 4; i++) { lamp(g, 24 + i * 4, 16 + i * 4, TEAL); lamp(g, S - 26 - i * 4, 16 + i * 4, TEAL); }
 
   // ---- arms (behind the rings)
-  arm(g, [36, 70], [16, 84], [20, 104], false);
-  arm(g, [36, 70], [16, 84], [20, 104], true);
+  arm(g, [30, 64], [11, 86], [19, 106], false);
+  arm(g, [30, 64], [11, 86], [19, 106], true);
+  // shoulder pauldrons (wing part mounts)
   for (const [x, y] of ARCHITECT_MOUNTS.wing) {
-    plate(g, chamferRect(C + x - 7, C + y - 9, 14, 18, 4), { base: 3, bevel: 2, hi: 1.8, lo: 1.8, rim: 2, drop: 1 });
-    for (const dy of [-4, 1]) groove(g, C + x - 4, C + y + dy, C + x + 3, C + y + dy, 1);
+    const px = C + x, py = C + y, s = x < 0 ? 1 : -1;
+    plate(g, poly([px - 9 * s, py - 10, px + 7 * s, py - 8, px + 9 * s, py + 6, px + 2 * s, py + 12, px - 9 * s, py + 8]), { base: 3, bevel: 2, hi: 1.8, lo: 1.8, rim: 2, drop: 2 });
+    plate(g, poly([px - 6 * s, py - 6, px + 4 * s, py - 5, px + 5 * s, py + 4, px + 1 * s, py + 8, px - 6 * s, py + 5]), { base: 4, bevel: 1, hi: 1.2, lo: 2, rim: 1 });
+    for (const dy of [-2, 2]) groove(g, px - 4, py + dy, px + 3, py + dy, 1);
   }
 
   // ---- lower emitter (cannon socket) under the rings
@@ -130,6 +136,5 @@ export function drawArchitect(): Grid {
   plate(g, poly([ex - 1.2, ey - 4.5, ex + 1.2, ey - 4.5, ex + 1.2, ey + 4.5, ex - 1.2, ey + 4.5]), { ramp: MAGENTA, base: 1, bevel: 0 });
   for (const [x, y] of [[ex - 7, ey - 9], [ex - 6, ey - 9], [ex - 8, ey - 8], [ex - 7, ey - 8]]) g.set(x, y, 'w');
   g.set(ex + 6, ey + 7, 'h');
-  void [rivet, M];
   return g;
 }

@@ -2,8 +2,7 @@
 // crystal prisms (three faces + tip facets, each lit as a flat plane) held by a gunmetal halo
 // frame, a cold sentinel eye glowing through the main crystal, side and crown spikes. Points DOWN.
 import {
-  Grid, plate, poly, ring, circle, rivet, glow, lamp, socket, frame, lightN, line,
-  GREY, ICE,
+  Grid, plate, poly, ring, circle, rivet, glow, lamp, socket, frame, lightN, line, GREY, ICE,
 } from './b_boss_kit';
 import type { BossMounts } from './b_boss_types';
 
@@ -118,6 +117,5 @@ export function drawCryo(): Grid {
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) if (g.filled(x + dx, y + dy)) g.set(x + dx, y + dy, 'q');
   }
   lamp(g, C - 1, 100, ICE);
-  void poly;
   return g;
 }

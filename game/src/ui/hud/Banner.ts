@@ -9,7 +9,7 @@
 import Phaser from 'phaser';
 import { COLORS } from '../../config';
 import { PART } from './art';
-import { brightMask, renderText, type HudFonts } from './glyphs';
+import { brightMask, gradientMap, renderText, type HudFonts } from './glyphs';
 import { BAND_H, BAND_H_SHORT, BAND_W, type HudLayout } from './layout';
 
 const OPEN_MS = 170;
@@ -25,6 +25,8 @@ const TEXT_H = 20;
 const SUB_H = 12;
 
 const WARN_RE = /WARN|ALERT|DANGER/;
+/** Hot ramp (dark -> light) the warning title is recoloured with. */
+const WARN_RAMP = ['#1a0004', '#7a0a10', '#e02a1a', '#ff7a24', '#ffd050', '#fff8d8'];
 
 export class Banner {
   private readonly c: Phaser.GameObjects.Container;
@@ -95,6 +97,7 @@ export class Banner {
     const font = big ? this.fonts.l : this.fonts.m;
     const shown = big ? str : str.slice(0, Math.floor((BAND_W - 8) / this.fonts.m.cellW));
     const glyphs = renderText(font, shown, big ? {} : { tint: this.warn ? 0xffd0c8 : COLORS.text, outline: '#05040a' });
+    if (this.warn && big) gradientMap(glyphs, WARN_RAMP);
     this.textW = glyphs.width;
     this.textX = Math.max(0, Math.floor((BAND_W - glyphs.width) / 2));
     const ty = Math.max(0, Math.floor((TEXT_H - glyphs.height) / 2));

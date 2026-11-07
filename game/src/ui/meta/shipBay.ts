@@ -31,6 +31,10 @@ export interface ShipBayOpts {
   tag?: string;
   /** Draw the inset frame (default true). */
   frame?: boolean;
+  /** Show the sidekicks / empty mounts (default true). */
+  sidekicks?: boolean;
+  /** Full shield bubble around the hull in the shield colour (default false). */
+  bubble?: boolean;
 }
 
 const engineCache = new Map<string, { x: number; y: number }[]>();
@@ -244,11 +248,21 @@ export class ShipBay {
     this.dynamic.push(arcGlow, arc);
     this.dynTweens.push(s.tweens.add({ targets: arc, alpha: 0.5, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' }));
 
+    if (this.opts.bubble && s.textures.exists('fx_shield_bubble')) {
+      const bub = s.add.image(0, 0, 'fx_shield_bubble').setTint(shotGlow(shield?.color)).setBlendMode(Phaser.BlendModes.ADD)
+        .setAlpha(0.55).setScale((22 * sc) / 20);
+      this.ship.add(bub);
+      this.dynamic.push(bub);
+      this.dynTweens.push(s.tweens.add({ targets: bub, alpha: 0.25, scale: bub.scale * 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.InOut' }));
+    }
+
     // sidekicks
-    const slots = hull?.sidekickSlots ?? 2;
-    const dx = Math.round(16 * sc + 12 * Math.max(1, sc - 1) + 10);
-    this.placeSidekick(this.sideL, -dx, l.sidekickL, slots >= 1, 0);
-    this.placeSidekick(this.sideR, dx, l.sidekickR, slots >= 2, 500);
+    if (this.opts.sidekicks !== false) {
+      const slots = hull?.sidekickSlots ?? 2;
+      const dx = Math.round(16 * sc + 12 * Math.max(1, sc - 1) + 10);
+      this.placeSidekick(this.sideL, -dx, l.sidekickL, slots >= 1, 0);
+      this.placeSidekick(this.sideR, dx, l.sidekickR, slots >= 2, 500);
+    }
 
     // gauges + name
     const max = catalogMax();

@@ -2,9 +2,8 @@
 // Turret / cannon / pod barrels point DOWN at rotation 0 and pivot on the texture centre, so
 // gameplay can rotate them toward the player (angle = atan2(dy, dx) - PI/2).
 import {
-  Grid, type Ramp, plate, rect, circle, chamferRect, poly, ngon, dome, barrel, groove, ridge, rivet,
-  rivetRing, glow, lamp, fill, frame,
-  GREY, FIRE, TEAL,
+  Grid, type Ramp, plate, rect, circle, chamferRect, poly, ngon, barrel, groove, ridge, rivet,
+  rivetRing, glow, lamp, fill, frame, GREY, TEAL,
 } from './b_boss_kit';
 
 /** Hot weak-point ramp: deep red -> red -> orange -> yellow -> white. */
@@ -32,19 +31,17 @@ export function drawCannon(): Grid {
   const g = new Grid(24, 24);
   plate(g, circle(12, 12, 8.6), { base: 2, bevel: 1, hi: 1.6, lo: 1.2, rim: 2 });
   rivetRing(g, 12, 12, 7.5, 10, 0.3);
-  barrel(g, 12, 12, 12, 21.5, 2.5, { ramp: GREY, amb: 0.15, spec: 0.9, rim: 1, drop: 1 });
-  for (let x = 10; x < 14; x++) { g.set(x, 16, x & 1 ? 'E' : 'y'); g.set(x, 17, 'e'); }
+  barrel(g, 12, 9, 12, 21.5, 2.6, { ramp: GREY, amb: 0.15, spec: 0.9, rim: 1, drop: 1 });
+  for (let x = 10; x < 14; x++) { g.set(x, 14, x & 1 ? 'E' : 'y'); g.set(x, 15, 'e'); }
   plate(g, rect(8, 19, 8, 4), { ramp: GREY, base: 3, bevel: 1, hi: 1.6, lo: 1.8, rim: 2 });
-  g.set(8, 20, 'k'); g.set(15, 20, 'k'); g.set(8, 21, 'k'); g.set(15, 21, 'k');
+  for (const y of [20, 21]) { g.set(8, y, 'k'); g.set(15, y, 'k'); }
   fill(g, rect(11, 21, 2, 2), 'k');
   g.set(11, 22, 'e'); g.set(12, 22, 'e');
-  const housing = poly([7, 4, 17, 4, 19, 7, 18, 13, 15, 15, 9, 15, 6, 13, 5, 7]);
-  plate(g, housing, { base: 3, bevel: 2, hi: 1.6, lo: 1.8, rim: 2, drop: 1 });
-  plate(g, poly([9, 6, 15, 6, 16, 9, 15, 12, 9, 12, 8, 9]), { base: 4, bevel: 1, hi: 1.2, lo: 1.8, rim: 1 });
-  for (const y of [7, 9]) { g.set(10, y, 'k'); g.set(11, y, 'k'); g.set(12, y, 'k'); g.set(13, y, 'k'); }
-  lamp(g, 16, 6, TEAL);
-  rivet(g, 7, 12); rivet(g, 16, 12);
-  void groove;
+  plate(g, poly([6, 3, 18, 3, 20, 6, 19, 10, 15, 12.5, 9, 12.5, 5, 10, 4, 6]), { base: 3, bevel: 2, hi: 1.6, lo: 1.8, rim: 2, drop: 1 });
+  plate(g, poly([8, 5, 16, 5, 17, 7.5, 15, 10, 9, 10, 7, 7.5]), { base: 4, bevel: 1, hi: 1.2, lo: 1.8, rim: 1 });
+  plate(g, circle(12, 7.5, 2), { ramp: GREY, base: 3, bevel: 1, hi: 1.6, lo: 1.6, rim: 2 });
+  lamp(g, 17, 5, TEAL);
+  rivet(g, 6, 9); rivet(g, 17, 9);
   return g;
 }
 
@@ -115,6 +112,5 @@ export function drawWing(): Grid {
   for (const y of [9, 15, 21]) rivet(g, 28, y);
   for (const [x, y] of [[12, 9], [19, 7], [8, 13]]) rivet(g, x, y);
   lamp(g, 4, 12, TEAL);
-  void FIRE;
   return g;
 }

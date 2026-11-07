@@ -5,7 +5,7 @@
 //  A Grid stores one colour CODE per pixel, using the exact pixel-map convention of
 //  src/art/pixel.ts: digits '1'..'5' = palette ramp (dark -> light), letters = fixed colours
 //  (COMMON_COLORS + BOSS_COLORS). A boss is composed ONCE as codes (bevelled plates, domes,
-//  barrels, grooves, rivets, vents, glows, ASCII stamps) and then rendered for every Palette
+//  barrels, tubes, grooves, rivets, vents, glows, sockets) and then rendered for every Palette
 //  by gridCanvas(), which only swaps the ramp colours. Everything is crisp (no anti-aliasing),
 //  lit from the top-left, with ordered (Bayer) dithering for smooth retro gradients.
 // =====================================================================================
@@ -26,7 +26,6 @@ export const TEAL: Ramp = ['j', 't', 'T', 'u', 'w'];
 export const MAGENTA: Ramp = ['n', 'm', 'M', 'p', 'w'];
 export const ICE: Ramp = ['b', 'c', 'C', 'q', 'w'];
 export const ACID: Ramp = ['i', 'l', 'V', 'Z', 'w'];
-export const BLOOD: Ramp = ['o', 'r', 'R', 'O', 'w'];
 
 /** Extra fixed colours used by boss art (on top of COMMON_COLORS). */
 export const BOSS_COLORS: ColorMap = {
@@ -35,12 +34,11 @@ export const BOSS_COLORS: ColorMap = {
   n: '#320a44', p: '#f6c4ff',            // magenta deep / magenta pale
   b: '#0a2444',                          // ice deep
   i: '#123208', l: '#3a8a10', V: '#9aee2a', Z: '#eaff96', // acid bio-glow
-  o: '#3a0608', O: '#ff9a8a',            // blood deep / blood pale
-  s: '#f0c890', S: '#5a3a1a',            // sand light / dark (desert dust, scorch rims)
+  O: '#ff9a8a',                          // pale red (warhead highlights)
 };
 
 // ------------------------------------------------------------------ code families (shade)
-const FAMILY_STRINGS = ['k12345', 'kKgGhH', 'kreEyw', 'kjtTuw', 'knmMpw', 'kbcCqw', 'kilVZw', 'koRO'];
+const FAMILY_STRINGS = ['k12345', 'kKgGhH', 'kreEyw', 'kjtTuw', 'knmMpw', 'kbcCqw', 'kilVZw'];
 const FAM_ID = new Int8Array(128).fill(-1);
 const FAM_IDX = new Int8Array(128).fill(-1);
 const FAM_CODES: number[][] = FAMILY_STRINGS.map((s) => s.split('').map((c) => c.charCodeAt(0)));
@@ -51,7 +49,6 @@ FAMILY_STRINGS.forEach((s, fi) => {
     if (FAM_ID[code] === -1) { FAM_ID[code] = fi; FAM_IDX[code] = ci; }
   });
 });
-const CODE_K = 'k'.charCodeAt(0);
 
 /** Shift a code `delta` steps darker (<0) or lighter (>0) inside its family. */
 export function shadeCode(code: number, delta: number, minIdx = 0): number {
@@ -87,13 +84,6 @@ export class Grid {
     const i = y * this.w + x;
     const c = this.px[i];
     if (c) this.px[i] = shadeCode(c, delta, minIdx);
-  }
-  /** Copy another grid on top (non-transparent pixels only) at an offset. */
-  blit(src: Grid, ox: number, oy: number): void {
-    for (let y = 0; y < src.h; y++) for (let x = 0; x < src.w; x++) {
-      const c = src.px[y * src.w + x];
-      if (c) this.setCode(ox + x, oy + y, c);
-    }
   }
 }
 
@@ -194,15 +184,6 @@ export function union(...s: Shape[]): Shape {
     x0: Math.min(...s.map((a) => a.x0)), y0: Math.min(...s.map((a) => a.y0)),
     x1: Math.max(...s.map((a) => a.x1)), y1: Math.max(...s.map((a) => a.y1)),
     has: (x, y) => s.some((a) => a.has(x, y)),
-  };
-}
-export function diff(a: Shape, ...b: Shape[]): Shape {
-  return { ...a, has: (x, y) => a.has(x, y) && !b.some((s) => s.has(x, y)) };
-}
-export function inter(a: Shape, b: Shape): Shape {
-  return {
-    x0: Math.max(a.x0, b.x0), y0: Math.max(a.y0, b.y0), x1: Math.min(a.x1, b.x1), y1: Math.min(a.y1, b.y1),
-    has: (x, y) => a.has(x, y) && b.has(x, y),
   };
 }
 /** Mirror a shape horizontally inside a grid of width W (pixel x -> W-1-x). */
@@ -385,28 +366,6 @@ export function fill(g: Grid, s: Shape, ch: string, only = false): void {
   }
 }
 
-/** Remove pixels inside a shape (cut-outs). */
-export function cut(g: Grid, s: Shape): void {
-  for (let y = s.y0; y <= s.y1; y++) for (let x = s.x0; x <= s.x1; x++) if (s.has(x, y)) g.clear(x, y);
-}
-
-/** Relative shading of every existing pixel inside a shape. */
-export function shadeShape(g: Grid, s: Shape, delta: number, minIdx = 0): void {
-  for (let y = s.y0; y <= s.y1; y++) for (let x = s.x0; x <= s.x1; x++) if (s.has(x, y)) g.shade(x, y, delta, minIdx);
-}
-
-/** Re-paint existing pixels of a shape with another ramp, keeping their level (stripes, markings). */
-export function repaint(g: Grid, s: Shape, ramp: Ramp, levelShift = 0): void {
-  for (let y = s.y0; y <= s.y1; y++) for (let x = s.x0; x <= s.x1; x++) {
-    if (!s.has(x, y)) continue;
-    const c = g.get(x, y);
-    if (!c || c === CODE_K) continue;
-    const lv = levelOf(c);
-    if (lv <= 0) continue;
-    g.set(x, y, ramp[Math.max(0, Math.min(4, lv - 1 + levelShift))]);
-  }
-}
-
 // ------------------------------------------------------------------ volumes
 export interface VolumeOpts {
   ramp?: Ramp;
@@ -552,14 +511,6 @@ export function ridge(g: Grid, x0: number, y0: number, x1: number, y1: number, u
   forLine(x0, y0, x1, y1, (x, y) => g.shade(x + (horiz ? 0 : 1), y + (horiz ? 1 : 0), -down));
 }
 
-/** Grooves along the outline of a rectangle (inset panel). */
-export function panel(g: Grid, x: number, y: number, w: number, h: number, depth = 2): void {
-  groove(g, x, y, x + w - 1, y, depth);
-  groove(g, x, y, x, y + h - 1, depth);
-  ridge(g, x, y + h - 1, x + w - 1, y + h - 1, 1, 0);
-  ridge(g, x + w - 1, y, x + w - 1, y + h - 1, 1, 0);
-}
-
 /** Single rivet: bright pixel + dark pixel to the bottom-right. */
 export function rivet(g: Grid, x: number, y: number, big = false): void {
   g.shade(x, y, 2);
@@ -643,28 +594,6 @@ export function lamp(g: Grid, x: number, y: number, ramp: Ramp, big = false): vo
 }
 
 /**
- * ASCII stamp. '.' / ' ' = skip, '+' / '-' = relative shade +1/-1, '*' / '_' = +2/-2,
- * anything else = that code (digits = ramp, letters = fixed colours).
- */
-export function stamp(g: Grid, map: string[], x: number, y: number, flip = false): void {
-  for (let j = 0; j < map.length; j++) {
-    const row = map[j];
-    for (let i = 0; i < row.length; i++) {
-      const ch = row[flip ? row.length - 1 - i : i];
-      const X = x + i, Y = y + j;
-      switch (ch) {
-        case '.': case ' ': break;
-        case '+': g.shade(X, Y, 1); break;
-        case '-': g.shade(X, Y, -1); break;
-        case '*': g.shade(X, Y, 2); break;
-        case '_': g.shade(X, Y, -2); break;
-        default: g.set(X, Y, ch);
-      }
-    }
-  }
-}
-
-/**
  * Mount socket for a separate boss part (turret / pod / core): raised mounting ring, recessed
  * floor (inverted bevel), bolt circle and a pivot hub. Reads as an empty mount when no part sits on it.
  */
@@ -681,11 +610,12 @@ export function socket(g: Grid, cx: number, cy: number, r: number, ramp: Ramp = 
 
 // ------------------------------------------------------------------ rendering
 const lutCache = new Map<string, Uint8ClampedArray>();
-function lutFor(palette: Palette | 'none', extra?: ColorMap): Uint8ClampedArray {
+/** RGBA lookup table (code -> colour) for a palette, cached. */
+function lutFor(palette: Palette, extra?: ColorMap): Uint8ClampedArray {
   const key = palette + (extra ? JSON.stringify(extra) : '');
   const hit = lutCache.get(key);
   if (hit) return hit;
-  const colors: ColorMap = { ...BOSS_COLORS, ...(palette === 'none' ? {} : rampColors(palette)), ...(extra ?? {}) };
+  const colors: ColorMap = { ...BOSS_COLORS, ...rampColors(palette), ...(extra ?? {}) };
   const lut = new Uint8ClampedArray(128 * 4);
   for (const [ch, hex] of Object.entries(colors)) {
     const code = ch.charCodeAt(0);
@@ -728,16 +658,4 @@ export function gridCanvas(g: Grid, palette: Palette, outline = false, extra?: C
   }
   ctx.putImageData(img, 0, 0);
   return outline ? outlineCanvas(canvas) : canvas;
-}
-
-/** Deterministic RNG helper bound to a seed. */
-export function rng(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }

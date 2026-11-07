@@ -5,6 +5,9 @@ import { paintJungle } from './b_ter_jungle';
 import { paintOcean } from './b_ter_ocean';
 import { paintCavern } from './b_ter_cavern';
 import { paintSpace } from './b_ter_space';
+import { paintLava } from './b_ter_lava';
+import { paintIce } from './b_ter_ice';
+import { paintTechno } from './b_ter_techno';
 
 /** A decoration sprite placed on a terrain chunk (coordinates are inside the chunk canvas). */
 export interface DoodadPlacement {
@@ -28,6 +31,9 @@ const PAINTERS: Partial<Record<Biome, Painter>> = {
   ocean: paintOcean,
   cavern: paintCavern,
   space: paintSpace,
+  lava: paintLava,
+  ice: paintIce,
+  techno: paintTechno,
 };
 
 /**

@@ -37,7 +37,7 @@ function colorsFor(s: HullScheme): ColorMap {
 
 const shift = makeShifter(['12345', '6789', 'gGhH', 'cCqw']);
 /** Right-of-centre tone-down (light comes from the top-left). */
-const DIM: Record<string, string> = { '5': '4', '4': '3', '9': '8', H: 'h', q: 'C', w: 'q' };
+const DIM: Record<string, string> = { '5': '4', '4': '3', '9': '8', '8': '7', H: 'h', q: 'C', w: 'q' };
 /** Rising wing catches the light. */
 const BRIGHT: Record<string, string> = { '2': '3', '3': '4', '4': '5', '7': '8', '8': '9', G: 'h', h: 'H' };
 

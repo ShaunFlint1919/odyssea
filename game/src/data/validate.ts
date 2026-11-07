@@ -14,8 +14,8 @@ import {
 import { ENEMY_BULLET_DAMAGE, MAX_POWER, PLAY_W } from '../config';
 import {
   BIOME_BULLET_COLORS, BIOME_PALETTES, BOSS_MOVES, CAMPAIGN, FIRE_PATTERNS, FORMATIONS, FRONT_PATTERNS, LAND_BIOMES,
-  MIDBOSS_SPRITES, MOVE_PATTERNS, NAME_MAX, PICKUP_KINDS, REAR_PATTERNS, SEA_BIOMES, SFX_KEYS, SIDEKICK_PATTERNS,
-  SURFACE_MOVES,
+  MIDBOSS_SPRITES, MOVE_PATTERNS, NAME_MAX, PICKUP_KINDS, PLANET_PALETTES, REAR_PATTERNS, SEA_BIOMES, SFX_KEYS,
+  SIDEKICK_PATTERNS, SURFACE_MOVES,
 } from './helpers';
 import { lastSpawnTime } from './waves';
 
@@ -309,6 +309,11 @@ export function validateBundle(c: ContentBundle): string[] {
       if (p.biome !== ref.biome) err('planet', p.id, `biome must be ${ref.biome}`);
     }
     if (!BIOMES.includes(p.biome)) err('planet', p.id, `unknown biome ${p.biome}`);
+    const identity = PLANET_PALETTES[p.id] ?? [];
+    if (identity.length < 2 || identity.length > 3) err('planet', p.id, 'colour identity needs 2-3 palettes (PLANET_PALETTES)');
+    for (const pal of identity) {
+      if (!(BIOME_PALETTES[p.biome] ?? []).includes(pal)) err('planet', p.id, `palette ${pal} does not contrast with the ${p.biome} terrain`);
+    }
     desc('planet', p.id, p.desc, 140);
     if (!(p.mapX >= 0.15 && p.mapX <= 0.85) || !(p.mapY >= 0.12 && p.mapY <= 0.88)) err('planet', p.id, 'map position outside x 0.15..0.85 / y 0.12..0.88');
     if (i > 0 && !(p.mapY < c.planets[i - 1].mapY)) err('planet', p.id, 'map route must climb (mapY decreasing)');
@@ -340,10 +345,11 @@ export function validateBundle(c: ContentBundle): string[] {
     if (!(l.scrollSpeed >= RULES.scrollRange[0] && l.scrollSpeed <= RULES.scrollRange[1])) err('level', l.id, `scrollSpeed outside ${RULES.scrollRange.join('..')}`);
     const land = LAND_BIOMES.includes(l.biome);
     const sea = SEA_BIOMES.includes(l.biome);
-    const palettes = BIOME_PALETTES[l.biome] ?? [];
+    const contrast = BIOME_PALETTES[l.biome] ?? [];
+    const palettes = (PLANET_PALETTES[l.planet] ?? []).filter((p) => contrast.includes(p));
     const colours = BIOME_BULLET_COLORS[l.biome] ?? [];
     const identity = (where: string, e: EnemyDef) => {
-      if (!palettes.includes(e.palette)) err('level', `${l.id} ${where}`, `${e.id} palette ${e.palette} breaks the ${l.biome} colour identity`);
+      if (!palettes.includes(e.palette)) err('level', `${l.id} ${where}`, `${e.id} palette ${e.palette} not in the ${l.planet} identity (${palettes.join('/')})`);
       if (e.fire !== 'none' && !colours.includes(e.bulletColor)) err('level', `${l.id} ${where}`, `${e.id} bullet colour ${e.bulletColor} unreadable on ${l.biome}`);
       if (e.layer === 'ground' && !land) err('level', `${l.id} ${where}`, `ground unit ${e.id} in a ${l.biome} level`);
       if (e.layer === 'sea' && !sea) err('level', `${l.id} ${where}`, `sea unit ${e.id} outside an ocean level`);
@@ -403,7 +409,7 @@ export function validateBundle(c: ContentBundle): string[] {
         if (!b) err('level', l.id, `unknown boss ${l.boss}`);
         else {
           if (camp && camp.boss !== l.boss) err('level', l.id, `boss must be ${camp.boss}`);
-          if (!palettes.includes(b.palette)) err('level', l.id, `boss palette ${b.palette} breaks the ${l.biome} colour identity`);
+          if (!palettes.includes(b.palette)) err('level', l.id, `boss palette ${b.palette} not in the ${l.planet} identity (${palettes.join('/')})`);
           for (const ph of b.phases) {
             for (const a of ph.attacks) if (!colours.includes(a.bulletColor)) err('level', l.id, `boss bullet colour ${a.bulletColor} unreadable on ${l.biome}`);
             if (ph.spawn) {

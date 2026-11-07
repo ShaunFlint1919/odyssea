@@ -101,7 +101,11 @@ const IGNORED_CONSOLE = [/favicon\.ico/i];
 /** Attaches error collectors to a page. `take()` returns and clears the errors collected so far. */
 export function collectErrors(page) {
   let errors = [];
-  page.on('pageerror', (e) => errors.push(`pageerror: ${e?.stack?.split('\n').slice(0, 3).join(' | ') ?? String(e)}`));
+  page.on('pageerror', (e) => {
+    const stack = typeof e?.stack === 'string' ? e.stack.split('\n').slice(0, 3).join(' | ') : '';
+    const msg = typeof e?.message === 'string' ? e.message : '';
+    errors.push(`pageerror: ${stack || msg || String(e) || '(error without message — usually a module that failed to load)'}`);
+  });
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
     const text = m.text();

@@ -2,9 +2,9 @@
 // palette-independent code grid, so it is computed once per boss and rendered for every palette:
 // scorch blotches, bitten-off armour edges with burnt rims, holes exposing glowing internals,
 // cracks (some glowing with heat) and embers.
-import { Grid, FIRE, levelOf, rng } from './b_boss_kit';
+import { Grid, FIRE, levelOf } from './b_boss_kit';
 import { bayer } from './pixel';
-import { fbm } from './noise';
+import { fbm, mulberry32 } from './noise';
 import type { BossMounts, Offset } from './b_boss_types';
 
 const K = 'k'.charCodeAt(0);
@@ -47,7 +47,7 @@ function filledNeighbours(g: Grid, x: number, y: number): number {
 /** Apply deterministic battle damage to a copy of a boss grid. */
 export function damaged(src: Grid, seed: number, mounts: BossMounts): Grid {
   const g = src.clone();
-  const R = rng(seed);
+  const R = mulberry32(seed);
   const W = g.w, H = g.h;
   const avoid: Offset[] = [...mounts.turret, ...mounts.cannon, ...mounts.pod, ...mounts.core, ...mounts.wing];
   const farFromMounts = (x: number, y: number, d: number) => avoid.every(([ox, oy]) => Math.hypot(x - (W / 2 + ox), y - (H / 2 + oy)) > d);
@@ -162,7 +162,7 @@ export function damaged(src: Grid, seed: number, mounts: BossMounts): Grid {
   for (const [hx, hy, r] of holes) for (let i = 0; i < 4; i++) {
     const a = R() * Math.PI * 2, d = r + 1.5 + R() * 3;
     const X = Math.round(hx + Math.cos(a) * d), Y = Math.round(hy + Math.sin(a) * d);
-    if (g.filled(X, Y) && levelOf(g.get(X, Y)) >= 0) g.set(X, Y, R() < 0.5 ? 'y' : 'E');
+    if (levelOf(g.get(X, Y)) > 0) g.set(X, Y, R() < 0.5 ? 'y' : 'E');
   }
   return g;
 }

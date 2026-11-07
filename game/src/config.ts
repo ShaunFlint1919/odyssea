@@ -9,7 +9,11 @@ export const W = 320;
 
 function computeHeight(): number {
   if (typeof window === 'undefined') return 568;
-  const ratio = window.innerHeight / Math.max(1, window.innerWidth);
+  // Prefer the real game box (it excludes the notch / safe-area insets), else the window.
+  const box = typeof document !== 'undefined' ? document.getElementById('game')?.getBoundingClientRect() : undefined;
+  const bw = box && box.width > 0 ? box.width : window.innerWidth;
+  const bh = box && box.height > 0 ? box.height : window.innerHeight;
+  const ratio = bh / Math.max(1, bw);
   // Portrait phones: 16:9 -> 569, 20:9 -> 711. Landscape desktop clamps to 480.
   const h = Math.min(720, Math.max(480, Math.round(W * ratio)));
   return h - (h % 2);

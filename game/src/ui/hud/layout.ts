@@ -22,7 +22,7 @@ export const SEG = 4;
 export const PIPS = 10;
 /** Pip geometry: 4x5 px pips with a 1 px gap. */
 export const PIP_W = 4;
-export const PIP_H = 5;
+export const PIP_H = 6;
 export const PIP_STRIDE = 5;
 /** Rear-mode lamp size and toggle-icon size. */
 export const LAMP = 11;
@@ -38,6 +38,9 @@ export const BOSS_H = 5;
 export const BAND_W = PLAY_W;
 export const BAND_H = 46;
 export const BAND_H_SHORT = 30;
+/** Score backdrop size. */
+export const SHADE_W = 104;
+export const SHADE_H = 46;
 
 export interface LegendBox {
   /** Outer rectangle (legend text sits on its top 8 rows, the frame line at y + 4). */
@@ -82,6 +85,8 @@ export interface HudLayout {
   armorNum: Rect;
   // ---- playfield overlays (screen coordinates)
   score: { x: number; y: number };
+  /** Soft dark backdrop behind score + credits (readability over bright terrain). */
+  scoreShade: Rect;
   creditIcon: { x: number; y: number };
   credits: { x: number; y: number };
   /** Boss bar block: name row + framed bar (container slides vertically). */
@@ -93,8 +98,8 @@ export interface HudLayout {
 const PAUSE_H = 18;
 const LCD_H = 13;
 const PROG_H = 5;
-const FRONT_H = 29;
-const REAR_H = 46;
+const FRONT_H = 30;
+const REAR_H = 47;
 const SIDE_H = 32;
 /** Legend box: 10 rows above the content, 3 below it (2 padding + frame). */
 const LEGEND_TOP = 10;
@@ -193,9 +198,10 @@ export function computeLayout(height: number): HudLayout {
     shieldBar, shieldNum,
     armor: { box: armorBox, legend: 'ARM' },
     armorBar, armorNum,
-    score: { x: 6, y: H - 17 },
-    creditIcon: { x: 7, y: H - 30 },
-    credits: { x: 19, y: H - 32 },
+    score: { x: 8, y: H - 21 },
+    creditIcon: { x: 9, y: H - 34 },
+    credits: { x: 21, y: H - 36 },
+    scoreShade: rect(0, H - SHADE_H, SHADE_W, SHADE_H),
     boss: rect(Math.floor((PLAY_W - BOSS_W - 4) / 2), 3, BOSS_W + 4, 21),
     bannerY: Math.round(H * 0.36),
   };

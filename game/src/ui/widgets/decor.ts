@@ -26,14 +26,16 @@ export function neonRule(scene: Phaser.Scene, cx: number, y: number, w: number, 
 
 export interface HeaderOpts {
   y?: number;            // top of the title (default 10)
-  sub?: string;          // small teal line under the rule
+  sub?: string;          // small line under the rule
+  subColor?: number;     // default COLORS.teal
   icon?: string;         // texture drawn left of the title
   depth?: number;
 }
 
 /**
  * Screen header: big FONT.l title centred at the top, a magenta neon rule with end ticks and
- * an optional sub line. Returns the container; `bottom` is stored in its data ('bottom').
+ * an optional sub line. Returns the container; data 'bottom' = y below the header, data
+ * 'subText' = the sub line BitmapText (when `sub` was given) for live updates.
  */
 export function header(scene: Phaser.Scene, title: string, opts: HeaderOpts = {}): Phaser.GameObjects.Container {
   const { width } = scene.scale.gameSize;
@@ -52,8 +54,10 @@ export function header(scene: Phaser.Scene, title: string, opts: HeaderOpts = {}
   const tick = (x: number) => scene.add.rectangle(x, ry - 1, 2, 4, COLORS.accentLight).setOrigin(0.5, 0);
   c.add([tick(Math.round(width / 2 - total / 2 - 12)), tick(Math.round(width / 2 + total / 2 + 12))]);
   let bottom = ry + 3;
-  if (opts.sub) {
-    c.add(text(scene, width / 2, ry + 6, opts.sub, { size: 's', color: COLORS.teal, originX: 0.5 }));
+  if (opts.sub !== undefined) {
+    const sub = text(scene, width / 2, ry + 6, opts.sub, { size: 's', color: opts.subColor ?? COLORS.teal, originX: 0.5 });
+    c.add(sub);
+    c.setData('subText', sub);
     bottom = ry + 14;
   }
   c.setData('bottom', bottom);

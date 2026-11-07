@@ -110,41 +110,55 @@ export function hasFrame(scene: Phaser.Scene, key: string, frame: number | strin
 export class FrameAnim {
   readonly keys: string[] = [];
   readonly frames: (string | number)[] = [];
+  /** Cumulative end time (ms) of each frame within one cycle (per-frame durations honoured). */
+  private readonly ends: number[] = [];
   readonly msPerFrame: number;
   readonly loop: boolean;
 
   constructor(scene: Phaser.Scene, animKey: string, sheetKey: string, fallback: FallbackKind, fps: number, loop: boolean) {
-    const anim = scene.anims.exists(animKey) ? scene.anims.get(animKey) : null;
+    const anim = animKey && scene.anims.exists(animKey) ? scene.anims.get(animKey) : null;
+    let t = 0;
     if (anim && anim.frames.length > 0) {
+      this.msPerFrame = anim.msPerFrame > 0 ? anim.msPerFrame : 1000 / fps;
       for (const f of anim.frames) {
         this.keys.push(f.textureKey);
         this.frames.push(f.textureFrame);
+        t += f.duration > 0 ? f.duration : this.msPerFrame;
+        this.ends.push(t);
       }
-      this.msPerFrame = anim.msPerFrame > 0 ? anim.msPerFrame : 1000 / fps;
-    } else if (scene.textures.exists(sheetKey)) {
-      const n = frameCount(scene, sheetKey);
-      for (let i = 0; i < n; i++) {
-        this.keys.push(sheetKey);
-        this.frames.push(n > 1 ? i : '__BASE');
-      }
-      this.msPerFrame = 1000 / fps;
     } else {
-      this.keys.push(fallbackTex(scene, fallback));
-      this.frames.push('__BASE');
       this.msPerFrame = 1000 / fps;
+      const n = scene.textures.exists(sheetKey) ? frameCount(scene, sheetKey) : 1;
+      for (let i = 0; i < n; i++) {
+        if (scene.textures.exists(sheetKey)) {
+          this.keys.push(sheetKey);
+          this.frames.push(n > 1 ? i : '__BASE');
+        } else {
+          this.keys.push(fallbackTex(scene, fallback));
+          this.frames.push('__BASE');
+        }
+        t += this.msPerFrame;
+        this.ends.push(t);
+      }
     }
     this.loop = loop;
   }
 
   get length(): number { return this.frames.length; }
   /** Total duration of one cycle in ms. */
-  get duration(): number { return this.frames.length * this.msPerFrame; }
+  get duration(): number { return this.ends[this.ends.length - 1]; }
 
   /** Frame index for an age in ms (-1 once a non-looping animation is over). */
   index(ageMs: number): number {
-    const i = Math.floor(ageMs / this.msPerFrame);
-    if (this.loop) return i % this.frames.length;
-    return i < this.frames.length ? i : -1;
+    const total = this.ends[this.ends.length - 1];
+    let a = ageMs;
+    if (a >= total) {
+      if (!this.loop) return -1;
+      a %= total;
+    }
+    const ends = this.ends;
+    for (let i = 0; i < ends.length; i++) if (a < ends[i]) return i;
+    return ends.length - 1;
   }
 
   /** Apply frame `i` to an image (no allocation). */

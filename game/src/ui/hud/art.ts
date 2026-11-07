@@ -479,6 +479,17 @@ export function buildParts(scene: Phaser.Scene, key: string, L: HudLayout, fonts
     const rows = ['...k...', '..kMk..', '.kMmMk.', 'kMmwmMk', '.kMmMk.', '..kMk..', '...k...'];
     paintMap(c, rows, { ...COMMON_COLORS, m: '#ff8ae0' }, x, y + 1);
   });
+  // soft backdrop behind score + credits
+  const sh = L.scoreShade;
+  a.add(PART.scoreShade, sh.w, sh.h, (c, x, y) => {
+    const ss = (e0: number, e1: number, v: number) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+    for (let yy = 0; yy < sh.h; yy++) {
+      for (let xx = 0; xx < sh.w; xx++) {
+        const al = 0.5 * (1 - ss(0.45, 1, xx / sh.w)) * ss(0, 0.5, yy / sh.h);
+        if (al > 0.01) px(c, x + xx, y + yy, withAlpha('#05040a', al));
+      }
+    }
+  });
   // hazard stripes (fx_warning tiled) and banner bands
   const sw = BAND_W + 64;
   a.add(PART.stripe, sw, 16, (c, x, y) => {
@@ -554,6 +565,7 @@ export const PART = {
   bandInfoShort: 'bandInfoShort',
   bandWarn: 'bandWarn',
   bandWarnShort: 'bandWarnShort',
+  scoreShade: 'scoreShade',
 } as const;
 
 /** Digit frame names (no allocation when indexing). */

@@ -2,9 +2,8 @@
 // white-hot slots between them, an octagonal armoured housing held by four buttresses with
 // pistons, a crucible of churning molten metal at its heart and a magma cannon pointing DOWN.
 import {
-  Grid, type Shape, plate, poly, circle, ring, rect, sym, barrel, groove, ridge, rivet, rivetRing,
-  glow, lamp, socket, ngon, frame, ventV, fill, quant,
-  GREY, FIRE,
+  Grid, plate, poly, circle, ring, rect, barrel, rivet, rivetRing, glow, lamp, socket, ngon, frame,
+  ventV, quant, GREY, FIRE,
 } from './b_boss_kit';
 import { fbm } from './noise';
 import type { BossMounts } from './b_boss_types';
@@ -40,7 +39,6 @@ function molten(g: Grid, cx: number, cy: number, r: number): void {
 /** Draws the Forge body as a palette-independent code grid. */
 export function drawForge(): Grid {
   const g = new Grid(S, S);
-  const M = (s: Shape) => sym(s, S);
 
   // ---- glowing heat ring under the fins
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
@@ -118,6 +116,5 @@ export function drawForge(): Grid {
   // ---- warning lamps
   lamp(g, C - 12, 20, FIRE, true);
   lamp(g, C + 10, 20, FIRE, true);
-  void [M, groove, ridge, fill];
   return g;
 }

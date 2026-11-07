@@ -3,7 +3,8 @@
 //  player); offsets are px from the body centre, +y = down. Body size = BOSS_SPRITES value
 //  (square bounding box); every part / muzzle sits inside it. Phases escalate: new bullet
 //  patterns each phase, minion spawns (air units of the planet roster) in later phases.
-//  HP curve 3500 -> 40000 (x1.42 per planet), see docs/BALANCE.md "Bosses".
+//  HP curve 3500 -> 40000 (x1.42 per planet), see docs/BALANCE.md "Bosses". Body palettes
+//  contrast with the planet's terrain (PLANET_PALETTES).
 // =====================================================================================
 import type { BossAttack, BossDef } from '../types';
 
@@ -15,8 +16,8 @@ const atk = (
 
 export const BOSSES: BossDef[] = [
   {
-    id: 'colossus', name: 'Sandmaw Colossus', title: 'Siege Crawler of Kessra', sprite: 'boss_colossus', palette: 'amber',
-    hp: 3500, score: 21000, credits: 600,
+    id: 'colossus', name: 'Sandmaw Colossus', title: 'Siege Crawler of Kessra', sprite: 'boss_colossus', palette: 'crimson',
+    hp: 3500, score: 21000, credits: 450,
     phases: [
       {
         untilHp: 0.6, move: 'anchor', speed: 20,
@@ -41,8 +42,8 @@ export const BOSSES: BossDef[] = [
     ],
   },
   {
-    id: 'hydra', name: 'Thornback Hydra', title: 'Reaper of Verdance', sprite: 'boss_hydra', palette: 'emerald',
-    hp: 4960, score: 30000, credits: 800,
+    id: 'hydra', name: 'Thornback Hydra', title: 'Reaper of Verdance', sprite: 'boss_hydra', palette: 'amber',
+    hp: 4960, score: 30000, credits: 620,
     phases: [
       {
         untilHp: 0.65, move: 'hoverSway', speed: 25,
@@ -68,8 +69,8 @@ export const BOSSES: BossDef[] = [
     ],
   },
   {
-    id: 'dreadnought', name: 'Brine Dreadnought', title: 'Tyrant of Thalassa', sprite: 'boss_dreadnought', palette: 'steel',
-    hp: 7030, score: 42000, credits: 1100,
+    id: 'dreadnought', name: 'Brine Dreadnought', title: 'Tyrant of Thalassa', sprite: 'boss_dreadnought', palette: 'crimson',
+    hp: 7030, score: 42000, credits: 850,
     phases: [
       {
         untilHp: 0.7, move: 'anchor', speed: 18,
@@ -96,8 +97,8 @@ export const BOSSES: BossDef[] = [
     ],
   },
   {
-    id: 'hive', name: 'Gloam Matriarch', title: 'Queen of Umbra Deep', sprite: 'boss_hive', palette: 'violet',
-    hp: 9950, score: 60000, credits: 1500,
+    id: 'hive', name: 'Gloam Matriarch', title: 'Queen of Umbra Deep', sprite: 'boss_hive', palette: 'toxic',
+    hp: 9950, score: 60000, credits: 1100,
     phases: [
       {
         untilHp: 0.7, move: 'hoverSway', speed: 25,
@@ -124,8 +125,8 @@ export const BOSSES: BossDef[] = [
     ],
   },
   {
-    id: 'forge', name: 'Crucible Forge', title: 'Heart of Cinder', sprite: 'boss_forge', palette: 'amber',
-    hp: 14080, score: 85000, credits: 2000,
+    id: 'forge', name: 'Crucible Forge', title: 'Heart of Cinder', sprite: 'boss_forge', palette: 'steel',
+    hp: 14080, score: 85000, credits: 1500,
     phases: [
       {
         untilHp: 0.75, move: 'anchor', speed: 18,
@@ -156,8 +157,8 @@ export const BOSSES: BossDef[] = [
     ],
   },
   {
-    id: 'cryo', name: 'Rime Sentinel', title: 'Keeper of Glacia', sprite: 'boss_cryo', palette: 'cobalt',
-    hp: 19940, score: 120000, credits: 2600,
+    id: 'cryo', name: 'Rime Sentinel', title: 'Keeper of Glacia', sprite: 'boss_cryo', palette: 'violet',
+    hp: 19940, score: 120000, credits: 2050,
     phases: [
       {
         untilHp: 0.7, move: 'hoverSway', speed: 30,
@@ -184,7 +185,7 @@ export const BOSSES: BossDef[] = [
   },
   {
     id: 'voidcarrier', name: 'Nyx Voidcarrier', title: 'Shepherd of the Rift', sprite: 'boss_voidcarrier', palette: 'steel',
-    hp: 28240, score: 170000, credits: 3400,
+    hp: 28240, score: 170000, credits: 2800,
     phases: [
       {
         untilHp: 0.75, move: 'anchor', speed: 20,
@@ -218,7 +219,7 @@ export const BOSSES: BossDef[] = [
   },
   {
     id: 'architect', name: 'The Architect', title: 'Mind of the Directorate', sprite: 'boss_architect', palette: 'crimson',
-    hp: 40000, score: 250000, credits: 5000,
+    hp: 40000, score: 250000, credits: 3750,
     phases: [
       {
         untilHp: 0.75, move: 'hoverSway', speed: 28,

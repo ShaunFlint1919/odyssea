@@ -24,13 +24,13 @@ import { PowerRow, TapGuard, compareGrid, type CompareCell } from '../ui/meta/wi
 interface ShopData { category?: string; focus?: string }
 
 const CATS: { cat: ShopCategory; label: string; title: string; icon: string; help: string }[] = [
-  { cat: 'hull', label: 'HULL', title: 'HULL', icon: 'ui_icon_hull', help: 'THE SHIP FRAME: ARMOR, SPEED, HITBOX AND SIDEKICK MOUNTS' },
-  { cat: 'front', label: 'FRONT GUN', title: 'FRONT GUN', icon: 'ui_icon_front', help: 'MAIN GUN - UPGRADE ITS POWER UP TO 10' },
-  { cat: 'rear', label: 'REAR GUN', title: 'REAR GUN', icon: 'ui_icon_rear', help: 'TAIL GUN WITH TWO FIRING MODES, TOGGLED IN FLIGHT' },
-  { cat: 'shield', label: 'SHIELD', title: 'SHIELD', icon: 'ui_icon_shield', help: 'ABSORBS HITS BEFORE THE ARMOR, RECHARGES ON ENERGY' },
+  { cat: 'hull', label: 'HULL', title: 'HULL', icon: 'ui_icon_hull', help: 'SHIP FRAME: ARMOR, SPEED, HITBOX, DRONE MOUNTS' },
+  { cat: 'front', label: 'FRONT GUN', title: 'FRONT GUN', icon: 'ui_icon_front', help: 'MAIN GUN - BUY POWER LEVELS UP TO 10' },
+  { cat: 'rear', label: 'REAR GUN', title: 'REAR GUN', icon: 'ui_icon_rear', help: 'TAIL GUN WITH TWO MODES, TOGGLED IN FLIGHT' },
+  { cat: 'shield', label: 'SHIELD', title: 'SHIELD', icon: 'ui_icon_shield', help: 'SOAKS HITS FIRST, RECHARGES ON ENERGY' },
   { cat: 'generator', label: 'GENERATOR', title: 'GENERATOR', icon: 'ui_icon_generator', help: 'POWERS YOUR GUNS AND SHIELD RECHARGE' },
-  { cat: 'sidekickL', label: 'LEFT SIDEKICK', title: 'LEFT DRONE', icon: 'ui_icon_sidekick', help: 'ESCORT DRONE ON THE LEFT MOUNT - USES NO ENERGY' },
-  { cat: 'sidekickR', label: 'RIGHT SIDEKICK', title: 'RIGHT DRONE', icon: 'ui_icon_sidekick', help: 'ESCORT DRONE ON THE RIGHT MOUNT - USES NO ENERGY' },
+  { cat: 'sidekickL', label: 'LEFT SIDEKICK', title: 'LEFT DRONE', icon: 'ui_icon_sidekick', help: 'DRONE ON THE LEFT MOUNT - USES NO ENERGY' },
+  { cat: 'sidekickR', label: 'RIGHT SIDEKICK', title: 'RIGHT DRONE', icon: 'ui_icon_sidekick', help: 'DRONE ON THE RIGHT MOUNT - USES NO ENERGY' },
 ];
 
 const isCategory = (c: unknown): c is ShopCategory => typeof c === 'string' && (SHOP_CATEGORIES as string[]).includes(c);
@@ -49,6 +49,7 @@ export class ShopScene extends Phaser.Scene {
   private list?: kit.MenuList;
   private preview?: WeaponPreviewApi;
   private bay?: ShipBay;
+  private holo?: ShipBay;
   private power?: PowerRow;
   private buyBtn?: kit.ButtonApi;
   private items: ShopItem[] = [];
@@ -102,6 +103,8 @@ export class ShopScene extends Phaser.Scene {
     this.preview = undefined;
     this.bay?.destroy();
     this.bay = undefined;
+    this.holo?.destroy();
+    this.holo = undefined;
     this.power?.destroy();
     this.power = undefined;
     this.list?.destroy();
@@ -137,13 +140,19 @@ export class ShopScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ shared pieces
 
-  /** Live preview window (weapon demo of `loadout`; ship bay fallback when the demo draws nothing). */
-  private buildPreview(x: number, y: number, w: number, h: number, loadout: Loadout, tag: string): void {
-    this.track(kit.panel(this, x, y, w, h, 'inset').setDepth(MD.panel));
+  /**
+   * Live preview window: weapon demo of `loadout` (ship bay fallback when the demo draws
+   * nothing). With `holo`, the right part shows a large ship "hologram" (hull, shield arc and
+   * bubble) next to a narrower demo.
+   */
+  private buildPreview(x: number, y: number, w: number, h: number, loadout: Loadout, tag: string, holo = false): void {
+    const hw = holo ? Math.min(140, Math.max(116, Math.round(w * 0.4))) : 0;
+    const dw = holo ? w - hw - 3 : w;
+    this.track(kit.panel(this, x, y, dw, h, 'inset').setDepth(MD.panel));
     const before = this.children.length;
     let api: WeaponPreviewApi | undefined;
     try {
-      api = createWeaponPreview(this, x + 3, y + 3, w - 6, h - 6, loadout);
+      api = createWeaponPreview(this, x + 3, y + 3, dw - 6, h - 6, loadout);
     } catch (e) {
       console.warn('[shop] weapon preview failed', e);
     }
@@ -151,18 +160,27 @@ export class ShopScene extends Phaser.Scene {
       this.preview = api;
     } else {
       try { api?.destroy(); } catch { /* stub */ }
-      this.bay = new ShipBay(this, { x: x + 3, y: y + 3, w: w - 6, h: h - 6, frame: false, gauges: false, nameplate: false, depth: MD.panel, scale: h >= 150 ? 3 : 2 }, loadout);
+      this.bay = new ShipBay(this, { x: x + 3, y: y + 3, w: dw - 6, h: h - 6, frame: false, gauges: false, nameplate: false, depth: MD.panel, scale: h >= 150 ? 3 : 2 }, loadout);
     }
-    this.track(scanlines(this, x + 3, y + 3, w - 6, h - 6, MD.overlay, 0.45));
-    this.track(cornerBrackets(this, x + 4, y + 4, w - 8, h - 8, COLORS.teal, 5, MD.overlay));
+    this.track(scanlines(this, x + 3, y + 3, dw - 6, h - 6, MD.overlay, 0.45));
+    this.track(cornerBrackets(this, x + 4, y + 4, dw - 8, h - 8, COLORS.teal, 5, MD.overlay));
     const t = this.track(kit.text(this, x + 9, y + 7, tag, { size: 's', color: COLORS.teal, depth: MD.overlay }));
     const led = this.track(this.add.rectangle(x + 9 + t.width + 4, y + 10, 3, 3, COLORS.bad).setDepth(MD.overlay));
     this.tweens.add({ targets: led, alpha: 0.2, duration: 500, yoyo: true, repeat: -1, ease: 'Stepped' });
+    if (holo) {
+      const hx = x + dw + 3;
+      this.holo = new ShipBay(this, {
+        x: hx, y, w: hw, h, depth: MD.panel, gauges: false, nameplate: false, sidekicks: false, bubble: this.cat === 'shield',
+        scale: hw >= 110 && h >= 140 ? 3 : 2,
+      }, loadout);
+      this.track(kit.text(this, hx + 7, y + 7, 'HOLO', { size: 's', color: COLORS.accentLight, depth: MD.overlay }));
+    }
   }
 
   private setPreview(l: Loadout): void {
     try { this.preview?.setLoadout(l); } catch (e) { console.warn('[shop] preview setLoadout failed', e); }
     this.bay?.setLoadout(l);
+    this.holo?.setLoadout(l);
   }
 
   // ------------------------------------------------------------------ category page
@@ -175,10 +193,10 @@ export class ShopScene extends Phaser.Scene {
     const gap = 4, statusH = 16, top = HEADER_H + gap;
     const avail = H - statusH - gap - top;
     let rowH = 22;
-    let infoH = 52;
+    let infoH = 58;
     let pvH = avail - (n * rowH + 12) - infoH - 2 * gap;
-    while (pvH > 250 && rowH < 26) { rowH++; pvH = avail - (n * rowH + 12) - infoH - 2 * gap; }
-    if (pvH > 290) { infoH += pvH - 290; pvH = 290; }
+    while (pvH > 240 && rowH < 26) { rowH++; pvH = avail - (n * rowH + 12) - infoH - 2 * gap; }
+    if (pvH > 280) { infoH += pvH - 280; pvH = 280; }
     infoH = Math.min(infoH, 76);
     pvH = avail - (n * rowH + 12) - infoH - 2 * gap;
     const listH = n * rowH + 12;
@@ -283,7 +301,7 @@ export class ShopScene extends Phaser.Scene {
 
     const eqIdx = Math.max(0, this.items.findIndex((it) => it.equipped));
     const first = this.items[eqIdx];
-    this.buildPreview(px, top, pw, pvH, loadoutWith(save.loadout, cat, first?.id ?? null), gun || isSidekick(cat) ? 'LIVE FIRE TEST' : 'SHIP PREVIEW');
+    this.buildPreview(px, top, pw, pvH, loadoutWith(save.loadout, cat, first?.id ?? null), 'LIVE FIRE TEST', cat === 'hull' || cat === 'shield');
 
     let y = top + pvH + gap;
     if (gun) {
@@ -322,7 +340,7 @@ export class ShopScene extends Phaser.Scene {
       const base = { label, icon, arrows: false } as const;
       if (it.equipped) return { ...base, value: 'EQUIPPED', valueColor: COLORS.teal, color: COLORS.teal, help: 'EQUIPPED ON YOUR SHIP' };
       if (it.locked) return { ...base, value: 'LOCKED', disabled: true, help: unlockHint(this.unlockLevel(cat, it.id)) };
-      if (!slotOk && it.id !== null) return { ...base, value: 'NO SLOT', disabled: true, help: 'YOUR HULL HAS NO MOUNT HERE - FLY A TWIN-MOUNT HULL' };
+      if (!slotOk && it.id !== null) return { ...base, value: 'NO SLOT', disabled: true, help: 'NO MOUNT HERE - FLY A TWIN-MOUNT HULL' };
       const net = switchCost(cat, it.id);
       const value = net > 0 ? fmt(net) : net < 0 ? `+${fmt(-net)}` : 'FREE';
       const valueColor = net < 0 ? COLORS.good : net > credits ? COLORS.bad : COLORS.gold;

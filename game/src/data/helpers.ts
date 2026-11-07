@@ -67,16 +67,35 @@ export const LAND_BIOMES: Biome[] = ['desert', 'jungle', 'cavern', 'lava', 'ice'
 /** Biomes with open water: sea units ('sea_*') may only appear in their levels. */
 export const SEA_BIOMES: Biome[] = ['ocean'];
 
-/** Enemy colour identity of each planet: every enemy met on a biome uses one of these palettes. */
+/**
+ * Enemy / boss palettes that CONTRAST with each biome's terrain (a palette close to the
+ * ground colours makes units blend in: no emerald on canopy, no amber on sand ...).
+ * Confirmed with the enemy artist.
+ */
 export const BIOME_PALETTES: Record<Biome, Palette[]> = {
-  desert: ['amber', 'bone'],
-  jungle: ['emerald', 'toxic'],
-  ocean: ['cobalt', 'steel'],
-  cavern: ['bone', 'violet'],
-  lava: ['crimson', 'amber'],
-  ice: ['steel', 'cobalt'],
-  space: ['violet', 'steel'],
-  techno: ['crimson', 'toxic', 'violet'],
+  desert: ['cobalt', 'violet', 'crimson', 'steel'],
+  jungle: ['crimson', 'amber', 'violet', 'bone'],
+  ocean: ['amber', 'crimson', 'bone', 'toxic'],
+  cavern: ['cobalt', 'toxic', 'violet', 'steel'],
+  lava: ['steel', 'cobalt', 'toxic', 'violet'],
+  ice: ['crimson', 'amber', 'violet', 'toxic'],
+  space: ['amber', 'toxic', 'crimson', 'steel', 'bone'],
+  techno: ['crimson', 'toxic', 'amber', 'violet'],
+};
+
+/**
+ * Colour identity of each planet: the 2-3 contrasting palettes (subset of BIOME_PALETTES)
+ * that every enemy, mid-boss and boss of the planet uses.
+ */
+export const PLANET_PALETTES: Record<string, Palette[]> = {
+  kessra: ['cobalt', 'crimson', 'steel'],
+  verdance: ['crimson', 'amber', 'bone'],
+  thalassa: ['amber', 'bone', 'crimson'],
+  umbra: ['toxic', 'violet', 'cobalt'],
+  cinder: ['steel', 'cobalt', 'toxic'],
+  glacia: ['crimson', 'amber', 'violet'],
+  rift: ['amber', 'toxic', 'steel'],
+  axiom: ['crimson', 'toxic', 'violet'],
 };
 
 /**

@@ -31,7 +31,7 @@ export class BossBar {
   private readonly nameImg: Phaser.GameObjects.Image;
   private readonly nameTex: Phaser.Textures.CanvasTexture;
   private readonly trail = new Trail(80, 280, 0.42);
-  private readonly hit = new Pulse(150);
+  private readonly hit = new Pulse(120);
   private state = HIDDEN;
   private t = 0;
   private hp = 0;
@@ -88,7 +88,7 @@ export class BossBar {
     }
     if (this.state === SHOWN) {
       const drop = this.trail.set(this.hp);
-      if (drop > 0.0004 && this.hitCooldown <= 0) { this.hit.fire(0.9); this.hitCooldown = 80; }
+      if (drop > 0.0004 && this.hitCooldown <= 0) { this.hit.fire(0.55); this.hitCooldown = 220; }
     }
   }
 

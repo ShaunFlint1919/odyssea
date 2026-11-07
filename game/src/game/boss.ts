@@ -9,16 +9,19 @@
 import Phaser from 'phaser';
 import { COLORS, DEPTH, H, PLAY_W } from '../config';
 import { BOSS_PART_SPRITES, bossKey, shadowKey } from '../art/keys';
+import { bossCorePulseAnim, bossCorePulseKey, bossDamagedKey } from '../art/bosses';
 import type { BossAttack, BossDef, BossPart, BossPhase, EnemyDef } from '../types';
 import type { LaserOwner } from './enemyBullets';
 import { FireState, updateFire } from './firePatterns';
-import { fallbackTex } from './tex';
+import { FrameAnim, fallbackTex } from './tex';
 import type { World } from './world';
 import { angleDiff, clamp } from './world';
 
 const HALF_PI = Math.PI / 2;
 const MASK_CELL = 4;
-const FLASH_TIME = 0.04;
+const FLASH_TIME = 0.032;
+/** Minimum gap between two white flashes (continuous fire makes the boss blink, not glow white). */
+const FLASH_GAP = 0.06;
 const CONTACT_DAMAGE = 12;
 const CORE_MULT = 1.5;
 const DEATH_TIME = 2.1;
@@ -46,10 +49,14 @@ class PartRt implements LaserOwner {
   dead = false;
   rot = 0;
   flash = 0;
+  flashCd = 0;
   smokeT = 0;
   readonly fs = new FireState();
   readonly radius: number;
   readonly glow: Phaser.GameObjects.Image | null;
+  /** Pulse animation of the weak-point core (bossCorePulseAnim), if the art provides it. */
+  anim: FrameAnim | null = null;
+  animIdx = -1;
 
   constructor(
     readonly boss: Boss,
@@ -103,6 +110,7 @@ export class Boss {
   private mw = 0;
   private mh = 0;
   private flash = 0;
+  private flashCd = 0;
   private dmgKey = '';
   private damaged = false;
   private sweepDir = 1;
@@ -162,7 +170,8 @@ export class Boss {
     const sk = shadowKey(key);
     if (scene.textures.exists(sk)) this.shadow = scene.add.image(0, 0, sk).setDepth(surface ? DEPTH.ground + 1 : DEPTH.shadows);
     this.img = scene.add.image(0, 0, key).setDepth(depth);
-    this.dmgKey = scene.textures.exists(`${key}__dmg`) ? `${key}__dmg` : '';
+    const dk = bossDamagedKey(def.sprite, def.palette);
+    this.dmgKey = scene.textures.exists(dk) ? dk : '';
     this.damaged = false;
     this.bw = this.img.width;
     this.bh = this.img.height;
@@ -182,6 +191,9 @@ export class Boss {
         : null;
       const rt = new PartRt(this, p, img, glow, w.diff.hp);
       if (p.attack) rt.fs.reset(p.attack.rate * w.diff.fireRate, w.rng);
+      if (rt.core && scene.textures.exists(bossCorePulseKey(def.palette))) {
+        rt.anim = new FrameAnim(scene, bossCorePulseAnim(def.palette), bossCorePulseKey(def.palette), 'part', 6, true);
+      }
       return rt;
     });
     // muzzles per phase
@@ -294,13 +306,11 @@ export class Boss {
       if (p.core) {
         this.damageBody(amount * CORE_MULT);
         w.fx.hit(x, y, COLORS.accentLight);
-        p.flash = FLASH_TIME;
-        p.img.setTintFill(0xffffff);
+        this.flashPart(p);
         return;
       }
       p.hp -= amount;
-      p.flash = FLASH_TIME;
-      p.img.setTintFill(0xffffff);
+      this.flashPart(p);
       if (p.hp <= 0) this.killPart(p);
       return;
     }
@@ -309,12 +319,23 @@ export class Boss {
 
   private damageBody(amount: number): void {
     this.hp -= amount;
-    if (this.flash <= 0) this.img?.setTintFill(0xffffff);
-    this.flash = FLASH_TIME;
+    if (this.flash <= 0 && this.flashCd <= 0) {
+      this.img?.setTintFill(0xffffff);
+      this.flash = FLASH_TIME;
+      this.flashCd = FLASH_TIME + FLASH_GAP;
+    }
     if (this.hp <= 0) {
       this.hp = 0;
       this.startDeath();
     }
+  }
+
+  /** White flash of a part (rate-limited). */
+  private flashPart(p: PartRt): void {
+    if (p.flash > 0 || p.flashCd > 0) return;
+    p.flash = FLASH_TIME;
+    p.flashCd = FLASH_TIME + FLASH_GAP;
+    p.img.setTintFill(0xffffff);
   }
 
   private killPart(p: PartRt): void {
@@ -342,8 +363,7 @@ export class Boss {
       const dx = p.x - x, dy = p.y - y, rr = p.radius + radius;
       if (dx * dx + dy * dy < rr * rr) {
         p.hp -= amount;
-        p.flash = FLASH_TIME;
-        p.img.setTintFill(0xffffff);
+        this.flashPart(p);
         if (p.hp <= 0) this.killPart(p);
       }
     }
@@ -449,7 +469,8 @@ export class Boss {
       this.attack(dt);
       this.minions(dt);
       this.contact(dt);
-      if (!this.damaged && this.dmgKey && frac < 0.5) {
+      // battle-damaged body for the final phase (or the last third of a single-phase boss)
+      if (!this.damaged && this.dmgKey && (phases.length > 1 ? this.phaseIdx === phases.length - 1 : frac < 0.34)) {
         this.damaged = true;
         this.img?.setTexture(this.dmgKey);
       }
@@ -481,6 +502,7 @@ export class Boss {
       if (this.dieT >= DEATH_TIME) this.finishDeath();
     }
     for (const p of this.parts) this.updatePart(p, dt);
+    if (this.flashCd > 0) this.flashCd -= dt;
     if (this.flash > 0) {
       this.flash -= dt;
       if (this.flash <= 0) this.img?.clearTint();
@@ -632,6 +654,7 @@ export class Boss {
 
   private updatePart(p: PartRt, dt: number): void {
     const w = this.w;
+    if (p.flashCd > 0) p.flashCd -= dt;
     if (p.flash > 0) {
       p.flash -= dt;
       if (p.flash <= 0) {
@@ -670,6 +693,13 @@ export class Boss {
       if (p.turret) p.img.rotation = p.rot;
       if (p.core && !p.dead) {
         const pulse = 0.5 + 0.5 * Math.sin(this.t * 6);
+        if (p.anim) {
+          const idx = p.anim.index(this.t * 1000);
+          if (idx !== p.animIdx) {
+            p.animIdx = idx;
+            p.anim.apply(p.img, idx);
+          }
+        }
         p.img.setScale(1 + 0.07 * pulse);
         p.glow?.setPosition(px, py).setAlpha(0.25 + 0.45 * pulse).setScale(0.9 + 0.4 * pulse);
       }

@@ -28,6 +28,8 @@ const BIOME_BASE: Record<Biome, [number, number, number]> = {
 };
 
 const MENU_W = 176;
+/** Frames of the baked logo shine sweep. */
+const SHINE_FRAMES = 16;
 const ROW_H = 24;
 
 /** "TAP TO START" is shown once per session. */
@@ -153,19 +155,44 @@ export class TitleScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------------------- logo
 
-  /** White silhouette of ui_logo (for the additive shine sweep). */
-  private logoSilhouette(): string | null {
-    const key = '__title_logo_sil';
+  /**
+   * Sprite sheet of a diagonal light band sweeping across the ui_logo silhouette (baked once,
+   * pixel-exact and renderer independent). Returns the key, or null if the logo is unusable.
+   */
+  private logoShineSheet(): string | null {
+    const key = '__title_logo_shine';
     if (this.textures.exists(key)) return key;
     const fr = this.textures.getFrame('ui_logo');
     const src = fr?.source?.image as unknown;
     if (!(src instanceof HTMLCanvasElement) && !(src instanceof HTMLImageElement)) return null;
-    return cachedTexture(this, key, fr.cutWidth, fr.cutHeight, (ctx, w, h) => {
-      ctx.drawImage(src, fr.cutX, fr.cutY, w, h, 0, 0, w, h);
-      ctx.globalCompositeOperation = 'source-in';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-    });
+    const w = fr.cutWidth;
+    const h = fr.cutHeight;
+    const sheet = document.createElement('canvas');
+    sheet.width = w * SHINE_FRAMES;
+    sheet.height = h;
+    const sctx = sheet.getContext('2d')!;
+    const tmp = document.createElement('canvas');
+    tmp.width = w;
+    tmp.height = h;
+    const t = tmp.getContext('2d')!;
+    for (let k = 0; k < SHINE_FRAMES; k++) {
+      t.globalCompositeOperation = 'source-over';
+      t.clearRect(0, 0, w, h);
+      t.drawImage(src, fr.cutX, fr.cutY, w, h, 0, 0, w, h);
+      t.globalCompositeOperation = 'source-in';
+      const bx = -24 + (k / (SHINE_FRAMES - 1)) * (w + 48);
+      const g = t.createLinearGradient(bx - 12, h / 2 - 6, bx + 12, h / 2 + 6);
+      g.addColorStop(0, 'rgba(255,255,255,0)');
+      g.addColorStop(0.5, 'rgba(255,255,255,1)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      t.fillStyle = g;
+      t.fillRect(0, 0, w, h);
+      sctx.drawImage(tmp, k * w, 0);
+    }
+    const tex = this.textures.addCanvas(key, sheet);
+    if (!tex) return null;
+    for (let k = 0; k < SHINE_FRAMES; k++) tex.add(k, 0, k * w, 0, w, h);
+    return key;
   }
 
   private buildLogo(width: number, height: number): void {
@@ -180,9 +207,9 @@ export class TitleScene extends Phaser.Scene {
       const logo = this.add.image(0, 0, 'ui_logo');
       c.add(logo);
       half = Math.round(logo.height / 2);
-      const sil = this.logoSilhouette();
-      if (sil) {
-        const shine = this.add.image(0, 0, sil).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.6).setVisible(false);
+      const sheet = this.logoShineSheet();
+      if (sheet) {
+        const shine = this.add.image(0, 0, sheet, 0).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.75).setVisible(false);
         c.add(shine);
         this.animateShine(shine);
       }
@@ -205,25 +232,18 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private animateShine(shine: Phaser.GameObjects.Image): void {
-    const w = shine.width;
-    const h = shine.height;
-    const band = 18;
-    const state = { x: -band };
     const sweep = () => {
-      state.x = -band;
-      shine.setVisible(true);
-      this.tweens.add({
-        targets: state, x: w, duration: 700, ease: 'Sine.easeInOut',
-        onUpdate: () => {
-          const x0 = Math.max(0, Math.round(state.x));
-          const x1 = Math.min(w, Math.round(state.x + band));
-          if (x1 <= x0) shine.setVisible(false);
-          else shine.setVisible(true).setCrop(x0, 0, x1 - x0, h);
+      let f = 0;
+      shine.setFrame(0).setVisible(true);
+      this.time.addEvent({
+        delay: 36, repeat: SHINE_FRAMES - 1, callback: () => {
+          f++;
+          if (f >= SHINE_FRAMES) shine.setVisible(false);
+          else shine.setFrame(f);
         },
-        onComplete: () => shine.setVisible(false),
       });
     };
-    this.time.addEvent({ delay: 3800, startAt: 1800, loop: true, callback: sweep });
+    this.time.addEvent({ delay: 4200, startAt: 2400, loop: true, callback: sweep });
   }
 
   // ---------------------------------------------------------------------------- flybys

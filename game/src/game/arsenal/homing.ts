@@ -1,14 +1,16 @@
 // =====================================================================================
 //  HOMING — steering for seeker missiles and rockets (allocation-free).
 //  Targets come from host.nearestTarget() (re-queried every RETARGET_MS per missile, the
-//  returned object is copied immediately). The turn rate ramps up with age so a missile
-//  that misses tightens its turn instead of orbiting its target forever.
+//  returned object is copied immediately), queried from a point LOOK_S ahead of the
+//  missile so a fanned volley spreads over several targets. The turn rate ramps up with
+//  age so a missile that misses tightens its turn instead of orbiting its target forever.
 // =====================================================================================
 import type { ArsenalHost } from './api';
 import type { Shot, ShotSpec } from './shots';
 import { TAU } from './scaling';
 
 const RETARGET_MS = 110;
+const LOOK_S = 0.22;
 
 /** Updates the velocity of a homing shot (accelerate + turn towards its target). */
 export function steer(s: Shot, sp: ShotSpec, dt: number, dtMs: number, host: ArsenalHost): void {
@@ -23,7 +25,7 @@ export function steer(s: Shot, sp: ShotSpec, dt: number, dtMs: number, host: Ars
     }
     if (s.retarget <= 0) {
       s.retarget = RETARGET_MS;
-      const t = host.nearestTarget(s.x, s.y, sp.seekRange);
+      const t = host.nearestTarget(s.x + s.vx * LOOK_S, s.y + s.vy * LOOK_S, sp.seekRange);
       if (t) {
         s.tx = t.x;
         s.ty = t.y;

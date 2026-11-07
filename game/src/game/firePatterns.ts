@@ -20,16 +20,13 @@ export interface FireSpec {
 
 const SPREAD_STEP = 0.25;
 const BURST_GAP = 0.09;
-const STREAM_GAP = 0.065;
-const STREAM_STEPS = 7;
-const SPIRAL_STEP = 0.32;
+/** Angle advance per spiral bullet (rad): ~15 bullets per turn. */
+const SPIRAL_STEP = 0.42;
 
 export class FireState {
   cd = 0;
   burst = 0;
   burstCd = 0;
-  stream = 0;
-  streamCd = 0;
   spiral = 0;
   spinDir = 1;
   ring = 0;
@@ -40,8 +37,6 @@ export class FireState {
     this.cd = (0.35 + rnd() * 0.65) / r;
     this.burst = 0;
     this.burstCd = 0;
-    this.stream = 0;
-    this.streamCd = 0;
     this.spiral = rnd() * Math.PI * 2;
     this.spinDir = rnd() < 0.5 ? -1 : 1;
     this.ring = rnd() * Math.PI;
@@ -51,7 +46,8 @@ export class FireState {
 /**
  * Advance a FireState and fire volleys from (x, y). `armed` = allowed to shoot now (on
  * screen, ship alive...); while unarmed the cadence is frozen. Returns true when a volley
- * (or volley step) was fired this call.
+ * (or burst step) was fired this call. Semantics of `rate`: volleys per second, except
+ * 'spiral' where it is the number of bullets per second of the rotating stream.
  */
 export function updateFire(
   w: World, st: FireState, spec: FireSpec, x: number, y: number, dt: number, armed: boolean, owner: LaserOwner | null,
@@ -73,20 +69,10 @@ export function updateFire(
       fired = true;
     }
   }
-  if (st.stream > 0) {
-    st.streamCd -= dt;
-    if (st.streamCd <= 0) {
-      b.fire(x, y, st.spiral, speed, spec.bulletSprite, spec.bulletColor, KIND_PLAIN);
-      b.fire(x, y, st.spiral + Math.PI, speed, spec.bulletSprite, spec.bulletColor, KIND_PLAIN);
-      st.spiral += SPIRAL_STEP * st.spinDir;
-      st.stream--;
-      st.streamCd = STREAM_GAP;
-      fired = true;
-    }
-  }
   st.cd -= dt;
   if (st.cd > 0) return fired;
-  st.cd += (0.9 + w.rng() * 0.2) / rate;
+  // spiral = an even rotating stream (rate = bullets / s); other patterns get a +-10 % jitter
+  st.cd += pattern === 'spiral' ? 1 / rate : (0.9 + w.rng() * 0.2) / rate;
   if (st.cd < 0) st.cd = 0.05;
   const aim = Math.atan2(sy - y, sx - x);
   const spr = spec.bulletSprite, col = spec.bulletColor;
@@ -118,10 +104,7 @@ export function updateFire(
       break;
     case 'spiral':
       b.fire(x, y, st.spiral, speed, spr, col);
-      b.fire(x, y, st.spiral + Math.PI, speed, spr, col);
       st.spiral += SPIRAL_STEP * st.spinDir;
-      st.stream = STREAM_STEPS - 1;
-      st.streamCd = STREAM_GAP;
       break;
     case 'laser':
       if (owner) b.startLaser(owner, col, 0.75, Math.min(1.2, 0.55 + 0.6 / rate));
@@ -135,7 +118,7 @@ export function updateFire(
   }
   if (pattern !== 'laser') {
     w.services.sfx('enemy_shot');
-    w.fx.glow(x, y, SHOT_RGB[col].glow, 0.42, 90);
+    if (pattern !== 'spiral') w.fx.glow(x, y, SHOT_RGB[col].glow, 0.42, 90);
   }
   return true;
 }

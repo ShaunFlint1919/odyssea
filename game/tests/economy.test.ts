@@ -18,10 +18,16 @@ const HULL1 = hullWith(1);
 const HULL2 = hullWith(2);
 const hasCore = HULLS.length > 0 && FRONTS.length > 0 && SHIELDS.length > 0 && GENERATORS.length > 0;
 
+/** Every level id that gates a catalogue item, plus every level (=> nothing is locked). */
+const ALL_UNLOCKS = [...new Set([
+  ...LEVELS.map((l) => l.id),
+  ...[...HULLS, ...WEAPONS, ...SHIELDS, ...GENERATORS, ...SIDEKICKS].flatMap((d) => (d.unlockLevel ? [d.unlockLevel] : [])),
+])];
+
 /** New campaign with every item unlocked, lots of credits and a loadout made of catalogue items. */
 function setup(credits = 10_000_000): SaveData {
   const s = newGame('normal');
-  s.completedLevels = LEVELS.map((l) => l.id);
+  s.completedLevels = ALL_UNLOCKS.slice();
   s.credits = credits;
   s.loadout = {
     hull: (HULL2 ?? HULLS[0]).id,
