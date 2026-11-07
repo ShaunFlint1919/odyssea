@@ -7,17 +7,20 @@
 //      most HULL_SHARE of the value;
 //   2. shield: the best one costing at most SHIELD_SHARE of the value;
 //   3. weapons (what is left minus the generator): FRONT_SHARE to the strongest front gun it
-//      affords, SIDEKICK_SHARE (+ the front change) to the best sidekick pair, the rest to a
-//      rear gun; leftovers go back into front power;
-//   4. generator: the cheapest one whose output runs front + rear + full shield regeneration.
-//  Every DPS / energy number is weaponFireStats() of the arsenal (src/game/arsenal/scaling.ts),
-//  i.e. exactly what the guns fire. Pure functions, no Phaser.
+//      affords, SIDEKICK_SHARE (+ the front change) to the best drone pair, the rest to a
+//      rear gun; leftovers go back into front power. Every gun must run on the generator
+//      with the shield regenerating (energy-aware picks);
+//   4. generator: tried tier by tier; the one that lets it field the strongest kit wins.
+//  "Strongest" = single-target DPS: weaponFireStats() of the arsenal (src/game/arsenal/
+//  scaling.ts, exactly what the guns fire) x the pattern's share that hits one boss.
+//  Fights add the level's expected in-level power pickups (POWER_COLLECT) and divide by the
+//  measured autopilot uptime of each boss / mid-boss (src/data/balance.ts). Pure, no Phaser.
 // =====================================================================================
 import type { GeneratorDef, HullDef, LevelDef, Loadout, ShieldDef, SidekickDef, WeaponDef } from '../types';
 import { MAX_POWER } from '../config';
 import { weaponFireStats } from '../game/arsenal/scaling';
 import { SIDEKICK_PROJECTILES } from './sidekicks';
-import { BOSS_UPTIME, DPS_UPTIME, MIDBOSS_UPTIME } from './balance';
+import { BOSS_UPTIME, DPS_UPTIME, MIDBOSS_UPTIME, MIDBOSS_UPTIME_BY_ID } from './balance';
 
 /** Ship value at which the reference player buys the Lancer (second sidekick mount). */
 export const LANCER_VALUE = 12000;
@@ -293,7 +296,7 @@ export function simulateProgression(input: ProgressionInput): ProgressionStep[] 
       bossHp,
       midbossHp,
       bossTtk: bossHp > 0 ? bossHp / (fightDps * (BOSS_UPTIME[level.boss ?? ''] ?? DPS_UPTIME)) : null,
-      midbossTtk: midbossHp > 0 ? midbossHp / (midbossDps * MIDBOSS_UPTIME) : null,
+      midbossTtk: midbossHp > 0 ? midbossHp / (midbossDps * (MIDBOSS_UPTIME_BY_ID[level.midboss?.enemy ?? ''] ?? MIDBOSS_UPTIME)) : null,
     });
     value += income;
     done.add(level.id);

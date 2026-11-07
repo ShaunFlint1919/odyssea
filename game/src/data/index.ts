@@ -152,13 +152,13 @@ export function expectedPowerDrops(levelId: string, t: number = Infinity): numbe
 /**
  * Nominal DPS a loadout brings to the planet boss ('boss') or the mid-boss ('midboss') fight
  * of a level: front gun at its power + POWER_COLLECT x the power drops before the fight (x its
- * single-target share), the sidekicks, and REAR_ON_TARGET x the rear gun. Fight length =
- * hp / (this x uptime).
+ * single-target share; `withPickups` false: the loadout power only), the sidekicks, and
+ * REAR_ON_TARGET x the rear gun. Fight length = hp / (this x uptime).
  */
-export function fightDps(loadout: Loadout, levelId: string, fight: 'boss' | 'midboss' = 'boss'): number {
+export function fightDps(loadout: Loadout, levelId: string, fight: 'boss' | 'midboss' = 'boss', withPickups = true): number {
   const l = getLevel(levelId);
   const until = fight === 'midboss' && l.midboss ? l.midboss.t : l.duration;
-  const power = loadout.frontPower + POWER_COLLECT * expectedPowerDrops(levelId, until);
+  const power = loadout.frontPower + (withPickups ? POWER_COLLECT * expectedPowerDrops(levelId, until) : 0);
   const front = targetDps(getWeapon(loadout.front), power);
   const side = [loadout.sidekickL, loadout.sidekickR].reduce((sum, id) => sum + (id ? sidekickDps(getSidekick(id)) : 0), 0);
   const rear = loadout.rear ? REAR_ON_TARGET * dpsAtPower(getWeapon(loadout.rear), loadout.rearPower) : 0;
@@ -185,16 +185,24 @@ export function validateContent(): string[] {
  * (front with its in-level power pickups + sidekicks + a share of the rear gun) when it
  * meets each planet boss. Fight length = boss hp / (REFERENCE_DPS x DPS_UPTIME).
  */
-export const REFERENCE_DPS: number[] = PLANETS.map((p) => {
-  const id = p.levels[p.levels.length - 1];
-  const step = referenceProgression().find((s) => s.levelId === id);
-  return step ? Math.round(step.fightDps * 10) / 10 : 0;
-});
+export const REFERENCE_DPS: number[] = (() => {
+  try {
+    const steps = referenceProgression();
+    return PLANETS.map((p) => {
+      const step = steps.find((s) => s.levelId === p.levels[p.levels.length - 1]);
+      return step ? Math.round(step.fightDps * 10) / 10 : 0;
+    });
+  } catch {
+    // a broken catalogue must never stop the game from booting (tests report it instead)
+    return PLANETS.map(() => 0);
+  }
+})();
 
 export type { LevelStats } from './balance';
 export type { ProgressionStep } from './progression';
 export {
-  BOSS_UPTIME, CLEAR_BONUS, CREDIT_CURVE, DPS_UPTIME, HUMAN_AIM, KILL_RATE, MIDBOSS_UPTIME, REPLAY_BONUS_FACTOR, energyFactor,
+  BOSS_UPTIME, CLEAR_BONUS, CREDIT_CURVE, DPS_UPTIME, HUMAN_AIM, KILL_RATE, MIDBOSS_UPTIME, MIDBOSS_UPTIME_BY_ID, REPLAY_BONUS_FACTOR,
+  energyFactor,
   targetLevelCredits,
 } from './balance';
 export { POWER_COLLECT, REAR_ON_TARGET, dpsAtPower, sidekickDps, singleTargetShare, targetDps, weaponValue } from './progression';

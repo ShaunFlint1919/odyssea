@@ -40,8 +40,8 @@ export const NO_IMPACT: ImpactFx = {
   embers: 0, emberSpeed: 0, pierce: null,
 };
 
-/** Impact visuals of weight `tier` (0..3) in `color`; tier 3 adds a splash ring of `blastRadius` px. */
-export function impactFx(scene: Phaser.Scene, color: ShotColor, tier: number, blastRadius = 0): ImpactFx {
+/** Impact visuals of weight `tier` (0..3) in `color`; tier 3 adds a splash ring of `ringRadius` px. */
+export function impactFx(scene: Phaser.Scene, color: ShotColor, tier: number, ringRadius = 0): ImpactFx {
   const t = Math.max(0, Math.min(3, Math.round(tier)));
   const sparkTier = t === 0 ? 0 : t === 1 ? 1 : 2;
   return {
@@ -51,8 +51,8 @@ export function impactFx(scene: Phaser.Scene, color: ShotColor, tier: number, bl
     flashMs: 90 + t * 30,
     flashAlpha: t === 0 ? 0.7 : 0.85,
     core: t >= 2 ? flashTex(scene, t === 3 ? 1 : 0) : null,
-    blast: t === 3 && blastRadius > 0 ? blastTex(scene, color, blastRadius) : null,
-    blastMs: 300 + Math.min(160, blastRadius * 2.5),
+    blast: t === 3 && ringRadius > 0 ? blastTex(scene, color, ringRadius) : null,
+    blastMs: 300 + Math.min(160, ringRadius * 2.5),
     embers: t === 0 ? 1 : t === 1 ? 2 : t === 2 ? 4 : 7,
     emberSpeed: 70 + t * 30,
     pierce: sparkTex(scene, color, t >= 2 ? 1 : 0),

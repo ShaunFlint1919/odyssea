@@ -15,7 +15,7 @@
 //  every object, listener and update hook. No allocation per frame.
 // =====================================================================================
 import Phaser from 'phaser';
-import type { Loadout, ShotColor } from '../types';
+import type { Loadout, Palette, ShotColor } from '../types';
 import type { CreateWeaponPreview, WeaponPreviewApi } from './contracts';
 import { ANIM, FONT, SHOT_RGB, enemyBulletKey, enemyKey, hullKey } from '../art/keys';
 import { HULL_MOUNTS } from '../art/player';
@@ -54,7 +54,8 @@ const SHIELD_R = 13;
 const PULSE_MS = 260;
 const LABEL_TINT = 0x2ee6c8;
 const PIP_OFF = 0x2c2a3c;
-const DRONE_TYPES: readonly (readonly [string, string, number])[] = [
+/** Target drones: enemy sprite, palette, hit radius (px). */
+const DRONE_TYPES: readonly (readonly [string, Palette, number])[] = [
   ['en_drone', 'steel', 7], ['en_dart', 'crimson', 8], ['en_drone', 'violet', 7], ['en_wasp', 'amber', 8],
 ];
 
@@ -193,6 +194,7 @@ class WeaponPreviewImpl implements WeaponPreview {
     this.arsenal = createArsenalWith(this.host, this.loadout, { shots: D_SHOTS, sidekicks: D_SHIP, shadows: -1 }, {
       layer: this.layer,
       poolSize: 180,
+      prewarm: false,
     });
     this.applyLoadoutExtras(false);
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.tick, this);
@@ -225,7 +227,7 @@ class WeaponPreviewImpl implements WeaponPreview {
     const boomTex = fxTexture(scene, 'fx_explosion_s');
     for (let i = 0; i < count; i++) {
       const [sprite, pal, r] = DRONE_TYPES[i % DRONE_TYPES.length];
-      const key = bodyTexture(scene, enemyKey(sprite, pal as Parameters<typeof enemyKey>[1]), 12, 0xff5050);
+      const key = bodyTexture(scene, enemyKey(sprite, pal), 12, 0xff5050);
       const img = scene.make.image({ x: 0, y: 0, key }, false);
       img.setDepth(D_DRONES);
       this.layer.add(img);

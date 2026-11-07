@@ -89,7 +89,8 @@ export class ScrollMenu {
     const bx = width - BAR_W;
     this.track = scene.add.rectangle(bx, 0, BAR_W, trackH, COLORS.panelDark, 1).setOrigin(0).setStrokeStyle(1, COLORS.panelLight, 0.6);
     this.thumb = scene.add.rectangle(bx, 0, BAR_W, 8, COLORS.teal, 1).setOrigin(0);
-    this.trackZone = scene.add.zone(width - 9, 0, 14, trackH).setOrigin(0).setInteractive({ useHandCursor: true });
+    // 22 px tap zone: from the rows' right end out over the panel padding (rows keep their width)
+    this.trackZone = scene.add.zone(width - 9, 0, 22, trackH).setOrigin(0).setInteractive({ useHandCursor: true });
     this.trackZone.on('pointerdown', (_p: Phaser.Input.Pointer, _lx: number, ly: number) => {
       if (!this.enabled || inputBlocked(scene)) return;
       audio.unlock();

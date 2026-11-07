@@ -234,11 +234,12 @@ class LanceGun extends WeaponGun {
   private noseFlash!: TexInfo;
   private muzzleTier = 2;
   private regIndex = 0;
+  /** One registry per burst in flight (reused round-robin; > life x bursts per second). */
   private readonly regs: HitRegistry[] = [];
 
   constructor(core: ArsenalCore) {
     super(core);
-    for (let i = 0; i < 8; i++) this.regs.push(new HitRegistry());
+    for (let i = 0; i < 12; i++) this.regs.push(new HitRegistry());
   }
 
   protected build(): number {
@@ -286,7 +287,7 @@ class LanceGun extends WeaponGun {
     const nx = this.core.noseX, ny = this.core.noseY;
     const shots = this.core.shots;
     const x = this.shipX() + nx, y = this.shipY() + ny - 4;
-    this.regIndex = (this.regIndex + 1) & 7;
+    this.regIndex = (this.regIndex + 1) % this.regs.length;
     const reg = this.regs[this.regIndex];
     reg.reset();
     const b = shots.fire(this.body, x, y - this.length / 2, UP);
@@ -502,12 +503,11 @@ class PrismGun extends WeaponGun {
     this.subs = this.subsFor(table(p, PRISM_ROWS), 2);
     this.bolts = table(p, PRISM_BOLTS);
     const k = table(p, PRISM_SHARDS);
-    const st = 1;
     const boltDmg = this.dmg(1, this.bolts * this.subs, r);
     const shardDmg = (boltDmg * 2) / k;
     const hues = (t: number): TexInfo[] => SPECTRUM.map((h) => shardTex(scene, h, t));
 
-    const shard = this.spec(shardTex(scene, SPECTRUM[3], st));
+    const shard = this.spec(shardTex(scene, SPECTRUM[3], 1));
     shard.speed = 590;
     shard.life = 650;
     shard.pierce = true;
@@ -544,7 +544,7 @@ class PrismGun extends WeaponGun {
     b.splitN = k;
     b.splitSpread = ramp(p, 10, 30) * DEG;
     b.shard = shard;
-    b.shardTex = hues(st);
+    b.shardTex = hues(1);
     b.fx = impactFx(scene, 'white', 1);
     this.bolt = b;
     return r;

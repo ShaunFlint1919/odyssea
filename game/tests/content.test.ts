@@ -2,10 +2,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOSSES, ENEMIES, FRONT_WEAPONS, GENERATORS, HULLS, INTEL, LEVELS, PLANETS, REAR_WEAPONS, SHIELDS, SIDEKICKS,
-  DPS_UPTIME, REFERENCE_DPS, START_CREDITS, START_LOADOUT, WEAPONS, estimateLevelCredits, findLevel, getBoss, getEnemy, getGenerator, getHull,
-  getLevel, getLevelStats, getShield, getWeapon, levelOrder, levelsOfPlanet, nextLevelId, nominalDps, planetOfLevel,
-  targetLevelCredits, validateContent,
+  BOSS_UPTIME, DPS_UPTIME, MIDBOSS_UPTIME, MIDBOSS_UPTIME_BY_ID, PROJECTILES_AT_P1, REFERENCE_DPS, REPLAY_BONUS_FACTOR, START_CREDITS,
+  START_LOADOUT, WEAPONS, estimateLevelCredits, estimateLevelIncome, fightDps, findLevel, getBoss, getEnemy, getGenerator, getHull,
+  getLevel, getLevelStats, getShield, getWeapon, levelClearBonus, levelOrder, levelsOfPlanet, nextLevelId, nominalDps, planetOfLevel,
+  HUMAN_AIM, powerFactor, referenceLoadout, referenceProgression, targetLevelCredits, validateContent,
 } from '../src/data';
+import { weaponFireStats } from '../src/game/arsenal/scaling';
 import { validateBundle, type ContentBundle } from '../src/data/validate';
 import { CAMPAIGN } from '../src/data/helpers';
 import { field } from '../src/data/waves';
@@ -114,8 +116,12 @@ describe('balance', () => {
     const gen = getGenerator(START_LOADOUT.generator);
     const gun = getWeapon(START_LOADOUT.front);
     const sh = getShield(START_LOADOUT.shield);
+    const shieldDrain = (id: string) => getShield(id).regen * getShield(id).energyPerPoint;
     const drain = gun.energyPerShot * gun.fireRate + sh.regen * sh.energyPerPoint;
     expect(gen.output).toBeGreaterThanOrEqual(drain);
+    // ... and still runs it at power 5 (weaponFireStats = what the arsenal fires), not at power 10
+    expect(weaponFireStats(gun, 5).energyPerSec + shieldDrain(sh.id)).toBeLessThanOrEqual(gen.output);
+    expect(weaponFireStats(gun, 10).energyPerSec + shieldDrain(sh.id)).toBeGreaterThan(gen.output);
     // every shield tier paired with the same generator tier leaves >= 10 energy/s for guns
     SHIELDS.forEach((s, i) => expect(GENERATORS[i].output - s.regen * s.energyPerPoint, s.id).toBeGreaterThanOrEqual(10));
     // the best generator runs the hungriest front gun + best shield + hungriest rear gun
@@ -123,10 +129,31 @@ describe('balance', () => {
     const maxRear = Math.max(...REAR_WEAPONS.map((w) => w.energyPerShot * w.fireRate));
     const best = SHIELDS[SHIELDS.length - 1];
     expect(GENERATORS[GENERATORS.length - 1].output).toBeGreaterThanOrEqual(maxFront + maxRear + best.regen * best.energyPerPoint);
+    // trade-off: a big gun at high power + a strong shield needs a generator upgrade
+    const needs = (gun: string, power: number, shield: string) => {
+      const total = weaponFireStats(getWeapon(gun), power).energyPerSec + shieldDrain(shield);
+      return GENERATORS.find((g) => g.output >= total)?.id ?? 'none';
+    };
+    expect(needs('pulse_blaster', 10, 'sh_veil')).toBe('gen_coil');
+    expect(needs('lance_star', 5, 'sh_bastion')).toBe('gen_quasar');
+    expect(needs('lance_star', 10, 'sh_paragon')).toBe('gen_helion');
+    expect(needs('mortar_thunder', 10, 'sh_eclipse')).toBe('gen_well');
   });
 
-  it('pulse blaster power 1 deals ~25 DPS and early hulls take 8-12 hits', () => {
-    expect(nominalDps(getWeapon('pulse_blaster'))).toBeCloseTo(25, 0);
+  it('every front gun looks dense at power 1 and keeps the DPS model of the arsenal', () => {
+    for (const w of FRONT_WEAPONS) {
+      const st = weaponFireStats(w, 1);
+      expect(st.volleysPerSec, w.id).toBeGreaterThanOrEqual(w.pattern === 'mortar' ? 2.4 : 3.5);
+      expect(st.volleysPerSec * PROJECTILES_AT_P1[w.pattern], w.id).toBeGreaterThanOrEqual(w.pattern === 'mortar' ? 2.4 : 5);
+      for (let p = 1; p <= 10; p++) expect(weaponFireStats(w, p).dps, `${w.id} p${p}`).toBeCloseTo(nominalDps(w) * powerFactor(p), 6);
+    }
+    for (const w of REAR_WEAPONS) expect(weaponFireStats(w, 1).dps, w.id).toBeCloseTo(nominalDps(w), 6);
+  });
+
+  it('pulse blaster power 1 fires >= 8 volleys/s for ~30 DPS and early hulls take 8-12 hits', () => {
+    const pulse = getWeapon('pulse_blaster');
+    expect(nominalDps(pulse)).toBeCloseTo(30, 0);
+    expect(weaponFireStats(pulse, 1).volleysPerSec).toBeGreaterThanOrEqual(8);
     const veil = getShield('sh_veil').capacity;
     for (const id of ['sparrow', 'lancer']) {
       const hits = (getHull(id).armor + veil) / ENEMY_BULLET_DAMAGE.eb_orb;
@@ -139,7 +166,7 @@ describe('balance', () => {
     const midbosses = new Set(LEVELS.flatMap((l) => (l.midboss ? [l.midboss.enemy] : [])));
     for (const e of ENEMIES) {
       const ok = midbosses.has(e.id)
-        ? e.hp >= 1500 && e.hp <= 4000
+        ? e.hp >= 800 && e.hp <= 9000
         : (e.hp >= 4 && e.hp <= 14) || (e.hp >= 30 && e.hp <= 90) || (e.hp >= 150 && e.hp <= 450);
       expect(ok, `${e.id} hp ${e.hp}`).toBe(true);
     }
@@ -158,23 +185,80 @@ describe('balance', () => {
       }
     }
     const mb = LEVELS.filter((l) => l.midboss).map((l) => getEnemy(l.midboss!.enemy).hp);
-    expect(mb[0]).toBe(1500);
-    expect(mb[mb.length - 1]).toBe(4000);
+    expect(mb[0]).toBe(800);
+    expect(mb[mb.length - 1]).toBe(8900);
     for (let i = 1; i < mb.length; i++) expect(mb[i]).toBeGreaterThan(mb[i - 1]);
   });
 
-  it('boss fights last 45-180 s for the reference player', () => {
+  it('boss fights last 45-75 s for the reference player (planet 1: start gun + 1-2 upgrades)', () => {
     CAMPAIGN.forEach((c, i) => {
-      const ttk = getBoss(c.boss).hp / (REFERENCE_DPS[i] * DPS_UPTIME);
+      const ttk = getBoss(c.boss).hp / (REFERENCE_DPS[i] * (BOSS_UPTIME[c.boss] ?? DPS_UPTIME));
+      if (i === 0) {
+        // the tutorial boss is tuned for the start gun; a full re-buy kit only shortens it
+        const start = (power: number) =>
+          getBoss(c.boss).hp / (fightDps({ ...START_LOADOUT, frontPower: power }, 'kessra-3', 'boss', false) * BOSS_UPTIME[c.boss]);
+        expect(start(2), 'start gun p2').toBeGreaterThanOrEqual(60);
+        expect(start(2), 'start gun p2').toBeLessThanOrEqual(75);
+        expect(start(3), 'start gun p3').toBeGreaterThanOrEqual(50);
+        expect(ttk, 'reference kit').toBeGreaterThanOrEqual(25);
+        return;
+      }
       expect(ttk, c.boss).toBeGreaterThanOrEqual(45);
-      expect(ttk, c.boss).toBeLessThanOrEqual(180);
+      expect(ttk, c.boss).toBeLessThanOrEqual(75);
+    });
+    // humans land HUMAN_AIM of the autopilot's hits: their fights stay under ~95 s
+    CAMPAIGN.forEach((c, i) => {
+      if (i === 0) return;
+      const human = getBoss(c.boss).hp / (REFERENCE_DPS[i] * (BOSS_UPTIME[c.boss] ?? DPS_UPTIME) * HUMAN_AIM);
+      expect(human, `${c.boss} human`).toBeLessThanOrEqual(95);
     });
   });
 
-  it('boss hp climbs from 3500 to 40000 with 2-4 phases and 2-6 parts', () => {
+  it('mid-boss fights last 20-35 s for the reference player (planet 1: start gun + 1-2 upgrades)', () => {
+    const steps = referenceProgression();
+    for (const p of PLANETS) {
+      const id = p.levels[1];
+      const l = getLevel(id);
+      const m = getEnemy(l.midboss!.enemy);
+      const up = MIDBOSS_UPTIME_BY_ID[m.id] ?? MIDBOSS_UPTIME;
+      if (p.id === 'kessra') {
+        const ttk = (power: number) => m.hp / (fightDps({ ...START_LOADOUT, frontPower: power }, id, 'midboss', false) * up);
+        expect(ttk(2), 'kessra-2 start gun p2').toBeGreaterThanOrEqual(20);
+        expect(ttk(2), 'kessra-2 start gun p2').toBeLessThanOrEqual(35);
+        expect(ttk(1), 'kessra-2 bare start gun').toBeLessThan(45);
+        continue;
+      }
+      const ttk = steps.find((s) => s.levelId === id)!.midbossTtk!;
+      expect(ttk, id).toBeGreaterThanOrEqual(20);
+      expect(ttk, id).toBeLessThanOrEqual(35);
+      // the mid-boss hovers 45 s before it retreats: a kit with a third less DPS still gets it
+      expect(ttk * 1.5, id).toBeLessThan(45);
+    }
+  });
+
+  it('the reference player re-buys a sustainable kit and gets stronger planet by planet', () => {
+    const steps = referenceProgression();
+    expect(steps).toHaveLength(24);
+    expect(steps[0].value).toBe(START_CREDITS + 2500);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i].value, steps[i].levelId).toBeCloseTo(steps[i - 1].value + estimateLevelIncome(steps[i - 1].levelId), 6);
+    }
+    for (const s of steps) {
+      const lo = referenceLoadout(s.levelId);
+      expect(getWeapon(lo.front).slot).toBe('front');
+      if (lo.rear) expect(getWeapon(lo.rear).slot).toBe('rear');
+      if (lo.sidekickR) expect(getHull(lo.hull).sidekickSlots).toBe(2);
+      expect(s.energyUse, `${s.levelId} energy`).toBeLessThanOrEqual(s.energyOut + 1e-9);
+    }
+    expect(REFERENCE_DPS).toHaveLength(8);
+    for (let i = 1; i < 8; i++) expect(REFERENCE_DPS[i], `planet ${i}`).toBeGreaterThan(REFERENCE_DPS[i - 1] * 0.95);
+    expect(REFERENCE_DPS[7] / REFERENCE_DPS[0]).toBeGreaterThan(3.5);
+  });
+
+  it('boss hp climbs from 3000 to 29000 with 2-4 phases and 2-6 parts', () => {
     const hp = CAMPAIGN.map((c) => getBoss(c.boss).hp);
-    expect(hp[0]).toBe(3500);
-    expect(hp[hp.length - 1]).toBe(40000);
+    expect(hp[0]).toBe(3000);
+    expect(hp[hp.length - 1]).toBe(29000);
     for (let i = 1; i < hp.length; i++) expect(hp[i]).toBeGreaterThan(hp[i - 1]);
     for (const b of BOSSES) {
       expect(b.phases.length).toBeGreaterThanOrEqual(2);
@@ -205,6 +289,30 @@ describe('balance', () => {
     expect(total / target).toBeLessThan(1.05);
     expect(estimateLevelCredits('kessra-1')).toBeGreaterThan(1100);
     expect(estimateLevelCredits('axiom-3')).toBeGreaterThan(13500);
+  });
+
+  it('pays a level-clear bonus that scales with the campaign and is bigger on boss levels', () => {
+    const order = levelOrder();
+    let prev = 0;
+    order.forEach((id, i) => {
+      const l = getLevel(id);
+      const bonus = levelClearBonus(id, !!l.boss);
+      expect(bonus, id).toBeGreaterThan(0);
+      expect(bonus % 10, id).toBe(0);
+      if (!l.boss) expect(bonus, id).toBeGreaterThanOrEqual(prev);
+      if (l.boss) expect(bonus, id).toBeGreaterThan(levelClearBonus(id, false) * 1.5);
+      prev = levelClearBonus(id, false);
+      // a share of the kill credits, never the main income
+      const share = bonus / estimateLevelCredits(id);
+      expect(share, id).toBeGreaterThan(0.1);
+      expect(share, id).toBeLessThan(0.45);
+      expect(estimateLevelIncome(id)).toBe(estimateLevelCredits(id) + bonus);
+      expect(levelClearBonus(id, !!l.boss, true), `${id} replay`).toBeLessThanOrEqual(Math.round(bonus * REPLAY_BONUS_FACTOR) + 10);
+      expect(targetLevelCredits(i)).toBeGreaterThan(0);
+    });
+    expect(levelClearBonus('nowhere-1', true)).toBe(0);
+    expect(levelClearBonus('kessra-1', false)).toBe(300);
+    expect(levelClearBonus('axiom-3', true)).toBe(5250);
   });
 });
 

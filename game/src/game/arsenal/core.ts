@@ -10,8 +10,9 @@
 //  lookups + stand-ins), env.ts (object factory + fixed-depth image groups), defs.ts.
 //
 //  Depths (relative to ArsenalDepths): smoke shots-0.4 < halos shots-0.2 < bodies shots <
-//  additive bodies shots+0.1 < sidekick beam/glows shots+0.15..0.4 < impacts shots+0.5
-//  (all below the enemy bullets in game); drones at `sidekicks`, muzzles sidekicks+0.5.
+//  sidekick beam / glows / ward shots+0.15..0.4 < impacts shots+0.5 < muzzles shots+0.6
+//  (all below the enemy bullets in game: player fire never hides them); only the drone
+//  sprites sit at `sidekicks` (their hull covers the base of their muzzle flashes).
 // =====================================================================================
 import Phaser from 'phaser';
 import type { Loadout, WeaponDef } from '../../types';
@@ -33,6 +34,12 @@ export interface ArsenalOptions {
   layer?: Phaser.GameObjects.Layer | null;
   /** Pre-allocated player shots (default 400; the pool grows if needed). */
   poolSize?: number;
+  /**
+   * Generate, on every setLoadout(), the art of every power level above the current one
+   * (and both rear modes) so in-level power-ups never generate textures mid-fight.
+   * Default true; the shop preview turns it off (it only shows the selected level).
+   */
+  prewarm?: boolean;
 }
 
 /** Live object counts (debug / perf overlays). */
@@ -70,15 +77,17 @@ export class ArsenalImpl implements Arsenal, ArsenalCore {
   private rPower = 1;
   private boost = 0;
   private destroyed = false;
+  private readonly prewarmArt: boolean;
   private readonly counts: ArsenalCounts = { shots: 0, fx: 0, smoke: 0, muzzles: 0 };
 
   constructor(host: ArsenalHost, loadout: Loadout, depths: ArsenalDepths, opts: ArsenalOptions) {
     this.host = host;
     this.env = { scene: host.scene, host, depths, layer: opts.layer ?? null };
     const pool = Math.max(32, opts.poolSize ?? 400);
+    this.prewarmArt = opts.prewarm ?? true;
     this.fx = new FxPool(this.env, depths.shots + 0.5, Phaser.BlendModes.ADD, this, Math.ceil(pool * 0.3));
     this.smoke = new FxPool(this.env, depths.shots - 0.4, Phaser.BlendModes.NORMAL, this, Math.ceil(pool * 0.1));
-    this.muzzles = new FxPool(this.env, depths.sidekicks + 0.5, Phaser.BlendModes.ADD, this, 24);
+    this.muzzles = new FxPool(this.env, depths.shots + 0.6, Phaser.BlendModes.ADD, this, 24);
     this.shots = new ShotPool(this.env, this.fx, this.smoke, this, pool);
     this.left = new SidekickUnit(this, -1);
     this.right = new SidekickUnit(this, 1);
@@ -129,9 +138,11 @@ export class ArsenalImpl implements Arsenal, ArsenalCore {
     this.right.configure(findSidekick(loadout.sidekickR));
     this.configureFront();
     this.configureRear();
-    // generate every texture an in-level power-up or rear toggle could need, now
-    if (this.front) this.front.prewarm();
-    if (this.rear) this.rear.prewarm();
+    if (this.prewarmArt) {
+      // generate every texture an in-level power-up or rear toggle could need, now
+      if (this.front) this.front.prewarm();
+      if (this.rear) this.rear.prewarm();
+    }
     if (this.front) this.front.reset();
     if (this.rear) this.rear.reset();
     this.frontStarved = false;

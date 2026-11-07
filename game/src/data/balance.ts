@@ -31,17 +31,24 @@ export function clearBonus(i: number, bossLevel: boolean, n = 24): number {
 }
 
 /**
- * Share of a kit's nominal single-target DPS (progression.ts fightDps: weaponFireStats x the
- * pattern's single-target share) that lands on a planet boss while the autopilot dodges:
- * missed shots, shots eaten by destroyable parts, the boss moves, plus the x1.5 weak-point
- * core. Measured per boss with tools/playtest.mjs (docs/BALANCE.md §10, run A: Kestrel p10 +
- * two Twinfangs, god mode). DPS_UPTIME is the default for unknown bosses.
+ * Share of a kit's nominal single-target DPS (progression.ts: weaponFireStats x the pattern's
+ * single-target share) that lands on each planet boss while the autopilot dodges: missed
+ * shots, shots eaten by destroyable parts and minions, the boss moves, plus the x1.5 weak-point
+ * core. Measured with tools/playtest.mjs for the reference kit of each boss level
+ * (docs/BALANCE.md §10, run B): homing kits and the Kestrel on a core boss land ~1.0, the
+ * Kestrel on the core-less Dreadnought only 0.56. DPS_UPTIME is the default.
  */
 export const BOSS_UPTIME: Record<string, number> = {
-  colossus: 0.83, hydra: 0.74, dreadnought: 0.54, hive: 0.71, forge: 0.68, cryo: 0.66, voidcarrier: 0.7, architect: 0.75,
+  colossus: 0.97, hydra: 0.9, dreadnought: 0.56, hive: 0.69, forge: 1.06, cryo: 1.03, voidcarrier: 0.95, architect: 1.02,
 };
-export const DPS_UPTIME = 0.7;
-/** Same for the mid-bosses (one big, slow target hovering in front of the player). */
+export const DPS_UPTIME = 0.85;
+/**
+ * Same for the mid-bosses (by enemy id): escorts and carrier fighters soak part of the fire,
+ * and the bot dodges off their narrower hitboxes. MIDBOSS_UPTIME is the default.
+ */
+export const MIDBOSS_UPTIME_BY_ID: Record<string, number> = {
+  k_frigate: 0.82, v_carrier: 0.9, t_tidewall: 0.51, u_frigate: 0.49, c_carrier: 0.56, g_frigate: 0.84, r_carrier: 1.02, a_frigate: 0.85,
+};
 export const MIDBOSS_UPTIME = 0.75;
 /** A human pilot lands about this share of what the autopilot lands (fights ~25 % longer). */
 export const HUMAN_AIM = 0.8;

@@ -144,8 +144,8 @@ export class HangarScene extends Phaser.Scene {
       kit.panel(this, cx, cy, cw, 17, 'inset').setDepth(MD.content);
       if (this.textures.exists(icon)) this.add.image(cx + 10, cy + 8, icon).setDepth(MD.content).setScale(0.75);
       const ex = extra ? kit.measure(this, extra, 's') + 6 : 0;
-      kit.text(this, cx + 20, cy + 5, kit.fit(name, cw - 26 - ex, 's'), { size: 's', color: COLORS.text, depth: MD.content });
-      if (extra) kit.text(this, cx + cw - 5, cy + 5, extra, { size: 's', color: extraColor, originX: 1, depth: MD.content });
+      kit.text(this, cx + 20, cy + 5, kit.fit(name, cw - 28 - ex, 's'), { size: 's', color: COLORS.text, depth: MD.content });
+      if (extra) kit.text(this, cx + cw - 7, cy + 5, extra, { size: 's', color: extraColor, originX: 1, depth: MD.content });
     };
     chip(x, y, 'ui_icon_front', upper(front?.name ?? l.front), `P${l.frontPower}`, COLORS.teal);
     chip(x + cw + 4, y, 'ui_icon_rear', rear ? upper(rear.name) : 'NO REAR GUN', rear ? `P${l.rearPower}` : '', COLORS.teal);

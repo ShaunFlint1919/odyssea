@@ -35,7 +35,7 @@ export interface ArsenalCore extends AnchorSource {
   readonly fx: FxPool;
   /** Smoke puffs (normal blend, below the shots). */
   readonly smoke: FxPool;
-  /** Muzzle flashes (above the ship). */
+  /** Muzzle flashes (above every other player-fire layer, below the enemy bullets). */
   readonly muzzles: FxPool;
   /** Front-gun muzzle point of the current hull, relative to the ship centre. */
   readonly noseX: number;

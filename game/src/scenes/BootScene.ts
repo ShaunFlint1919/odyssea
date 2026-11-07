@@ -116,7 +116,12 @@ export class BootScene extends Phaser.Scene {
     while (this.next < STEPS.length) {
       const st = STEPS[this.next];
       const t0 = performance.now();
-      st.run(this);
+      try {
+        st.run(this);
+      } catch (e) {
+        // never hang on the loading screen: the scenes fall back on missing textures
+        console.error(`[boot] ${st.label.toLowerCase()} failed:`, e);
+      }
       this.stepMs.push(performance.now() - t0);
       this.next++;
       if (this.next === 1) this.useBitmapFonts();

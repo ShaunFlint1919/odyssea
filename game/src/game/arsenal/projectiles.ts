@@ -23,7 +23,7 @@ import type { FxPool } from './effects';
 import { emberTex, glowTex, smokeTex } from './art';
 import { NO_IMPACT, type ImpactFx } from './looks';
 import type { TexInfo } from './textures';
-import { HALF_PI, TAU } from './scaling';
+import { HALF_PI } from './scaling';
 import { steer } from './steering';
 
 // ---- movement behaviours
@@ -60,9 +60,7 @@ export interface ShotSpec {
   pierce: boolean;
   life: number;         // ms
   rotate: boolean;      // rotate along velocity (art points UP)
-  spin: number;         // rad/s visual spin when !rotate
   quarter: boolean;     // !rotate: random multiple of 90 deg at launch (organic sprites stay crisp)
-  additive: boolean;    // draw the body additively
   hidden: boolean;      // collision only: no sprite (a sibling shot draws the beam)
   halo: TexInfo | null; // additive glow following the shot (tinted `glow`)
   haloAlpha: number;
@@ -99,7 +97,7 @@ export interface ShotSpec {
 export function makeSpec(tex: TexInfo, glow: number, core: number): ShotSpec {
   return {
     tex, frameMs: 0, move: MOVE_STRAIGHT, speed: 600, damage: 1, radius: 3, radiusEnd: 1, splash: 0, pierce: false,
-    life: 1200, rotate: true, spin: 0, quarter: false, additive: false, hidden: false, halo: null, haloAlpha: 0.3, blink: false,
+    life: 1200, rotate: true, quarter: false, hidden: false, halo: null, haloAlpha: 0.3, blink: false,
     glow, core, hit: HIT_SPARK, fx: NO_IMPACT, popOnExpire: false, fadeMs: 0, cull: 0, accel: 0, maxSpeed: 2000, drag: 0,
     turnRate: 0, seekRange: 400, launchMs: 0, amp: 0, omega: 0, splitDist: 0, splitN: 0, splitSpread: 0, shard: null,
     shardTex: null, armMs: 0, driftY: 0, trail: TRAIL_NONE, trailMs: 40, trailTex: null, trailSpread: 0,
@@ -160,8 +158,6 @@ export class Shot implements PlayerShot {
   frame = 0;
   img: Phaser.GameObjects.Image | null = null;
   halo: Phaser.GameObjects.Image | null = null;
-  /** Body tint, WHITE = none. */
-  tint = WHITE;
   // homing
   tx = 0;
   ty = 0;
@@ -197,13 +193,6 @@ export class Shot implements PlayerShot {
   impact(x: number, y: number): void {
     if (this.alive) this.pool.impact(this, x, y);
   }
-
-  /** Tints the body (and halo) of a live shot. */
-  setTint(color: number): void {
-    this.tint = color;
-    if (this.img) this.img.setTint(color);
-    if (this.halo) this.halo.setTint(color);
-  }
 }
 
 const CULL_MARGIN = 28;
@@ -212,7 +201,6 @@ export class ShotPool {
   private readonly live: Shot[] = [];
   private readonly free: Shot[] = [];
   private readonly bodies: ImageGroup;
-  private readonly bodiesAdd: ImageGroup;
   private readonly halos: ImageGroup;
   private readonly host: ArsenalHost;
   private readonly dummy: ShotSpec;
@@ -236,7 +224,6 @@ export class ShotPool {
     // Images are pre-created for a typical peak (the groups grow on demand); Shot objects for `initial`.
     this.halos = new ImageGroup(env, d - 0.2, Phaser.BlendModes.ADD, Math.ceil(initial * 0.2), init.key);
     this.bodies = new ImageGroup(env, d, Phaser.BlendModes.NORMAL, Math.ceil(initial * 0.5), init.key);
-    this.bodiesAdd = new ImageGroup(env, d + 0.1, Phaser.BlendModes.ADD, Math.ceil(initial * 0.2), init.key);
     for (let i = 0; i < initial; i++) this.free.push(new Shot(this, this.dummy));
   }
 
@@ -267,7 +254,6 @@ export class ShotPool {
     s.armMs = spec.armMs;
     s.age = 0;
     s.life = spec.life;
-    s.tint = WHITE;
     s.hasTarget = false;
     s.retarget = 0;
     s.baseX = x;
@@ -283,11 +269,10 @@ export class ShotPool {
     s.img = null;
     s.halo = null;
     if (!spec.hidden) {
-      const img = (spec.additive ? this.bodiesAdd : this.bodies).take(tex.key, tex.first);
+      const img = this.bodies.take(tex.key, tex.first);
       img.x = x;
       img.y = y;
-      img.rotation = spec.rotate ? Math.atan2(s.vy, s.vx) + HALF_PI
-        : spec.spin !== 0 ? Math.random() * TAU : spec.quarter ? ((Math.random() * 4) | 0) * HALF_PI : 0;
+      img.rotation = spec.rotate ? Math.atan2(s.vy, s.vx) + HALF_PI : spec.quarter ? ((Math.random() * 4) | 0) * HALF_PI : 0;
       s.img = img;
       if (spec.halo) {
         const h = this.halos.take(spec.halo.key);
@@ -332,7 +317,7 @@ export class ShotPool {
     const sp = s.spec;
     const f = sp.fx;
     const fx = this.fx;
-    const glow = s.tint !== WHITE ? s.tint : sp.glow;
+    const glow = sp.glow;
     s.x = x;
     s.y = y;
     if (sp.hit === HIT_BLAST && f.blast) fx.play(f.blast, x, y, f.blastMs);
@@ -356,17 +341,16 @@ export class ShotPool {
       const c = this.fire(child, s.x, s.y, a + (Math.random() - 0.5) * 0.05, tex);
       c.ownReg.copyFrom(s.reg);
       if (fromImpact && c.armMs < 70) c.armMs = 70; // clear the struck enemy first
-      if (!hues && s.tint !== WHITE) c.setTint(s.tint);
     }
     const f = sp.fx;
-    if (f.flash) this.fx.play(f.flash, s.x, s.y, f.flashMs, s.tint !== WHITE ? s.tint : sp.glow, f.flashAlpha);
+    if (f.flash) this.fx.play(f.flash, s.x, s.y, f.flashMs, sp.glow, f.flashAlpha);
     if (f.spark) this.fx.play(f.spark, s.x, s.y, f.sparkMs);
   }
 
   private kill(s: Shot): void {
     if (!s.alive) return;
     s.alive = false;
-    if (s.img) (s.spec.additive ? this.bodiesAdd : this.bodies).give(s.img);
+    if (s.img) this.bodies.give(s.img);
     if (s.halo) this.halos.give(s.halo);
     s.img = null;
     s.halo = null;
@@ -496,7 +480,6 @@ export class ShotPool {
         img.x = s.x;
         img.y = s.y;
         if (sp.rotate) img.rotation = Math.atan2(s.vy, s.vx) + HALF_PI;
-        else if (sp.spin !== 0) img.rotation += sp.spin * dt;
         const tex = s.tex;
         if (tex.frames > 1) {
           const f = sp.frameMs > 0 ? ((s.age / sp.frameMs) | 0) % tex.frames : Math.min(tex.frames - 1, ((s.age * tex.frames) / s.life) | 0);
@@ -565,7 +548,6 @@ export class ShotPool {
   destroy(): void {
     this.clear();
     this.bodies.destroy();
-    this.bodiesAdd.destroy();
     this.halos.destroy();
     this.free.length = 0;
   }

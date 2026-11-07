@@ -7,7 +7,7 @@
 //  changes and moves the few that have a velocity or follow an anchor. No Phaser anims,
 //  no per-frame scale / alpha writes, nothing allocates after warm-up. One pool = one
 //  fixed depth + blend mode (impacts: additive above the shots; smoke: normal below them;
-//  muzzles: additive above the ship).
+//  muzzles: additive above the impacts; all of them below the enemy bullets in game).
 // =====================================================================================
 import Phaser from 'phaser';
 import { ImageGroup, type AnchorSource, type ArsenalEnv } from './env';

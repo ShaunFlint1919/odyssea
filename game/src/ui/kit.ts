@@ -37,22 +37,49 @@ export type FontSize = 's' | 'm' | 'l';
 const FONT_KEY: Record<FontSize, string> = { s: FONT.s, m: FONT.m, l: FONT.l };
 const FONT_CELL: Record<FontSize, [number, number]> = { s: [6, 8], m: [8, 10], l: [12, 16] };
 
-type LeavingScene = Phaser.Scene & { __leaving?: boolean; __inputAt?: number };
+type LeavingScene = Phaser.Scene & { __leaving?: boolean; __inputAt?: number; __settleUntil?: number };
 /** True while goto() fades the scene out (input is ignored until the next scene starts). */
 export const isLeaving = (scene: Phaser.Scene): boolean => !!(scene as LeavingScene).__leaving;
 
+// ---- transition guard: a double tap or a mashed key on one screen must never land on the next
+// one (e.g. CONTINUE on the results, then LAUNCH MISSION in the hangar by accident).
+/** Input stays locked until this long after the goto() that opened a screen (fade-out included). */
+const TRANSITION_LOCK_MS = 450;
+/** For this long after a goto(), confirm presses closer than MASH_GAP_MS to the previous one are a mash. */
+const SETTLE_MS = 1200;
+const MASH_GAP_MS = 200;
+let lastGotoAt = -Infinity;
+/** Times of the last two confirm presses (Enter / Space / NumpadEnter keydown, pointerdown). */
+const confirmAt = [-Infinity, -Infinity];
+let guardInstalled = false;
+
+function installInputGuard(): void {
+  if (guardInstalled || typeof window === 'undefined') return;
+  guardInstalled = true;
+  const note = () => { confirmAt[0] = confirmAt[1]; confirmAt[1] = performance.now(); };
+  window.addEventListener('keydown', (e) => {
+    if (!e.repeat && (e.code === 'Enter' || e.code === 'Space' || e.code === 'NumpadEnter')) note();
+  }, true);
+  window.addEventListener('pointerdown', note, true);
+}
+
 /**
- * (added) True while a scene must ignore taps / keys / back: during goto()'s fade-out, and for
- * the entrance lock set by fadeIn() / holdInput() — so a double tap or a mashed key on one
- * screen never lands on the next one (e.g. CONTINUE, then LAUNCH MISSION by accident).
+ * (added) True while a scene must ignore taps / keys / back: during goto()'s fade-out, during
+ * the entrance lock set by fadeIn() / holdInput(), and — shortly after a goto() — while the
+ * player is still mashing confirm (presses < 200 ms apart); a deliberate press after a short
+ * pause goes through.
  */
 export function inputBlocked(scene: Phaser.Scene): boolean {
   const s = scene as LeavingScene;
-  return !!s.__leaving || (s.__inputAt !== undefined && performance.now() < s.__inputAt);
+  if (s.__leaving) return true;
+  const now = performance.now();
+  if (s.__inputAt !== undefined && now < s.__inputAt) return true;
+  return s.__settleUntil !== undefined && now < s.__settleUntil && confirmAt[1] - confirmAt[0] < MASH_GAP_MS;
 }
 
-/** (added) Ignore the scene's input for `ms` from now (fadeIn() does it for its duration, max 220 ms). */
+/** (added) Ignore the scene's input for `ms` from now (fadeIn() calls it). */
 export function holdInput(scene: Phaser.Scene, ms: number): void {
+  installInputGuard();
   (scene as LeavingScene).__inputAt = performance.now() + Math.max(0, ms);
 }
 
@@ -1476,8 +1503,11 @@ export function onBackIf(scene: Phaser.Scene, cb: () => boolean): void {
 
 /** Fade the scene in (call at the start of create()); input is locked while it is still dark. */
 export function fadeIn(scene: Phaser.Scene, ms = 180): void {
-  (scene as LeavingScene).__leaving = false;
-  holdInput(scene, Math.min(ms, 220));
+  const s = scene as LeavingScene;
+  s.__leaving = false;
+  const now = performance.now();
+  holdInput(scene, Math.max(Math.min(ms, 220), lastGotoAt + TRANSITION_LOCK_MS - now));
+  s.__settleUntil = now - lastGotoAt < 1000 ? now + SETTLE_MS : undefined;
   scene.cameras.main.fadeIn(ms, 5, 4, 10);
 }
 
@@ -1486,6 +1516,7 @@ export function goto(scene: Phaser.Scene, key: SceneKey | string, data?: object,
   const s = scene as LeavingScene;
   if (s.__leaving) return;
   s.__leaving = true;
+  lastGotoAt = performance.now();
   const cam = scene.cameras.main;
   const input = scene.input;
   const kb = input.keyboard;

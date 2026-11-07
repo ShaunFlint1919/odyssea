@@ -14,7 +14,7 @@
 //            column sweeps with the drone for 450 ms; hidden collision segments every 18 px
 //            share one hit registry, so each enemy takes `damage` once per discharge
 //  Big glows (charge, ward) are drawn just above the player shots, i.e. BELOW the enemy
-//  bullets (readability rule); only the drone sprites and muzzles sit at the ship depth.
+//  bullets (readability rule); only the drone sprites sit at the ship depth.
 // =====================================================================================
 import Phaser from 'phaser';
 import type { ShotColor, SfxKey, SidekickDef } from '../../types';
