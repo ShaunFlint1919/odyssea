@@ -39,11 +39,10 @@ export class Ship {
 
   private readonly sprite: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Image;
-  /** One engine flame per nozzle (HULL_MOUNTS), merged when nozzles nearly touch. */
+  /** One engine flame per nozzle (HULL_MOUNTS). */
   private readonly flames: Phaser.GameObjects.Image[] = [];
   private readonly flameDX: number[] = [];
   private readonly flameDY: number[] = [];
-  private flameSX = 1;
   private readonly bubble: Phaser.GameObjects.Image;
   private readonly flameAnim: FrameAnim;
   private readonly frames: number;
@@ -77,20 +76,11 @@ export class Ship {
     if (shadowTex === key) this.shadow.setTintFill(0x000000).setAlpha(0.4);
     this.shadow.setVisible(w.shadows);
     this.flameAnim = new FrameAnim(scene, ANIM.engine, 'fx_engine', 'glow', 18, true);
+    // one fx_engine flame per nozzle (HULL_MOUNTS, px from the hull centre), hanging from its top row
     const engines = HULL_MOUNTS[hull.id]?.engines ?? [[0, 13]];
-    let minX = Infinity, maxX = -Infinity, minGap = Infinity;
-    for (const [ex] of engines) { minX = Math.min(minX, ex); maxX = Math.max(maxX, ex); }
-    for (let i = 1; i < engines.length; i++) minGap = Math.min(minGap, Math.abs(engines[i][0] - engines[i - 1][0]));
-    if (maxX - minX <= 6) {
-      // nozzles closer than a flame width: one wider flame between them
-      let sy = 0;
-      for (const [, ey] of engines) sy += ey;
-      this.flameDX.push((minX + maxX) / 2);
-      this.flameDY.push(sy / engines.length);
-      this.flameSX = 1 + (maxX - minX) / 10;
-    } else {
-      for (const [ex, ey] of engines) { this.flameDX.push(ex); this.flameDY.push(ey); }
-      this.flameSX = Math.min(1, minGap / 7);
+    for (const [ex, ey] of engines) {
+      this.flameDX.push(ex);
+      this.flameDY.push(ey);
     }
     for (let i = 0; i < this.flameDX.length; i++) {
       this.flames.push(scene.add.image(this.x, this.y + 15, this.flameAnim.keys[0], this.flameAnim.frames[0])
@@ -255,7 +245,7 @@ export class Ship {
     for (let i = 0; i < this.flames.length; i++) {
       const f = this.flames[i];
       this.flameAnim.apply(f, (fi + i) % this.flameAnim.length);
-      f.setPosition(rx + this.flameDX[i], ry + this.flameDY[i]).setScale(this.flameSX, boost * (0.9 + 0.2 * ((fi + i + 1) % 2)));
+      f.setPosition(rx + this.flameDX[i], ry + this.flameDY[i]).setScale(1, boost * (0.9 + 0.2 * ((fi + i + 1) % 2)));
     }
     if (this.bubbleA > 0) {
       this.bubbleA = Math.max(0, this.bubbleA - dt * 4);
